@@ -127,3 +127,30 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+*.swp
+*.pyc
+*.bib.bak
+__pycache__
+.tox
+docs/build/
+.ipynb_checkpoints/
+*.egg-info
+htmlcov
+coverage.xml
+.coverage*
+.pytest_cache
+node_modules
+build
+dist
+*.AppImage
+dask-worker-space
+AppDir
+Miniconda3-latest-Linux-x86_64.sh
+MANIFEST
+.vscode
+pip-wheel-metadata
+data
+*Thumbs.db
+*.DS_Store
+*.idea
