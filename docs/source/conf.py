@@ -28,7 +28,7 @@ sys.path.insert(
     )
 )
 
-import libertem
+import ptychography
 
 # -- Project information -----------------------------------------------------
 

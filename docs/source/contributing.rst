@@ -248,7 +248,7 @@ the live building process:
 
     $ tox -e docs
 
-You can then view a live-built version at http://localhost:8008
+You can then view a live-built version at http://localhost:8009
 
 You can include code samples with the `doctest sphinx extension
 <https://www.sphinx-doc.org/en/master/usage/extensions/doctest.html>`_ and test
