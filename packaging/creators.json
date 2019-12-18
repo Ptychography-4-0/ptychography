@@ -1,10 +1,42 @@
 [
+    {
+        "displayname": "Heide Meissner",
+        "authorname": "Meissner, Heide",
+        "affiliation": "HZDR",
+        "github": "heidemeissner",
+        "contribution": "Member of Ptychography 4.0"
+    },
+    {
+        "displayname": "Simeon Ehrig",
+        "authorname": "Ehrig, Simeon",
+        "affiliation": "HZDR",
+        "github": "SimeonEhrig",
+        "contribution": "Member of Ptychography 4.0"
+    },
+    {
+        "displayname": "Murali Sukumaran",
+        "authorname": "Sukumaran, Murali",
+        "affiliation": "HZM",
+        "contribution": "Member of Ptychography 4.0"
+    },
+    {
+        "displayname": "Markus Wollgarten",
+        "authorname": "Wollgarten, Markus",
+        "affiliation": "HZB",
+        "contribution": "Member of Ptychography 4.0"
+    },
+    {
+        "displayname": "Anastasiia Lesnichaia",
+        "authorname": "Lesnichaia, Anastasiia",
+        "affiliation": "FZ J\u00fclich",
+        "contribution": "Member of Ptychography 4.0, prototyping for scalable implementation of Single Side Band ptychography, WIP"
+    },
     {            
         "displayname": "Alexander Clausen",
         "authorname": "Clausen, Alexander",
         "affiliation": "Jülich Research Centre",
         "github": "sk1p",
-        "contribution": "TODO",
+        "contribution": "Member of Ptychography 4.0, LiberTEM",
         "orcid": "0000-0002-9555-7455"
     }, 
     {
@@ -12,14 +44,14 @@
         "authorname": "Weber, Dieter",
         "affiliation": "Jülich Research Centre",
         "github": "uellue",
-        "contribution": "TODO",
+        "contribution": "Member of Ptychography 4.0, LiberTEM, prototyping for scalable implementation of Single Side Band ptychography",
         "orcid": "0000-0001-6635-9567"
     },
     {
         "displayname": "Knut Müller-Caspary",
         "authorname": "Müller-Caspary, Knut",
         "affiliation": "Jülich Research Centre",
-        "contribution": "TODO",
+        "contribution": "Member of Ptychography 4.0",
         "orcid": "0000-0002-2588-7993"
     },
     {
@@ -28,5 +60,17 @@
         "affiliation": "Jülich Research Centre",
         "contribution": "TODO",
         "orcid": "0000-0001-8082-0647"
+    },
+    {
+        "displayname": "Penghan Lu",
+        "authorname": "Lu, Penghan",
+        "affiliation": "FZ J\u00fclich",
+        "contribution": "Member of Ptychography 4.0"
+    },
+    {
+        "displayname": "Wolfgang zu Castell",
+        "authorname": "zu Castell, Wolfgang",
+        "affiliation": "HZM",
+        "contribution": "Member of Ptychography 4.0"
     }
 ]

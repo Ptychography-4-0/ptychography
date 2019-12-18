@@ -137,6 +137,7 @@ setup(
         "numpy",
         "scipy",
         "sparse",
+        "libertem",
         "click",
         "matplotlib",
         "h5py",
