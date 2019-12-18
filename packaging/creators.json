@@ -1,0 +1,32 @@
+[
+    {            
+        "displayname": "Alexander Clausen",
+        "authorname": "Clausen, Alexander",
+        "affiliation": "Jülich Research Centre",
+        "github": "sk1p",
+        "contribution": "TODO",
+        "orcid": "0000-0002-9555-7455"
+    }, 
+    {
+        "displayname": "Dieter Weber",
+        "authorname": "Weber, Dieter",
+        "affiliation": "Jülich Research Centre",
+        "github": "uellue",
+        "contribution": "TODO",
+        "orcid": "0000-0001-6635-9567"
+    },
+    {
+        "displayname": "Knut Müller-Caspary",
+        "authorname": "Müller-Caspary, Knut",
+        "affiliation": "Jülich Research Centre",
+        "contribution": "TODO",
+        "orcid": "0000-0002-2588-7993"
+    },
+    {
+        "displayname": "Rafal Dunin-Borkowski",
+        "authorname": "Dunin-Borkowski, Rafal",
+        "affiliation": "Jülich Research Centre",
+        "contribution": "TODO",
+        "orcid": "0000-0001-8082-0647"
+    }
+]

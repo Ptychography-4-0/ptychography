@@ -1,0 +1,50 @@
+[
+    {
+        "displayname": "Wolfgang zu Castell",
+        "authorname": "zu Castell, Wolfgang",
+        "affiliation": "HZM",
+        "contribution": "Member of Ptychography 4.0"
+    },
+    {
+        "displayname": "Christoph Koch",
+        "authorname": "Koch, Christoph",
+        "affiliation": "HU Berlin",
+        "contribution": "Discussions"
+    },
+    {
+        "displayname": "Anastasiia Lesnichaia",
+        "authorname": "Lesnichaia, Anastasiia",
+        "affiliation": "FZ J\u00fclich",
+        "contribution": "Member of Ptychography 4.0, Prototyping for scalable implementation of Single Side Band ptychography, WIP"
+    },
+    {
+        "displayname": "Penghan Lu",
+        "authorname": "Lu, Penghan",
+        "affiliation": "FZ J\u00fclich",
+        "contribution": "Member of Ptychography 4.0"
+    },
+    {
+        "displayname": "Heide Meissner",
+        "authorname": "Meissner, Heide",
+        "affiliation": "HZDR",
+        "contribution": "Member of Ptychography 4.0"
+    },
+    {
+        "displayname": "Johannes Müller",
+        "authorname": "Müller, Johannes",
+        "affiliation": "HU Berlin",
+        "contribution": "Discussions"
+    },
+    {
+        "displayname": "Murali Sukumaran",
+        "authorname": "Sukumaran, Murali",
+        "affiliation": "HZM",
+        "contribution": "Member of Ptychography 4.0"
+    },
+    {
+        "displayname": "Markus Wollgarten",
+        "authorname": "Wollgarten, Markus",
+        "affiliation": "HZB",
+        "contribution": "Member of Ptychography 4.0"
+    },
+]
