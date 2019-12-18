@@ -67,7 +67,7 @@ jobs:
       install:
         - pip install click pygithub requests twine html5lib docutils bibtexparser
       script:
-        - python scripts/release upload --pypi-test-user=libertem_bot --pypi-user=libertem_bot --no-dry-run
+        - python scripts/release upload --pypi-test-user=ptychography_bot --pypi-user=ptychography_bot --no-dry-run
 
 branches:
   except:

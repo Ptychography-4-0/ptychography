@@ -13,7 +13,7 @@ Open Source software development as a form of scientific work.
 
 Following established practices for scientific papers, we distinguish between
 creators, who are persons that contributed in a way that establishes
-co-authorship of LiberTEM, and contributors, who are persons that contributed in
+co-authorship of Ptychography 4.0, and contributors, who are persons that contributed in
 other ways, for example through discussions or help.
 
 Creators are persons who

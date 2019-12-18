@@ -29,7 +29,7 @@ BASE_URL = ''
 VERBOSE = False
 
 CONF = os.path.join(BASE_DIR, 'packaging/zenodo-upload.json')
-bibtexfile = os.path.join(BASE_DIR, 'docs/source/references-libertem.bib')
+bibtexfile = os.path.join(BASE_DIR, 'docs/source/references-ptychography.bib')
 readmefile = os.path.join(BASE_DIR, 'README.rst')
 creatorsfile = os.path.join(BASE_DIR, 'packaging/creators.json')
 contributorsfile = os.path.join(BASE_DIR, 'packaging/contributors.json')

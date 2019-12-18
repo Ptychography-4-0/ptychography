@@ -47,7 +47,7 @@ class CopyClientCommand(distutils.cmd.Command):
     def run(self):
         cwd = os.path.dirname(__file__)
         cwd_client = os.path.join(cwd, 'client')
-        client = os.path.join(cwd, 'src', 'libertem', 'web', 'client')
+        client = os.path.join(cwd, 'src', 'ptychography', 'web', 'client')
 
         self.announce(
             "preparing output directory: %s" % client,
@@ -94,7 +94,7 @@ def remove_rst_roles(txt):
 
 
 def get_git_rev():
-    # NOTE: this is a copy from src/libertem/versioning.py
+    # NOTE: this is a copy from src/ptychography/versioning.py
     # this is because it is not guaranteed that we can import our own packages
     # from setup.py AFAIK
     try:
@@ -106,7 +106,7 @@ def get_git_rev():
 
 
 def write_baked_revision(base_dir):
-    dest_dir = os.path.join(base_dir, 'libertem')
+    dest_dir = os.path.join(base_dir, 'ptychography')
     baked_dest = os.path.join(dest_dir, '_baked_revision.py')
     mkpath(dest_dir)
 
@@ -146,10 +146,6 @@ setup(
         # Ensure compatibility with numpy 1.17
         "numba>=0.46",
         'pywin32!=226;platform_system=="Windows"',
-        # FIXME pull request #259
-        # https://github.com/LiberTEM/LiberTEM/pull/259#discussion_r251877431
-        'scikit-image',
-        'cloudpickle',
         'scikit-learn',
     ],
     extras_require={

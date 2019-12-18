@@ -1,64 +1,10 @@
 Tips and tricks
 ===============
 
-.. _`ssh forwarding`:
+LiberTEM tips
+-------------
 
-Using SSH forwarding
---------------------
-
-To securely connect to a remote instance of LiberTEM, you can use SSH
-forwarding. For example with conda:
-
-.. code-block:: shell
-
-     $ ssh -L 9000:localhost:9000 <remote-hostname> "source activate libertem; libertem-server"
-
-Or, with virtualenv:
-
-.. code-block:: shell
-
-     $ ssh -L 9000:localhost:9000 <remote-hostname> "/path/to/virtualenv/bin/libertem-server"
-
-This makes LiberTEM, which is running on `remote-hostname`, available on your
-local host via http://localhost:9000/
-
-
-Running LiberTEM from an embedded interpreter
----------------------------------------------
-
-If LiberTEM is run from within an embedded interpreter, the following steps
-should be taken. This is necessary for Python scripting in Digital Micrograph,
-for example.
-
-The variable :code:`sys.argv` `may not be set in embedded interpreters
-<https://bugs.python.org/issue32573>`_, but it is expected by the
-:code:`multiprocessing` module when spawning new processes. This workaround
-guarantees that :code:`sys.argv` is set `until this is fixed upstream
-<https://github.com/python/cpython/pull/12463>`_:
-
-.. testsetup::
-
-    import sys
-
-.. testcode::
-
-    if not hasattr(sys, 'argv'):
-        sys.argv  = []
-
-Furthermore, the `correct executable for spawning subprocesses
-<https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_executable>`_
-has to be set.
-
-.. testsetup::
-
-    import multiprocessing
-    import sys
-    import os
-
-.. testcode::
-
-    multiprocessing.set_executable(
-        os.path.join(sys.exec_prefix, 'pythonw.exe'))  # Windows only
+See `LiberTEM tips and tricks <https://libertem.github.io/LiberTEM/tips.html>`_!
 
 Profiling long-running tests
 ----------------------------
@@ -73,8 +19,9 @@ for details. If you are using :code:`pytest` directly, you can use the
 
 .. code-block:: text
 
-    (libertem) $ pytest --durations=10 tests/
+    (ptychography) $ pytest --durations=10 tests/
     (...)
+    # FIXME update with real ptychography example
     ================= slowest 10 test durations =============================
     31.61s call     tests/udf/test_blobfinder.py::test_run_refine_affinematch
     17.08s call     tests/udf/test_blobfinder.py::test_run_refine_sparse
@@ -98,7 +45,7 @@ use it to profile individual slow tests that you identified before:
 
 .. code-block:: text
 
-    (libertem) $ pytest --profile tests/udf/test_blobfinder.py::test_run_refine_affinematch
+    (ptychography) $ pytest --profile tests/udf/test_blobfinder.py::test_run_refine_affinematch
     (...)
     749921 function calls (713493 primitive calls) in 5.346 seconds
 

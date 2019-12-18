@@ -5,7 +5,7 @@ Contributing
 
 Ptychography 4.0 is intended and designed as a collaboratively developed platform for
 data analysis. That means all our development is coordinated openly, mostly on
-our `GitHub repository <https://github.com/LiberTEM/LiberTEM/>`_ where our code
+our `GitHub repository <https://github.com/Ptychography-4-0/ptychography/>`_ where our code
 is hosted. Any suggestions, Issues, bug reports, discussions and code
 contributions are highly appreciated! Please let us know if you think we can
 improve on something, be it code, communication or other aspects.
@@ -14,7 +14,7 @@ Development principles
 ----------------------
 
 We have a `rather extensive and growing list of things to work on
-<https://github.com/LiberTEM/LiberTEM/issues>`_ and therefore have to prioritize
+<https://github.com/Ptychography-4-0/ptychography/issues>`_ and therefore have to prioritize
 our limited resources to work on items with the largest benefit for our user
 base and project. Supporting users who contribute code is most important to us.
 Please contact us for help! Furthermore, we prioritize features that create
@@ -51,7 +51,7 @@ on how to check if your new code is covered by tests.
 To make sure our code base stays readable, we follow a `Code Style`_.
 
 Please update ``packaging/creators.json`` with your author information when you
-contribute to LiberTEM for the first time. This helps us to keep track of all
+contribute to Ptychography 4.0 for the first time. This helps us to keep track of all
 contributors and give credit where credit is due! Please let us know if you
 wouldn't like to be credited. Our :ref:`authorship` describes in more detail how
 we manage authorship of Ptychography 4.0 and related material.
@@ -88,7 +88,7 @@ update upon introducing or changing a feature:
 * Examples
 * Main Documentation
 
-When you have submitted your pull request, someone from the LiberTEM
+When you have submitted your pull request, someone from the Ptychography 4.0
 organization will review your pull request, and may add comments or ask
 questions. If everything is good to go, your changes will be merged and you can
 delete the branch you created for the pull request.
@@ -125,13 +125,13 @@ To make this work, first install the test requirements into your virtualenv:
 
 .. code-block:: shell
 
-   (libertem) $ pip install -r test_requirements.txt
+   (ptychography) $ pip install -r test_requirements.txt
 
 Now you can run pytest on a subset of tests, for example:
 
 .. code-block:: shell
 
-   (libertem) $ pytest tests/test_analysis_masks.py
+   (ptychography) $ pytest tests/test_analysis_masks.py
 
 See the `pytest documentation
 <https://docs.pytest.org/en/latest/usage.html#specifying-tests-selecting-tests>`_
@@ -179,9 +179,9 @@ On Windows
 On Windows with Anaconda, you have to create named aliases for the Python
 interpreter before you can run :literal:`tox` so that tox finds the python
 interpreter where it is expected. Assuming that you run Ptychography 4.0 with Python
-3.6, place the following file as :literal:`python3.6.bat` in your LiberTEM conda
+3.6, place the following file as :literal:`python3.6.bat` in your ptychography conda
 environment base folder, typically
-:literal:`%LOCALAPPDATA%\\conda\\conda\\envs\\libertem\\`, where the
+:literal:`%LOCALAPPDATA%\\conda\\conda\\envs\\ptychography\\`, where the
 :literal:`python.exe` of that environment is located.
 
 .. code-block:: bat
@@ -195,9 +195,11 @@ To execute tests with Python 3.7, you create a new environment with Python 3.7:
 
 .. code-block:: shell
 
-    > conda create -n libertem-3.7 python=3.7
+    > conda create -n ptychography-3.7 python=3.7
     
-Now you can create :literal:`python3.7.bat` in your normal LiberTEM environment alongside :literal:`python3.6.bat` and make it execute the Python interpreter of your new libertem-3.7 environment:
+Now you can create :literal:`python3.7.bat` in your normal ptychography environment
+alongside :literal:`python3.6.bat` and make it execute the Python interpreter of
+your new ptychography-3.7 environment:
 
 .. code-block:: bat
 
@@ -205,7 +207,7 @@ Now you can create :literal:`python3.7.bat` in your normal LiberTEM environment 
     REM @echo off is vital so that the file doesn't clutter the output
     REM execute python.exe in a different environment 
     REM with the same command line
-    @%LOCALAPPDATA%\conda\conda\envs\libertem-3.7\python.exe %*
+    @%LOCALAPPDATA%\conda\conda\envs\ptychography-3.7\python.exe %*
 
 See also: https://tox.readthedocs.io/en/latest/developers.html#multiple-python-versions-on-windows
 
