@@ -20,4 +20,5 @@
 - accuracy?
 - robustness to noise?
 - convergence to correct / unique solution?
+- applicability to interactive measurements ("online reconstruction")?
 
