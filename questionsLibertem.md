@@ -1,0 +1,5 @@
+- performance tests?
+- fexible data pipeline?
+- organisation of I/O
+- load balancing
+- generalizable?
