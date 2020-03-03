@@ -60,10 +60,10 @@ class SSB_UDF(UDF):
         intermediate_result = masks.dot(tile_flat.T)
 
         result = np.zeros(intermediate_result.shape[0], dtype=np.complex128)
-        k = range(tile_slice_i, tile_slice_i + tile_flat.shape[0])
+        current_tile_index = range(tile_slice_i, tile_slice_i + tile_flat.shape[0])
         j = np.ogrid[0:Nblock[0]*Nblock[1]]
 
-        for i in k:
+        for i in current_tile_index:
 
             m_n = divmod(i, Nblock[0])
             k_l = divmod(j, Nblock[1])
