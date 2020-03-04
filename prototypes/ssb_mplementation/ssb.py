@@ -22,7 +22,8 @@ def main():
         "raw", path=path, dtype="float32",
         scan_size=shape[:2], detector_size=shape[-2:]
     )
-    result = ctx.run_udf(udf=SSB_UDF(), dataset=data_s)
+    udf = SSB_UDF(dpix=0.5654/50*1e-9, semiconv=25e-3, semiconv_pix=78.6649, lamb=1.96e-12)
+    result = ctx.run_udf(udf=udf, dataset=data_s)
     fig, axes = plt.subplots(1, 2)
     axes[0].imshow(np.abs(result['pixelsum']), norm=LogNorm())
     axes[1].imshow(np.angle(np.fft.ifft2(result['pixelsum'])))
@@ -32,14 +33,34 @@ def main():
 
 class SSB_UDF(UDF):
 
+    def __init__(self, dpix, semiconv, semiconv_pix, lamb):
+        '''
+        Parameters
+
+        dpix: float
+            The size of unit cell (SI) or the pixel size/length
+
+        semiconv: float
+            The maximum angle (mrad or rad?)
+
+        semiconv_pix: float
+            The probe radius (?)
+
+        lamb: float
+            The electron incident wavelength (SI)
+        '''
+        super().__init__(dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix, lamb=lamb)
+
     def get_result_buffers(self):
+
         return {
             'pixelsum': self.buffer(
-                kind="single", dtype="complex128", extra_shape=(50, 50,)
+                kind="single", dtype="complex128", extra_shape=(self.meta.dataset_shape[0:2])
              )
         }
 
     def merge(self, dest, src):
+
         dest['pixelsum'][:] = dest['pixelsum'] + src['pixelsum']
 
     def process_tile(self, tile):
@@ -81,10 +102,10 @@ class SSB_UDF(UDF):
         Nblock = np.array(self.meta.dataset_shape[0:2])
         Nscatter = np.array(self.meta.dataset_shape[2:4])
 
-        dpix = 0.5654/50*1e-9
-        semiconv = 25e-3
-        semiconv_pix = 78.6649
-        lamb = 1.96e-12
+        dpix = self.params.dpix
+        semiconv = self.params.semiconv
+        semiconv_pix = self.params.semiconv_pix
+        lamb = self.params.lamb
         d_Kf = np.sin(semiconv)/lamb/semiconv_pix
         d_Qp = 1/dpix/Nblock
         cy, cx = np.array(self.meta.dataset_shape)[-2:]//2
@@ -95,10 +116,10 @@ class SSB_UDF(UDF):
         size = self.meta.dataset_shape
         masks = np.zeros(size, dtype=np.float32)
 
-        m = 0
-        for n in range(Nblock[1]):
+        row = 0
+        for column in range(Nblock[1]):
 
-            qp = np.array((m, n))
+            qp = np.array((row, column))
             flip = qp > Nblock / 2
             real_qp = qp.copy()
             real_qp[flip] = qp[flip] - Nblock[flip]
@@ -119,20 +140,20 @@ class SSB_UDF(UDF):
                 axis=0
             )
 
-            n1 = 2*np.count_nonzero(mask_positive)
-            if n1 > 0 and n > 0:
-                masks[0, n] = np.subtract(mask_positive.astype(np.float32),
-                                          mask_negative.astype(np.float32))/n1
+            nonzero_masks = 2*np.count_nonzero(mask_positive)
+            if nonzero_masks > 0 and column > 0:
+                masks[row, column] = np.subtract(mask_positive.astype(np.float32),
+                                          mask_negative.astype(np.float32))/nonzero_masks
             else:
-                boundary_2 = n + 1
-                boundary_1 = Nblock[0] - boundary_2 + 1
+                boundary_2 = column + 1
+                boundary_1 = Nblock[1] - boundary_2 + 1
 
-        cm = list(range(1, boundary_1))
-        cn = list(range(boundary_1))+list(range(boundary_2, Nblock[0]))
+        nonzero_rows = list(range(1, boundary_1))
+        nonzero_columns = list(range(boundary_1))+list(range(boundary_2, Nblock[1]))
 
-        for m in cm:
-            for n in cn:
-                qp = np.array((m, n))
+        for row in nonzero_rows:
+            for column in nonzero_columns:
+                qp = np.array((row, column))
                 flip = qp > Nblock / 2
                 real_qp = qp.copy()
                 real_qp[flip] = qp[flip] - Nblock[flip]
@@ -156,7 +177,7 @@ class SSB_UDF(UDF):
 
                 nonzero_masks = 2*np.count_nonzero(mask_positive)
                 if nonzero_masks > 0:
-                    masks[m, n] = (
+                    masks[row, column] = (
                         np.subtract(mask_positive.astype(np.float32),
                                     mask_negative.astype(np.float32))/nonzero_masks
                     )
