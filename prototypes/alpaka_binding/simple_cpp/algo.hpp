@@ -1,75 +1,89 @@
 #pragma once
 
-template <typename DATA_T, // type of the data
-	  typename SIZE_T> // type of the data size
-class Algo {
-private:
-  bool m_init = false;
-  SIZE_T m_size;
+#include <iostream>
 
-  // the test algorithm use an input buffer as source and an output buffer as destination
-  DATA_T *m_input_data = nullptr;
-  DATA_T *m_output_data = nullptr;
+template<typename DATA_T, // type of the data
+	 typename SIZE_T> // type of the data size
+class Algo {
+public:
+  // the IOBuffer memory object is necessary for the numpy binding
+  struct IOBuffer {
+  private:
+    SIZE_T m_size;
+    DATA_T * m_data;
+
+  public:
+    IOBuffer(SIZE_T size) : m_size(size), m_data(new DATA_T[m_size]) {}
+
+    DATA_T* data() { return m_data; }
+    SIZE_T get_size() const { return m_size; }
+
+    ~IOBuffer(){
+      delete[] m_data;
+    }
+
+    DATA_T& operator[](SIZE_T i){
+      return m_data[i];
+    }
+  };
+
+private:
+  SIZE_T m_size;
+  bool m_init = false;
 
 public:
-  Algo(SIZE_T size) : m_size(size) {}
+  // the test algorithm use an input buffer as source and an output buffer as destination
+  IOBuffer * m_input = nullptr;
+  IOBuffer * m_output = nullptr;
 
-  ~Algo(){
-    if(m_init)
-      deinit();
-  }
+  Algo(SIZE_T length) : m_size(length) {}
 
   // allocate memory
   bool init() {
-    if(m_init) {
-      return false;
-    } else {
-      m_input_data = new DATA_T[m_size];
-      m_output_data = new DATA_T[m_size];
+    if (!m_init){
+      m_input = new IOBuffer(m_size);
+      m_output = new IOBuffer(m_size);
       m_init = true;
       return true;
+    } else {
+      return false;
     }
   }
 
   // deallocate memory
   bool deinit() {
-    if(m_init) {
-      delete[] m_input_data;
-      delete[] m_output_data;
-      m_init = true;
+    if (m_init) {
+      delete m_input;
+      delete m_output;
+      m_init = false;
       return true;
     } else {
       return false;
     }
   }
 
-  // return the size of the 1D arrays
-  SIZE_T get_size() {
-    return m_size;
-  }
+  SIZE_T get_size() const { return m_size; }
 
-  // get the input buffer
-  DATA_T * get_input_memory(){
-    if(!m_init)
+  IOBuffer * get_input(){
+    if (!m_init)
       init();
-    return m_input_data;
+    return m_input;
   }
 
-  // get the output buffer
-  DATA_T * get_output_memory(){
-    if(!m_init)
+  IOBuffer * get_output(){
+    if (!m_init)
       init();
-    return m_output_data;
+    return m_output;
   }
 
-  // run a test algorithm
-  bool algo() {
-    if(!m_init)
-      return false;
+  void compute(){
+    if (!m_init)
+      init();
+    for(SIZE_T i = 0; i < m_size; ++i)
+      (*m_output)[i] = (*m_input)[i] + static_cast<DATA_T>(i%3);
+  }
 
-    for(SIZE_T i = 0; i < m_size; ++i){
-      m_output_data[i] = m_input_data[i] + static_cast<DATA_T>(i%3);
-    }
-    return true;
+  ~Algo(){
+    deinit();
   }
 };
