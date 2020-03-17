@@ -8,10 +8,10 @@ def main():
     # allocate memory
     a.init()
 
-    # create numpy arrays to share memory between python and the C++ implementation
-    # copy=False is really important, otherwise the memory is just copied
-    input = np.array(a.get_input(), copy=False)
-    output = np.array(a.get_output(), copy=False)
+    # return a numpy array object, which is view of the memory, which managed by
+    # the C++ class
+    input = a.get_input_view()
+    output = a.get_output_view()
 
     for k in range(a.get_size()):
         input[k] = k
