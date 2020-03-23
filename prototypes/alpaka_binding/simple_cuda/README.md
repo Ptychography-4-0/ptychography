@@ -14,9 +14,11 @@ This is the second step in providing a Python binding of an algorithm written wi
 Available via pip or conda.
 
 ```bash
-  conda install -c conda-forge cppyy
+  conda install -c conda-forge pybind11
   conda install -c anaconda numpy
   conda install -c anaconda cmake
+  # if CUDA is not provided throw the base environment
+  conda install -c conda-forge cudatoolkit-dev
 ```
 
 
