@@ -8,6 +8,8 @@
 
 namespace py = pybind11;
 
+namespace Cu {
+
 template <typename DATA_T, // type of the data
           typename SIZE_T> // type of the data size
 __global__ void
@@ -17,6 +19,8 @@ kernel(DATA_T *input, DATA_T *output, SIZE_T size) {
     output[id] = input[id] + static_cast<DATA_T>(id % 3);
   }
 }
+
+} // namespace Cu
 
 template <typename DATA_T, // type of the data
           typename SIZE_T> // type of the data size
@@ -115,7 +119,7 @@ public:
     int threads = 32;
     int blocks = std::ceil(size / static_cast<double>(threads));
 
-    kernel<DATA_T, SIZE_T>
+    Cu::kernel<DATA_T, SIZE_T>
         <<<blocks, threads>>>(m_input_device, m_output_device, size);
     err = cudaGetLastError();
     if (err) {
