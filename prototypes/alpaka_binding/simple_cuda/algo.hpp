@@ -6,8 +6,6 @@
 
 namespace py = pybind11;
 
-__global__ void g() { printf("Hello GPU\n"); }
-
 template <typename DATA_T, // type of the data
           typename SIZE_T> // type of the data size
 class Algo {

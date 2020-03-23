@@ -8,15 +8,19 @@
 
 namespace py = pybind11;
 
+namespace CuUmem {
+
 template <typename DATA_T, // type of the data
           typename SIZE_T> // type of the data size
 __global__ void
-kernel2(DATA_T *input, DATA_T *output, SIZE_T size) {
+kernel(DATA_T *input, DATA_T *output, SIZE_T size) {
   const int id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < size) {
     output[id] = input[id] + static_cast<DATA_T>(id % 3);
   }
 }
+
+} // namespace CuUmem
 
 template <typename DATA_T, // type of the data
           typename SIZE_T> // type of the data size
@@ -95,7 +99,8 @@ public:
     int threads = 32;
     int blocks = std::ceil(size / static_cast<double>(threads));
 
-    kernel2<DATA_T, SIZE_T><<<blocks, threads>>>(m_input, m_output, size);
+    CuUmem::kernel<DATA_T, SIZE_T>
+        <<<blocks, threads>>>(m_input, m_output, size);
     err = cudaGetLastError();
     if (err) {
       std::cerr << "Kernel error:" << std::endl
