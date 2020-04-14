@@ -6,21 +6,38 @@ This is the second step in providing a Python binding of an algorithm written wi
 
 # Requirements
 
+* cmake >= 3.15
 * pybind11
 * numpy
-* cmake > 3.14
 * cuda > 9.0
 
-Available via pip or conda.
+## Linux
+
+### conda
 
 ```bash
-  conda install -c conda-forge pybind11
+  # use CUDA of the host system
+  conda install -c conda-forge cmake=3.16 pybind11
   conda install -c anaconda numpy
-  conda install -c anaconda cmake
-  # if CUDA is not provided throw the base environment
-  conda install -c conda-forge cudatoolkit-dev
 ```
 
+### pip
+
+``` bash
+  # use CUDA of the host system
+  pip install cmake
+  pip install numpy
+
+  # unfortunately, the pybind11 pip package has a bug at provding the cmake files
+  # install from source
+  PYBIND11_VERSION=2.5.0
+  wget -nc --quiet https://github.com/pybind/pybind11/archive/v${PYBIND11_VERSION}.tar.gz
+  tar -xf v${PYBIND11_VERSION}.tar.gz && cd pybind11-${PYBIND11_VERSION}
+  mkdir build && cd build && cmake -DPYBIND11_TEST=off -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} ..
+  make install
+```
+
+## Windows
 
 # Install
 
