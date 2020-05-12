@@ -1,20 +1,24 @@
 import numpy as np
-import math
+from scipy.sparse import csc_matrix
 import pytest
+
 from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.io.dataset.memory import MemoryDataSet
-from ptychography.reconstruction.ssb import (SSB_UDF, wavelength,
-dot_product_transposed, Fourier_transform)
-from scipy.sparse import csc_matrix
+
+from ptychography.reconstruction.ssb import (
+    SSB_UDF, wavelength,
+    dot_product_transposed, Fourier_transform, generate_masks,
+)
 
 
 # @pytest.mark.parametrize("dtype,atol", [(np.float32, 30.05), (np.float64, 30.0)])  # 0.015  1e-8
 def test_ssb():
-
     ctx = lt.Context(executor=InlineJobExecutor())
-    dtype = np.float32
-    shape = (5, 7, 71, 27)
+    dtype = np.float64
+
+    scaling = 4
+    shape = (29, 30, 189 // scaling, 197 // scaling)
     #  ? shape = np.random.uniform(1, 300, (4,1,))
 
     # The acceleration voltage U in keV
@@ -24,32 +28,43 @@ def test_ssb():
     # STEM semiconvergence angle in radians
     semiconv = 25e-3
     # Diameter of the primary beam in the diffraction pattern in pixels
-    semiconv_pix = 78.6649
+    semiconv_pix = 78.6649 / scaling
 
-    input_data = np.random.uniform(0, 10000, shape)
+    cy = 93 // scaling
+    cx = 97 // scaling
+
+    input_data = np.random.uniform(0, 1, shape)
+    LG = np.linspace(1.0, 1000.0, num=shape[0]*shape[1]*shape[2]*shape[3])
+    LG = LG.reshape(shape[0], shape[1], shape[2], shape[3])
+
+    input_data = input_data*LG
+    input_data = input_data.astype(np.float64)
+
     udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                  dtype=dtype)
+                  dtype=dtype, cy=cy, cx=cx)
 
     dataset = MemoryDataSet(
-        data=input_data, tileshape=(20, 71, 27), num_partitions=2, sig_dims=2,
+        data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
     )
 
     result = ctx.run_udf(udf=udf, dataset=dataset)
 
-    result_f = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
-                             semiconv_pix=semiconv_pix)
+    result_f, _, _ = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
+                             semiconv_pix=semiconv_pix, cy=cy, cx=cx)
 
-    atol = np.max(np.abs(result_f))*0.02
+    # atol = np.max(np.abs(result_f))*0.009
 
     # print(np.max(np.abs(np.abs(result['pixels']) - np.abs(result_f))))
 
-    assert np.allclose(np.abs(result['pixels']), np.abs(result_f), atol=atol)
+    assert np.allclose(np.abs(result['pixels']), np.abs(result_f))
 
 
-@pytest.mark.parametrize("dtype,atol", [(np.float32, 1e-8), (np.float64, 1e-8)])
-def test_masks(dtype, atol):
+def test_masks():
+    scaling = 4
+    dtype = np.float64
+    shape = (29, 30, 189 // scaling, 197 // scaling)
+    #  ? shape = np.random.uniform(1, 300, (4,1,))
 
-    shape = (50, 50, 189, 189)
     # The acceleration voltage U in keV
     U = 300
     # STEM pixel size in m, here 50 STEM pixels on 0.5654 nm
@@ -57,11 +72,33 @@ def test_masks(dtype, atol):
     # STEM semiconvergence angle in radians
     semiconv = 25e-3
     # Diameter of the primary beam in the diffraction pattern in pixels
-    semiconv_pix = 78.6649
+    semiconv_pix = 78.6649 / scaling
 
-    masks1 = generate_masks(shape, dtype, U, dpix, semiconv, semiconv_pix)
-    masks2 = generate_masks_udf(shape, dtype, U, dpix, semiconv, semiconv_pix)
-    assert np.allclose(masks1, masks2, atol=atol)
+    cy = 93 // scaling
+    cx = 97 // scaling
+
+    input_data = np.random.uniform(0, 1, shape)
+
+    _, reference_masks, reference_center = reference_ssb(
+        input_data, U=U, dpix=dpix, semiconv=semiconv,
+        semiconv_pix=semiconv_pix,
+        cy=cy, cx=cx
+    )
+
+    # print(np.max(np.abs(np.abs(result['pixels']) - np.abs(result_f))))
+    half_y = shape[0] // 2
+    # Use symmetry and reshape like generate_masks()
+    reference_masks = reference_masks[:half_y].reshape((half_y*shape[1], shape[2], shape[3]))
+    masks, center = generate_masks(shape, dtype, U, dpix, semiconv, semiconv_pix, cy=cy, cx=cx)
+
+    assert reference_masks.shape == masks.shape
+    print(reference_masks)
+    print(masks)
+    print(reference_masks - masks)
+    print(np.where(reference_masks != masks))
+    assert np.any(reference_masks != 0)
+    assert np.allclose(reference_masks, masks)
+    assert np.allclose(reference_center, center)
 
 
 @pytest.mark.parametrize("dtype,atol", [(np.float32, 1e-8), (np.float64, 1e-8)])
@@ -123,157 +160,7 @@ def test_wavelength(dtype, atol):
     assert np.allclose(wavelength_result_ssb,  wavelength_expected, atol=atol)
 
 
-def generate_masks_udf(shape, dtype, U, dpix, semiconv, semiconv_pix):
-
-    masks_dtype = dtype
-
-    Nblock = np.array(shape[0:2])
-    Nscatter = np.array(shape[2:4])
-
-    # Calculation of the relativistic electron wavelength in meters
-    lambda_e = wavelength(U)
-
-    d_Kf = np.sin(semiconv)/lambda_e/semiconv_pix
-    d_Qp = 1/dpix/Nblock
-    cy, cx = np.array(shape)[-2:]//2
-
-    y, x = np.ogrid[0:Nscatter[0], 0:Nscatter[1]]
-    filter_center = (y - cy)**2 + (x - cx)**2 < semiconv_pix**2
-
-    # size = self.meta.dataset_shape
-    size2 = (Nblock[0]//2, Nblock[1], Nscatter[0], Nscatter[1])
-    masks = np.zeros(size2, dtype=masks_dtype)
-
-    row = 0
-    for column in range(Nblock[1]):
-
-        qp = np.array((row, column))
-        flip = qp > Nblock / 2
-        real_qp = qp.copy()
-        real_qp[flip] = qp[flip] - Nblock[flip]
-        sx, sy = real_qp * d_Qp / d_Kf
-
-        filter_positive = (
-            (y - cy - sy)**2 + (x - cx - sx)**2 < semiconv_pix**2
-        )
-        filter_negative = (
-            (y - cy + sy)**2 + (x - cx + sx)**2 < semiconv_pix**2
-        )
-        mask_positive = np.all(
-            (filter_center, filter_positive, np.invert(filter_negative)),
-            axis=0
-        )
-        mask_negative = np.all(
-            (filter_center, filter_negative, np.invert(filter_positive)),
-            axis=0
-        )
-
-        nonzero_masks = 2*np.count_nonzero(mask_positive)
-        if nonzero_masks > 0 and column > 0:
-            masks[row, column] = np.subtract(mask_positive.astype(masks_dtype),
-                                        mask_negative.astype(masks_dtype))/nonzero_masks
-        else:
-            boundary_2 = column + 1
-            boundary_1 = Nblock[1] - boundary_2 + 1
-
-    nonzero_rows = list(range(1, boundary_1))
-    nonzero_columns = list(range(boundary_1))+list(range(boundary_2, Nblock[1]))
-
-    for row in nonzero_rows:
-        for column in nonzero_columns:
-            qp = np.array((row, column))
-            flip = qp > Nblock / 2
-            real_qp = qp.copy()
-            real_qp[flip] = qp[flip] - Nblock[flip]
-            sx, sy = real_qp * d_Qp / d_Kf
-
-            filter_positive = (
-                (y - cy - sy)**2 + (x - cx - sx)**2 < semiconv_pix**2
-            )
-            filter_negative = (
-                (y - cy + sy)**2 + (x - cx + sx)**2 < semiconv_pix**2
-            )
-
-            mask_positive = np.all(
-                (filter_center, filter_positive, np.invert(filter_negative)),
-                axis=0
-            )
-            mask_negative = np.all(
-                (filter_center, filter_negative, np.invert(filter_positive)),
-                axis=0
-            )
-
-            nonzero_masks = 2*np.count_nonzero(mask_positive)
-            if nonzero_masks > 0:
-                masks[row, column] = (
-                    np.subtract(mask_positive.astype(masks_dtype),
-                                mask_negative.astype(masks_dtype))/nonzero_masks
-                )
-
-    masks = masks.reshape(Nblock[0]*Nblock[1]//2, Nscatter[0]*Nscatter[1])
-    return masks
-
-
-def generate_masks(shape, dtype, U, dpix, semiconv, semiconv_pix):
-
-    Nblock = np.array(shape[0:2])
-    Nscatter = np.array(shape[2:4])
-
-    # electron wavelength in m
-    lamb = wavelength(U)
-    # spatial freq. step size in scattering space
-    d_Kf = np.sin(semiconv)/lamb/semiconv_pix
-    # spatial freq. step size according to probe raster
-    d_Qp = 1/dpix/Nblock
-
-    cy, cx = np.array(shape)[-2:] // 2
-
-    y, x = np.ogrid[0:Nscatter[0], 0:Nscatter[1]]
-    filter_center = (y - cy)**2 + (x - cx)**2 < semiconv_pix**2
-
-    masks = np.zeros(shape, dtype=dtype)
-
-    for q in range(Nblock[0]):
-        for p in range(Nblock[0]):
-
-            qp = np.array((q, p))
-            flip = qp > Nblock / 2
-            real_qp = qp.copy()
-            real_qp[flip] = qp[flip] - Nblock[flip]
-            sx, sy = real_qp * d_Qp / d_Kf
-
-            filter_positive = (y - cy - sy)**2 + (x - cx - sx)**2 < semiconv_pix**2
-            filter_negative = (y - cy + sy)**2 + (x - cx + sx)**2 < semiconv_pix**2
-
-            mask_positive = np.all((filter_center, filter_positive,
-                                    np.invert(filter_negative)), axis=0)
-            mask_negative = np.all((filter_center, filter_negative,
-                                    np.invert(filter_positive)), axis=0)
-
-            divide = 0
-
-            if np.count_nonzero(mask_positive) > 0:
-                masks[q, p] += mask_positive
-                divide += 1
-
-            if np.count_nonzero(mask_negative) > 0:
-                masks[q, p] -= mask_negative
-                divide += 1
-
-            if divide > 0:
-                masks[q, p] /= divide
-                masks[q, p] /= np.count_nonzero(mask_negative)
-
-    size2 = (Nblock[0]//2, Nblock[1], Nscatter[0], Nscatter[1])
-    masks1 = np.zeros(size2, dtype=dtype)
-
-    masks1 = masks[0:Nblock[0]//2, 0:Nblock[1], :, :]
-    masks1 = masks1.reshape(Nblock[0]*Nblock[1]//2, Nscatter[0]*Nscatter[1])
-
-    return masks1
-
-
-def reference_ssb(data, U, dpix, semiconv, semiconv_pix):
+def reference_ssb(data, U, dpix, semiconv, semiconv_pix, cy=None, cx=None):
 
     # 'U' - The acceleration voltage U in keV
     # 'dpix' - STEM pixel size in m
@@ -295,13 +182,19 @@ def reference_ssb(data, U, dpix, semiconv, semiconv_pix):
     d_Qp = 1/dpix/Nblock
 
     result_f = np.zeros(data.shape[:2], dtype=rearranged_ffts.dtype)
-    cy, cx = np.array(data.shape)[-2:] // 2
+
+    masks = np.zeros_like(data)
+
+    if cx is None:
+        cx = data.shape[-1] / 2
+    if cy is None:
+        cy = data.shape[-2] / 2
 
     y, x = np.ogrid[0:Nscatter[0], 0:Nscatter[1]]
     filter_center = (y - cy)**2 + (x - cx)**2 < semiconv_pix**2
 
     for q in range(Nblock[0]):
-        for p in range(Nblock[0]):
+        for p in range(Nblock[1]):
             qp = np.array((q, p))
             flip = qp > Nblock / 2
             real_qp = qp.copy()
@@ -318,18 +211,18 @@ def reference_ssb(data, U, dpix, semiconv, semiconv_pix):
 
             f = rearranged_ffts[q, p]
 
-            divide = 0
+            non_zero_positive = np.count_nonzero(mask_positive)
+            non_zero_negative = np.count_nonzero(mask_negative)
 
-            if np.count_nonzero(mask_positive) > 0:
-                result_f[q, p] += np.average(f[mask_positive])
-                divide += 1
-            if np.count_nonzero(mask_negative) > 0:
-                result_f[q, p] -= np.average(f[mask_negative])
-                divide += 1
-
-            if divide > 0:
-                result_f[q, p] /= divide
+            if non_zero_positive > 0 and non_zero_negative > 0:
+                result_f[q, p] = (np.average(f[mask_positive]) - np.average(f[mask_negative])) / 2
+                masks[q, p] = ((mask_positive / non_zero_positive) - (
+                               mask_negative / non_zero_negative)) / 2
+            else:
+                assert non_zero_positive == 0
+                assert non_zero_negative == 0
 
     result_f[0, 0] = np.average(rearranged_ffts[0, 0, filter_center])
+    # generate_masks doesn't patch the 0,0 mask (yet)
 
-    return result_f
+    return result_f, masks, filter_center
