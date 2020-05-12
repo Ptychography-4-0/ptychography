@@ -1,20 +1,15 @@
-import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
+import numpy as np
+import math
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 
-import numpy as np  # NOQA: E402
-import math  # NOQA: E402
-import matplotlib.pyplot as plt  # NOQA: E402
-from matplotlib.colors import LogNorm  # NOQA: E402
+from libertem.udf import UDF
+from libertem import api as lt
+from libertem.executor.inline import InlineJobExecutor
+from libertem.common.container import MaskContainer
 
-from libertem.udf import UDF  # NOQA: E402
-from libertem import api as lt  # NOQA: E402
-from libertem.executor.inline import InlineJobExecutor  # NOQA: E402
-from libertem.common.container import MaskContainer  # NOQA: E402
-
-from numba import njit  # NOQA: E402
-import scipy.constants as const  # NOQA: E402
+from numba import njit
+import scipy.constants as const
 
 
 def main():
@@ -127,14 +122,85 @@ def Result_function(intermediate_result_1, FT, Nblock, dtype, n_rows, tile_size)
     return result.reshape(Nblock[0], Nblock[1])
 
 
+def generate_masks(shape, dtype, U, dpix, semiconv, semiconv_pix, cy=None, cx=None):
+    masks_dtype = dtype
+
+    Nblock = np.array(shape[0:2])
+    Nscatter = np.array(shape[2:4])
+
+    # Calculation of the relativistic electron wavelength in meters
+    lambda_e = wavelength(U)
+
+    d_Kf = np.sin(semiconv)/lambda_e/semiconv_pix
+    d_Qp = 1/dpix/Nblock
+
+    if cx is None:
+        cx = shape[-1] / 2
+    if cy is None:
+        cy = shape[-2] / 2
+
+    y, x = np.ogrid[0:Nscatter[0], 0:Nscatter[1]]
+    filter_center = (y - cy)**2 + (x - cx)**2 < semiconv_pix**2
+
+    # size = self.meta.dataset_shape
+    size2 = (Nblock[0]//2, Nblock[1], Nscatter[0], Nscatter[1])
+    masks = np.zeros(size2, dtype=masks_dtype)
+
+    for row in range(size2[0]):
+        for column in range(Nblock[1]):
+            qp = np.array((row, column))
+            flip = qp > Nblock / 2,
+            real_qp = qp.copy()
+            real_qp[flip] = qp[flip] - Nblock[flip]
+            sx, sy = real_qp * d_Qp / d_Kf
+
+            # 1st diffraction order and primary beam don't overlap
+            if sx**2 + sy**2 > 4*semiconv_pix**2:
+                continue
+
+            filter_positive = (
+                (y - cy - sy)**2 + (x - cx - sx)**2 < semiconv_pix**2
+            )
+            filter_negative = (
+                (y - cy + sy)**2 + (x - cx + sx)**2 < semiconv_pix**2
+            )
+            mask_positive = np.all(
+                (filter_center, filter_positive, np.invert(filter_negative)),
+                axis=0
+            )
+            mask_negative = np.all(
+                (filter_center, filter_negative, np.invert(filter_positive)),
+                axis=0
+            )
+
+            non_zero_positive = np.count_nonzero(mask_positive)
+            non_zero_negative = np.count_nonzero(mask_negative)
+
+            if non_zero_positive > 0 and non_zero_negative > 0:
+                masks[row, column] = (
+                    mask_positive / non_zero_positive -
+                    mask_negative / non_zero_negative
+                ) / 2
+            else:
+                # Assert that there are no unbalanced trotters
+                assert non_zero_positive == 0
+                assert non_zero_negative == 0
+    masks = masks.reshape((Nblock[0]//2)*Nblock[1], Nscatter[0], Nscatter[1])
+    return masks, filter_center
+
+
 class SSB_UDF(UDF):
 
-    def __init__(self, U, dpix, semiconv, semiconv_pix, dtype=np.float32):
+    def __init__(self, U, dpix, semiconv, semiconv_pix, dtype=np.float32, cy=None, cx=None):
         '''
         Parameters
 
         U: float
             The acceleration voltage U in kV
+
+        cy: float
+
+        cx: float
 
         dpix: float
             STEM pixel size in m
@@ -146,7 +212,7 @@ class SSB_UDF(UDF):
             Diameter of the primary beam in the diffraction pattern in pixels
         '''
         super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                         dtype=dtype)
+                         dtype=dtype, cy=cy, cx=cx)
 
     def get_result_buffers(self):
 
@@ -201,100 +267,20 @@ class SSB_UDF(UDF):
         self.results.pixels[0, 0] = self.results.pixels[0, 0] + point_0_0
 
     def get_task_data(self):
+        masks, filter_center = generate_masks(
+            shape=self.meta.dataset_shape,
+            dtype=self.params.dtype,
+            U=self.params.U,
+            dpix=self.params.dpix,
+            semiconv=self.params.semiconv,
+            semiconv_pix=self.params.semiconv_pix,
+            cx=self.params.cx,
+            cy=self.params.cy,
+        )
 
-        masks_dtype = self.params.dtype
-
-        Nblock = np.array(self.meta.dataset_shape[0:2])
-        Nscatter = np.array(self.meta.dataset_shape[2:4])
-
-        # Calculation of the relativistic electron wavelength in meters
-        U = self.params.U
-        lambda_e = wavelength(U)
-
-        dpix = self.params.dpix
-        semiconv = self.params.semiconv
-        semiconv_pix = self.params.semiconv_pix
-        d_Kf = np.sin(semiconv)/lambda_e/semiconv_pix
-        d_Qp = 1/dpix/Nblock
-        cy, cx = np.array(self.meta.dataset_shape)[-2:]//2
-
-        y, x = np.ogrid[0:Nscatter[0], 0:Nscatter[1]]
-        filter_center = (y - cy)**2 + (x - cx)**2 < semiconv_pix**2
-
-        size_new = (Nblock[0]//2, Nblock[1], Nscatter[0], Nscatter[1])
-        masks = np.zeros(size_new, dtype=masks_dtype)
-
-        row = 0
-        for column in range(Nblock[1]):
-
-            qp = np.array((row, column))
-            flip = qp > Nblock / 2
-            real_qp = qp.copy()
-            real_qp[flip] = qp[flip] - Nblock[flip]
-            sx, sy = real_qp * d_Qp / d_Kf
-
-            filter_positive = (
-                (y - cy - sy)**2 + (x - cx - sx)**2 < semiconv_pix**2
-            )
-            filter_negative = (
-                (y - cy + sy)**2 + (x - cx + sx)**2 < semiconv_pix**2
-            )
-            mask_positive = np.all(
-                (filter_center, filter_positive, np.invert(filter_negative)),
-                axis=0
-            )
-            mask_negative = np.all(
-                (filter_center, filter_negative, np.invert(filter_positive)),
-                axis=0
-            )
-
-            nonzero_masks = 2*np.count_nonzero(mask_positive)
-            if nonzero_masks > 0 and column > 0:
-                masks[row, column] = np.subtract(mask_positive.astype(masks_dtype),
-                                          mask_negative.astype(masks_dtype))/nonzero_masks
-            else:
-                boundary_2 = column + 1
-                boundary_1 = Nblock[1] - boundary_2 + 1
-
-        nonzero_rows = list(range(1, boundary_1))
-        nonzero_columns = list(range(boundary_1))+list(range(boundary_2, Nblock[1]))
-
-        for row in nonzero_rows:
-            for column in nonzero_columns:
-                qp = np.array((row, column))
-                flip = qp > Nblock / 2
-                real_qp = qp.copy()
-                real_qp[flip] = qp[flip] - Nblock[flip]
-                sx, sy = real_qp * d_Qp / d_Kf
-
-                filter_positive = (
-                    (y - cy - sy)**2 + (x - cx - sx)**2 < semiconv_pix**2
-                )
-                filter_negative = (
-                    (y - cy + sy)**2 + (x - cx + sx)**2 < semiconv_pix**2
-                )
-
-                mask_positive = np.all(
-                    (filter_center, filter_positive, np.invert(filter_negative)),
-                    axis=0
-                )
-                mask_negative = np.all(
-                    (filter_center, filter_negative, np.invert(filter_positive)),
-                    axis=0
-                )
-
-                nonzero_masks = 2*np.count_nonzero(mask_positive)
-                if nonzero_masks > 0:
-                    masks[row, column] = (
-                        np.subtract(mask_positive.astype(masks_dtype),
-                                    mask_negative.astype(masks_dtype))/nonzero_masks
-                    )
-
-        # masks = masks.reshape(Nblock[0]*Nblock[1]//2, Nscatter[0]*Nscatter[1])
-        masks = masks.reshape((Nblock[0]//2)*Nblock[1], Nscatter[0], Nscatter[1])
         return {
-            "masks": MaskContainer(mask_factories=lambda: masks, dtype=masks_dtype,
-                     use_sparse='scipy.sparse.csc', count=Nblock[0]*Nblock[1]//2),
+            "masks": MaskContainer(mask_factories=lambda: masks, dtype=masks.dtype,
+                     use_sparse='scipy.sparse.csc', count=masks.shape[0]),
             "filter_center": filter_center
         }
 
