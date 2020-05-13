@@ -65,8 +65,6 @@ def dot_product_transposed(Ax, Aj, Ap, n_cols, n_rows, Xx, dtype):
     return Yy
 
 
-# FIXME calculate as sparse without instantiating the full
-# dense stack, which is as large as the dataset
 def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
         semiconv_pix, center=None):
     reconstruct_shape = np.array(reconstruct_shape)
