@@ -144,7 +144,7 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 class SSB_UDF(UDF):
 
     def __init__(self, U, dpix, semiconv, semiconv_pix,
-            dtype=np.float32, center=None, reconstruct_shape=None):
+            dtype=np.float32, center=None, reconstruct_shape=None, mask_container=None):
         '''
         Parameters
 
@@ -167,9 +167,15 @@ class SSB_UDF(UDF):
 
         reconstruct_shape: (int, int)
             Shape to reconstruct into. Default dataset.shape.nav
+
+        mask_container: MaskContainer
+            Hack to pass in a precomputed mask stack when using with single thread live data
+            or with an inline executor.
+            The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
         '''
         super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                         dtype=dtype, center=center, reconstruct_shape=reconstruct_shape)
+                         dtype=dtype, center=center, reconstruct_shape=reconstruct_shape,
+                         mask_container=mask_container)
 
     def get_result_buffers(self):
         dtype = np.result_type(np.complex64, self.params.dtype)
@@ -191,16 +197,26 @@ class SSB_UDF(UDF):
     def get_task_data(self):
         # shorthand, cupy or numpy
         xp = self.xp
-        masks = generate_masks(
-            reconstruct_shape=self.reconstruct_shape,
-            mask_shape=tuple(self.meta.dataset_shape.sig),
-            dtype=self.params.dtype,
-            wavelength=wavelength(self.params.U),
-            dpix=self.params.dpix,
-            semiconv=self.params.semiconv,
-            semiconv_pix=self.params.semiconv_pix,
-            center=self.params.center
-        )
+        # Hack to pass a fixed external container
+        # In particular useful for single-process live processing
+        # or inline executor
+        if self.params.mask_container is None:
+            masks = generate_masks(
+                reconstruct_shape=self.reconstruct_shape,
+                mask_shape=tuple(self.meta.dataset_shape.sig),
+                dtype=self.params.dtype,
+                wavelength=wavelength(self.params.U),
+                dpix=self.params.dpix,
+                semiconv=self.params.semiconv,
+                semiconv_pix=self.params.semiconv_pix,
+                center=self.params.center
+            )
+            container = MaskContainer(
+                mask_factories=lambda: masks, dtype=masks.dtype,
+                use_sparse='scipy.sparse.csr', count=masks.shape[0], backend=self.meta.backend
+            )
+        else:
+            container = self.params.mask_container
         ds_nav = tuple(self.meta.dataset_shape.nav)
         y_positions, x_positions = np.mgrid[0:ds_nav[0], 0:ds_nav[1]]
 
@@ -216,10 +232,7 @@ class SSB_UDF(UDF):
             x_map = x_positions[self.meta.roi]
 
         return {
-            "masks": MaskContainer(
-                mask_factories=lambda: masks, dtype=masks.dtype,
-                use_sparse='scipy.sparse.csr', count=masks.shape[0], backend=self.meta.backend
-                ),
+            "masks": container,
             # Frame positions in the dataset masked by ROI
             # to easily access position in dataset when
             # processing with ROI applied
@@ -254,14 +267,11 @@ class SSB_UDF(UDF):
             * self.task_data.col_steps[np.newaxis, np.newaxis, :]
         )
 
-        masks = self.task_data.masks.get(self.meta.slice, transpose=True)
+        masks = self.task_data.masks.get(self.meta.slice, transpose=True, backend=self.meta.backend)
         tile_flat = tile.reshape(tile.shape[0], -1)
 
-        if self.meta.backend == 'numpy':
-            # scipy.sparse dot product
-            dot_result = tile_flat * masks
-        elif self.meta.backend == 'cupy':
-            dot_result = xp.sparse.dot(tile_flat, masks)
+        # Dot product from old matrix interface
+        dot_result = tile_flat * masks
 
         dot_result = dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))
 
@@ -275,9 +285,27 @@ class SSB_UDF(UDF):
         # The coordinates of the bottom half are inverted and
         # the zero column is rolled around to the front
         # The real part is inverted
-        buffer_frame[half_y:] = -xp.conjugate(xp.roll(xp.flip(extracted), shift=1, axis=1))
+        buffer_frame[half_y:] = -xp.conj(xp.roll(xp.flip(xp.flip(extracted, axis=0), axis=1), shift=1, axis=1))
 
         self.results.pixels[:] += buffer_frame
+
+    def get_backends(self):
+        return ('numpy', 'cupy')
+
+    def get_tiling_preferences(self):
+        result_size = np.prod(self.reconstruct_shape) * 8
+        if self.meta.backend =='cupy':
+            good_depth= min(1, 100e6 / result_size)
+            return {
+                "depth": good_depth,
+                "total_size": 100e6,
+            }
+        else:
+            good_depth= min(1, 1e6 / result_size)
+            return {
+                "depth": int(good_depth),
+                "total_size": UDF.TILE_SIZE_MAX,
+            }
 
 
 if __name__ == '__main__':
