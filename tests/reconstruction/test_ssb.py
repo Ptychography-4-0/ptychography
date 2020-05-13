@@ -8,11 +8,10 @@ from libertem.io.dataset.memory import MemoryDataSet
 
 from ptychography.reconstruction.ssb import (
     SSB_UDF, wavelength,
-    dot_product_transposed, Fourier_transform, generate_masks,
+    dot_product_transposed, generate_masks
 )
 
 
-# @pytest.mark.parametrize("dtype,atol", [(np.float32, 30.05), (np.float64, 30.0)])  # 0.015  1e-8
 def test_ssb():
     ctx = lt.Context(executor=InlineJobExecutor())
     dtype = np.float64
@@ -33,15 +32,14 @@ def test_ssb():
     cy = 93 // scaling
     cx = 97 // scaling
 
-    input_data = np.random.uniform(0, 1, shape)
-    LG = np.linspace(1.0, 1000.0, num=shape[0]*shape[1]*shape[2]*shape[3])
-    LG = LG.reshape(shape[0], shape[1], shape[2], shape[3])
-
-    input_data = input_data*LG
-    input_data = input_data.astype(np.float64)
+    input_data = (
+        np.random.uniform(0, 1, np.prod(shape))
+        * np.linspace(1.0, 1000.0, num=np.prod(shape))
+    )
+    input_data = input_data.astype(np.float64).reshape(shape)
 
     udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                  dtype=dtype, cy=cy, cx=cx)
+                  dtype=dtype, center=(cy, cx))
 
     dataset = MemoryDataSet(
         data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
@@ -49,19 +47,17 @@ def test_ssb():
 
     result = ctx.run_udf(udf=udf, dataset=dataset)
 
-    result_f, _, _ = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
+    result_f, _ = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
                              semiconv_pix=semiconv_pix, cy=cy, cx=cx)
 
-    # atol = np.max(np.abs(result_f))*0.009
-
-    # print(np.max(np.abs(np.abs(result['pixels']) - np.abs(result_f))))
-
-    assert np.allclose(np.abs(result['pixels']), np.abs(result_f))
+    assert np.allclose(result['pixels'].data, result_f)
 
 
-def test_masks():
-    scaling = 4
+def test_ssb_roi():
+    ctx = lt.Context(executor=InlineJobExecutor())
     dtype = np.float64
+
+    scaling = 4
     shape = (29, 30, 189 // scaling, 197 // scaling)
     #  ? shape = np.random.uniform(1, 300, (4,1,))
 
@@ -77,19 +73,73 @@ def test_masks():
     cy = 93 // scaling
     cx = 97 // scaling
 
+    input_data = (
+        np.random.uniform(0, 1, np.prod(shape))
+        * np.linspace(1.0, 1000.0, num=np.prod(shape))
+    )
+    input_data = input_data.astype(np.float64).reshape(shape)
+
+    udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                  dtype=dtype, center=(cy, cx))
+
+    dataset = MemoryDataSet(
+        data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
+    )
+
+    roi_1 = np.random.choice([True, False], shape[:2])
+    roi_2 = np.invert(roi_1)
+
+    result_1 = ctx.run_udf(udf=udf, dataset=dataset, roi=roi_1)
+    result_2 = ctx.run_udf(udf=udf, dataset=dataset, roi=roi_2)
+
+    result_f, _ = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
+                             semiconv_pix=semiconv_pix, cy=cy, cx=cx)
+
+    assert np.allclose(result_1['pixels'].data + result_2['pixels'].data, result_f)
+
+
+def test_masks():
+    scaling = 4
+    dtype = np.float64
+    shape = (29, 30, 189 // scaling, 197 // scaling)
+    #  ? shape = np.random.uniform(1, 300, (4,1,))
+
+    # The acceleration voltage U in keV
+    U = 300
+    lambda_e = wavelength(U)
+    # STEM pixel size in m, here 50 STEM pixels on 0.5654 nm
+    dpix = 0.5654/50*1e-9
+    # STEM semiconvergence angle in radians
+    semiconv = 25e-3
+    # Diameter of the primary beam in the diffraction pattern in pixels
+    semiconv_pix = 78.6649 / scaling
+
+    cy = 93 // scaling
+    cx = 97 // scaling
+
     input_data = np.random.uniform(0, 1, shape)
 
-    _, reference_masks, reference_center = reference_ssb(
+    _, reference_masks = reference_ssb(
         input_data, U=U, dpix=dpix, semiconv=semiconv,
         semiconv_pix=semiconv_pix,
         cy=cy, cx=cx
     )
 
     # print(np.max(np.abs(np.abs(result['pixels']) - np.abs(result_f))))
-    half_y = shape[0] // 2
+    half_y = shape[0] // 2 + 1
     # Use symmetry and reshape like generate_masks()
     reference_masks = reference_masks[:half_y].reshape((half_y*shape[1], shape[2], shape[3]))
-    masks, center = generate_masks(shape, dtype, U, dpix, semiconv, semiconv_pix, cy=cy, cx=cx)
+
+    masks = generate_masks(
+        reconstruct_shape=shape[:2],
+        mask_shape=shape[2:],
+        dtype=dtype,
+        wavelength=lambda_e,
+        dpix=dpix,
+        semiconv=semiconv,
+        semiconv_pix=semiconv_pix,
+        center=(cy, cx)
+    )
 
     assert reference_masks.shape == masks.shape
     print(reference_masks)
@@ -98,7 +148,6 @@ def test_masks():
     print(np.where(reference_masks != masks))
     assert np.any(reference_masks != 0)
     assert np.allclose(reference_masks, masks)
-    assert np.allclose(reference_center, center)
 
 
 @pytest.mark.parametrize("dtype,atol", [(np.float32, 1e-8), (np.float64, 1e-8)])
@@ -116,30 +165,6 @@ def test_dot_product(dtype, atol):
     Result_ssb = dot_product_transposed(Ax, Aj, Ap, n_cols, n_rows, Xx, dtype)
     Result_expected = Acsr.dot(Xx.T)
     assert np.allclose(Result_ssb, Result_expected, atol=atol)
-
-
-def test_fourier_transform():
-
-    shape = (50, 50, 189, 189)
-    Nblock = np.array(shape[0:2])
-    tile_slice_i = 2
-    tile_size = 1
-
-    FT_result_ssb = Fourier_transform(tile_slice_i, tile_size, Nblock)
-
-    k = range(tile_slice_i, tile_slice_i + tile_size)
-    j = np.ogrid[0:Nblock[0]*Nblock[1]]
-
-    FT_expected = np.zeros((tile_size, Nblock[0]*Nblock[1]), dtype=np.complex128)
-    for i in k:
-        m_n = divmod(i, Nblock[0])
-        k_l = divmod(j, Nblock[1])
-        M = 1/Nblock[0]
-        N = 1/Nblock[1]
-        Fourier_exponent = np.exp(-2j*np.pi*(m_n[0]*k_l[0]*M + m_n[1]*k_l[1]*N))
-        FT_expected[i-tile_slice_i] = Fourier_exponent
-
-    assert np.allclose(FT_result_ssb, FT_expected)
 
 
 @pytest.mark.parametrize("dtype,atol", [(np.float32, 1e-14), (np.float64, 1e-14)])
@@ -199,6 +224,7 @@ def reference_ssb(data, U, dpix, semiconv, semiconv_pix, cy=None, cx=None):
             flip = qp > Nblock / 2
             real_qp = qp.copy()
             real_qp[flip] = qp[flip] - Nblock[flip]
+
             sx, sy = real_qp * d_Qp / d_Kf
 
             filter_positive = (y - cy - sy)**2 + (x - cx - sx)**2 < semiconv_pix**2
@@ -218,11 +244,12 @@ def reference_ssb(data, U, dpix, semiconv, semiconv_pix, cy=None, cx=None):
                 result_f[q, p] = (np.average(f[mask_positive]) - np.average(f[mask_negative])) / 2
                 masks[q, p] = ((mask_positive / non_zero_positive) - (
                                mask_negative / non_zero_negative)) / 2
+                assert np.allclose(result_f[q, p], (f*masks[q, p]).sum())
             else:
                 assert non_zero_positive == 0
                 assert non_zero_negative == 0
 
     result_f[0, 0] = np.average(rearranged_ffts[0, 0, filter_center])
-    # generate_masks doesn't patch the 0,0 mask (yet)
+    masks[0, 0] = filter_center / np.count_nonzero(filter_center)
 
-    return result_f, masks, filter_center
+    return result_f, masks

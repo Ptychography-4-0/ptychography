@@ -1,15 +1,16 @@
-import numpy as np
 import math
+
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from numba import njit
+import scipy.constants as const
+
 
 from libertem.udf import UDF
 from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.common.container import MaskContainer
-
-from numba import njit
-import scipy.constants as const
 
 
 def main():
@@ -45,31 +46,6 @@ def wavelength(U):
 
 
 @njit(fastmath=True)
-def Fourier_transform(tile_slice_i, tile_size, Nblock):
-
-    FT = np.zeros((tile_size, Nblock[0]*Nblock[1]), dtype=np.complex128)
-    current_tile_index = range(tile_slice_i, tile_slice_i + tile_size)
-    tmp_x = np.zeros(Nblock[1], dtype=np.complex128)
-
-    for i in current_tile_index:
-        m = i // Nblock[0]
-        n = i % Nblock[1]
-        y_index = i - tile_slice_i
-
-        for l in range(Nblock[1]):
-            nl = n*l/Nblock[1]
-            tmp_x[l] = np.exp(-2j*np.pi*nl)
-
-        for k in range(Nblock[0]):
-            mk = m*k/Nblock[0]
-            tmp_y = np.exp(-2j*np.pi*mk)
-            offset = k * Nblock[1]
-            for l in range(Nblock[1]):
-                FT[y_index, offset + l] = tmp_y * tmp_x[l]
-    return FT
-
-
-@njit(fastmath=True)
 def dot_product_transposed(Ax, Aj, Ap, n_cols, n_rows, Xx, dtype):
 
     tile_size = Xx.shape[0]
@@ -89,69 +65,35 @@ def dot_product_transposed(Ax, Aj, Ap, n_cols, n_rows, Xx, dtype):
     return Yy
 
 
-@njit
-def Result_function(intermediate_result_1, FT, Nblock, dtype, n_rows, tile_size):
+# FIXME calculate as sparse without instantiating the full
+# dense stack, which is as large as the dataset
+def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
+        semiconv_pix, center=None):
+    reconstruct_shape = np.array(reconstruct_shape)
 
-    current_tile_index = range(tile_size)
-    N_rows = Nblock[0]*Nblock[1]
+    d_Kf = np.sin(semiconv)/wavelength/semiconv_pix
+    d_Qp = 1/dpix/reconstruct_shape
 
-    A = np.zeros((N_rows,), dtype=dtype)
+    if center is None:
+        center = np.array(mask_shape) / 2
 
-    left_boundary = (n_rows - Nblock[1])//Nblock[1]
-    IR2_i = np.zeros((left_boundary*Nblock[1],), dtype=dtype)
-    IR2_reshaped = np.zeros((left_boundary, Nblock[1],), dtype=dtype)
-    result = np.zeros(N_rows, dtype=np.complex128)
+    cy, cx = center
 
-    for i in current_tile_index:
-
-        IR1_i = intermediate_result_1[:, i]
-
-        IR2_i[0:left_boundary*Nblock[1]] = IR1_i[Nblock[1]:n_rows]
-        IR2_reshaped = IR2_i.reshape(left_boundary, Nblock[1])
-
-        IR2_reshaped = IR2_reshaped*(-1)
-        IR2_reshaped = IR2_reshaped[::-1, :]
-        part_IR2 = IR2_reshaped[:, 1:Nblock[1]]
-        IR2_reshaped[:, 1:Nblock[1]] = part_IR2[:, ::-1]
-        IR2_i = IR2_reshaped.flatten()
-
-        A[0:n_rows] = IR1_i
-        A[N_rows - left_boundary*Nblock[1]:N_rows] = IR2_i
-        result += A*FT[i]
-
-    return result.reshape(Nblock[0], Nblock[1])
-
-
-def generate_masks(shape, dtype, U, dpix, semiconv, semiconv_pix, cy=None, cx=None):
-    masks_dtype = dtype
-
-    Nblock = np.array(shape[0:2])
-    Nscatter = np.array(shape[2:4])
-
-    # Calculation of the relativistic electron wavelength in meters
-    lambda_e = wavelength(U)
-
-    d_Kf = np.sin(semiconv)/lambda_e/semiconv_pix
-    d_Qp = 1/dpix/Nblock
-
-    if cx is None:
-        cx = shape[-1] / 2
-    if cy is None:
-        cy = shape[-2] / 2
-
-    y, x = np.ogrid[0:Nscatter[0], 0:Nscatter[1]]
+    y, x = np.ogrid[0:mask_shape[0], 0:mask_shape[1]]
     filter_center = (y - cy)**2 + (x - cx)**2 < semiconv_pix**2
 
-    # size = self.meta.dataset_shape
-    size2 = (Nblock[0]//2, Nblock[1], Nscatter[0], Nscatter[1])
-    masks = np.zeros(size2, dtype=masks_dtype)
+    half_reconstruct = (reconstruct_shape[0]//2 + 1, reconstruct_shape[1])
+    masks = np.zeros((*half_reconstruct, *mask_shape), dtype=dtype)
 
-    for row in range(size2[0]):
-        for column in range(Nblock[1]):
+    for row in range(half_reconstruct[0]):
+        for column in range(half_reconstruct[1]):
+            # Do an fftshift of q and p
             qp = np.array((row, column))
-            flip = qp > Nblock / 2,
+            flip = qp > (reconstruct_shape / 2)
             real_qp = qp.copy()
-            real_qp[flip] = qp[flip] - Nblock[flip]
+            real_qp[flip] = qp[flip] - reconstruct_shape[flip]
+
+            # Shift of diffraction order relative to zero order
             sx, sy = real_qp * d_Qp / d_Kf
 
             # 1st diffraction order and primary beam don't overlap
@@ -178,29 +120,31 @@ def generate_masks(shape, dtype, U, dpix, semiconv, semiconv_pix, cy=None, cx=No
 
             if non_zero_positive > 0 and non_zero_negative > 0:
                 masks[row, column] = (
-                    mask_positive / non_zero_positive -
-                    mask_negative / non_zero_negative
+                    mask_positive / non_zero_positive
+                    - mask_negative / non_zero_negative
                 ) / 2
             else:
                 # Assert that there are no unbalanced trotters
                 assert non_zero_positive == 0
                 assert non_zero_negative == 0
-    masks = masks.reshape((Nblock[0]//2)*Nblock[1], Nscatter[0], Nscatter[1])
-    return masks, filter_center
+    # The zero order component is special, comes out zero with above code
+    masks[0, 0] = filter_center / np.count_nonzero(filter_center)
+    # Flatten (q, p) dimension of mask stack to work with dot product and mask container
+    masks = masks.reshape((np.prod(half_reconstruct), *mask_shape))
+    return masks
 
 
 class SSB_UDF(UDF):
 
-    def __init__(self, U, dpix, semiconv, semiconv_pix, dtype=np.float32, cy=None, cx=None):
+    def __init__(self, U, dpix, semiconv, semiconv_pix,
+            dtype=np.float32, center=None, reconstruct_shape=None):
         '''
         Parameters
 
         U: float
             The acceleration voltage U in kV
 
-        cy: float
-
-        cx: float
+        center: (float, float)
 
         dpix: float
             STEM pixel size in m
@@ -208,81 +152,125 @@ class SSB_UDF(UDF):
         semiconv: float
             STEM semiconvergence angle in radians
 
+        dtype: np.dtype
+            dtype to perform the calculation in
+
         semiconv_pix: float
             Diameter of the primary beam in the diffraction pattern in pixels
+
+        reconstruct_shape: (int, int)
+            Shape to reconstruct into. Default dataset.shape.nav
         '''
         super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                         dtype=dtype, cy=cy, cx=cx)
+                         dtype=dtype, center=center, reconstruct_shape=reconstruct_shape)
 
     def get_result_buffers(self):
-
+        dtype = np.result_type(np.complex64, self.params.dtype)
         return {
             'pixels': self.buffer(
-                kind="single", dtype="complex128", extra_shape=(self.meta.dataset_shape[0:2])
+                kind="single", dtype=dtype, extra_shape=self.reconstruct_shape,
+                where='device'
              )
         }
 
-    def merge(self, dest, src):
-
-        dest['pixels'][:] = dest['pixels'] + src['pixels']
-
-    def process_tile(self, tile):
-
-        dtype = self.params.dtype
-        tile_slice_i = self.meta.slice.origin[0]
-        tile_shape = self.meta.slice.shape
-        tile_slice_start = self.meta.slice.origin
-
-        Nblock = np.array(self.meta.dataset_shape[0:2])
-
-        masks = self.task_data.masks.get(self.meta.slice, transpose=False)
-        masks_dtype = self.params.dtype
-
-        filter_center = self.task_data['filter_center']
-        filter_center_tile = filter_center[
-            tile_slice_start[1]:tile_slice_start[1]+tile_shape[1],
-            tile_slice_start[2]:tile_slice_start[2]+tile_shape[2]]
-        non0_filter_center_tile = np.count_nonzero(filter_center_tile)
-        point_0_0 = 0
-        point_0_0 = (
-            np.sum(tile.astype(masks_dtype)[..., filter_center_tile])/non0_filter_center_tile
-        )
-
-        tile_flat = tile.reshape(tile.shape[0], -1)
-
-        tile_size = tile_flat.shape[0]
-        n_rows = masks.shape[0]
-        n_cols = masks.shape[1]
-        Aj = masks.indices
-        Ap = masks.indptr
-        Ax = masks.data
-
-        result = np.zeros(Nblock[0]*Nblock[1], dtype=np.complex128)
-        intermediate_result = np.zeros((n_rows, tile_size), dtype=dtype)
-        intermediate_result = dot_product_transposed(Ax, Aj, Ap, n_cols, n_rows, tile_flat, dtype)
-        FT = Fourier_transform(tile_slice_i, tile_flat.shape[0], Nblock)
-        result = Result_function(intermediate_result, FT, Nblock, dtype, n_rows, tile_size)
-
-        self.results.pixels[:] = self.results.pixels + result
-        self.results.pixels[0, 0] = self.results.pixels[0, 0] + point_0_0
+    @property
+    def reconstruct_shape(self):
+        if self.params.reconstruct_shape is None:
+            shape = tuple(self.meta.dataset_shape.nav)
+        else:
+            shape = self.params.reconstruct_shape
+        return shape
 
     def get_task_data(self):
-        masks, filter_center = generate_masks(
-            shape=self.meta.dataset_shape,
+        # shorthand, cupy or numpy
+        xp = self.xp
+        masks = generate_masks(
+            reconstruct_shape=self.reconstruct_shape,
+            mask_shape=tuple(self.meta.dataset_shape.sig),
             dtype=self.params.dtype,
-            U=self.params.U,
+            wavelength=wavelength(self.params.U),
             dpix=self.params.dpix,
             semiconv=self.params.semiconv,
             semiconv_pix=self.params.semiconv_pix,
-            cx=self.params.cx,
-            cy=self.params.cy,
+            center=self.params.center
         )
+        ds_nav = tuple(self.meta.dataset_shape.nav)
+        y_positions, x_positions = np.mgrid[0:ds_nav[0], 0:ds_nav[1]]
+
+        # Precalculated values for Fourier transform
+        row_steps = -2j*np.pi*np.linspace(0, 1, self.reconstruct_shape[0], endpoint=False)
+        col_steps = -2j*np.pi*np.linspace(0, 1, self.reconstruct_shape[1], endpoint=False)
+
+        if self.meta.roi is None:
+            y_map = y_positions.flatten()
+            x_map = x_positions.flatten()
+        else:
+            y_map = y_positions[self.meta.roi]
+            x_map = x_positions[self.meta.roi]
 
         return {
-            "masks": MaskContainer(mask_factories=lambda: masks, dtype=masks.dtype,
-                     use_sparse='scipy.sparse.csc', count=masks.shape[0]),
-            "filter_center": filter_center
+            "masks": MaskContainer(
+                mask_factories=lambda: masks, dtype=masks.dtype,
+                use_sparse='scipy.sparse.csr', count=masks.shape[0], backend=self.meta.backend
+                ),
+            # Frame positions in the dataset masked by ROI
+            # to easily access position in dataset when
+            # processing with ROI applied
+            "y_map": xp.array(y_map),
+            "x_map": xp.array(x_map),
+            "row_steps": xp.array(row_steps),
+            "col_steps": xp.array(col_steps),
         }
+
+    def merge(self, dest, src):
+        dest['pixels'][:] = dest['pixels'] + src['pixels']
+
+    def process_tile(self, tile):
+        # shorthand, cupy or numpy
+        xp = self.xp
+
+        tile_start = self.meta.slice.origin[0]
+        tile_depth = tile.shape[0]
+
+        buffer_frame = xp.zeros_like(self.results.pixels)
+        half_y = buffer_frame.shape[0] // 2 + 1
+
+        y_indices = self.task_data.y_map[tile_start:tile_start+tile_depth]
+        x_indices = self.task_data.x_map[tile_start:tile_start+tile_depth]
+
+        fourier_factors_row = xp.exp(
+            y_indices[:, np.newaxis, np.newaxis]
+            * self.task_data.row_steps[np.newaxis, :half_y, np.newaxis]
+        )
+        fourier_factors_col = xp.exp(
+            x_indices[:, np.newaxis, np.newaxis]
+            * self.task_data.col_steps[np.newaxis, np.newaxis, :]
+        )
+
+        masks = self.task_data.masks.get(self.meta.slice, transpose=True)
+        tile_flat = tile.reshape(tile.shape[0], -1)
+
+        if self.meta.backend == 'numpy':
+            # scipy.sparse dot product
+            dot_result = tile_flat * masks
+        elif self.meta.backend == 'cupy':
+            dot_result = xp.sparse.dot(tile_flat, masks)
+
+        dot_result = dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))
+
+        buffer_frame[:half_y] = (dot_result*fourier_factors_row*fourier_factors_col).sum(axis=0)
+        # patch accounts for even and odd sizes
+        # FIXME make sure this is correct using an example that transmits also
+        # the high spatial frequencies
+        patch = buffer_frame.shape[0] % 2
+        # We skip the first row since it would be outside the FOV
+        extracted = buffer_frame[1:buffer_frame.shape[0] // 2 + patch]
+        # The coordinates of the bottom half are inverted and
+        # the zero column is rolled around to the front
+        # The real part is inverted
+        buffer_frame[half_y:] = -xp.conjugate(xp.roll(xp.flip(extracted), shift=1, axis=1))
+
+        self.results.pixels[:] += buffer_frame
 
 
 if __name__ == '__main__':
