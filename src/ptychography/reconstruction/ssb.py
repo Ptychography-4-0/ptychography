@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from numba import njit
 import scipy.constants as const
-
+import sparse
 
 from libertem.udf import UDF
 from libertem import api as lt
@@ -83,7 +83,7 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
     filter_center = (y - cy)**2 + (x - cx)**2 < semiconv_pix**2
 
     half_reconstruct = (reconstruct_shape[0]//2 + 1, reconstruct_shape[1])
-    masks = np.zeros((*half_reconstruct, *mask_shape), dtype=dtype)
+    masks = []
 
     for row in range(half_reconstruct[0]):
         for column in range(half_reconstruct[1]):
@@ -98,6 +98,7 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 
             # 1st diffraction order and primary beam don't overlap
             if sx**2 + sy**2 > 4*semiconv_pix**2:
+                masks.append(sparse.zeros(mask_shape, dtype=dtype))
                 continue
 
             filter_positive = (
@@ -119,18 +120,24 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
             non_zero_negative = np.count_nonzero(mask_negative)
 
             if non_zero_positive > 0 and non_zero_negative > 0:
-                masks[row, column] = (
+                m = (
                     mask_positive / non_zero_positive
                     - mask_negative / non_zero_negative
                 ) / 2
+                masks.append(sparse.COO(m.astype(dtype)))
             else:
                 # Assert that there are no unbalanced trotters
                 assert non_zero_positive == 0
                 assert non_zero_negative == 0
-    # The zero order component is special, comes out zero with above code
-    masks[0, 0] = filter_center / np.count_nonzero(filter_center)
-    # Flatten (q, p) dimension of mask stack to work with dot product and mask container
-    masks = masks.reshape((np.prod(half_reconstruct), *mask_shape))
+                masks.append(sparse.zeros(mask_shape, dtype=dtype))
+
+    # The zero order component (0, 0) is special, comes out zero with above code
+    m_0 = filter_center / np.count_nonzero(filter_center)
+    masks[0] = sparse.COO(m_0.astype(dtype))
+
+    # Since we go through masks in order, this gives a mask stack with
+    # flattened (q, p) dimension to work with dot product and mask container
+    masks = sparse.stack(masks)
     return masks
 
 

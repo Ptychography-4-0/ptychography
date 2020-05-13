@@ -139,7 +139,7 @@ def test_masks():
         semiconv=semiconv,
         semiconv_pix=semiconv_pix,
         center=(cy, cx)
-    )
+    ).todense()
 
     assert reference_masks.shape == masks.shape
     print(reference_masks)
