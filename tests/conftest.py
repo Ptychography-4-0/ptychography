@@ -8,7 +8,7 @@ import aiohttp
 
 from libertem.executor.inline import InlineJobExecutor
 
-from libertem.web.server import make_app, EventRegistry, SharedData
+from libertem.web.server import make_app, EventRegistry
 from libertem.executor.base import AsyncAdapter, sync_to_async
 from libertem.executor.dask import DaskJobExecutor
 from libertem import api as lt
