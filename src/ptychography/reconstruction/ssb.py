@@ -65,8 +65,15 @@ def dot_product_transposed(Ax, Aj, Ap, n_cols, n_rows, Xx, dtype):
     return Yy
 
 
+def rotate_sysx(real_sy, real_sx, cos_angle, sin_angle):
+    # account for rotation:
+    sx = cos_angle * real_sx + sin_angle * real_sy
+    sy = -sin_angle * real_sx + cos_angle * real_sy
+    return sy, sx
+
+
 def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
-        semiconv_pix, center=None):
+        semiconv_pix, angle, center=None):
     reconstruct_shape = np.array(reconstruct_shape)
 
     d_Kf = np.sin(semiconv)/wavelength/semiconv_pix
@@ -83,6 +90,9 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
     half_reconstruct = (reconstruct_shape[0]//2 + 1, reconstruct_shape[1])
     masks = []
 
+    cos_angle = np.cos(np.pi / 180 * angle)
+    sin_angle = np.sin(np.pi / 180 * angle)
+
     for row in range(half_reconstruct[0]):
         for column in range(half_reconstruct[1]):
             # Do an fftshift of q and p
@@ -92,7 +102,10 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
             real_qp[flip] = qp[flip] - reconstruct_shape[flip]
 
             # Shift of diffraction order relative to zero order
-            sx, sy = real_qp * d_Qp / d_Kf
+            # without rotation
+            real_sx, real_sy = real_qp * d_Qp / d_Kf
+
+            sy, sx = rotate_sysx(real_sy, real_sx, cos_angle, sin_angle)
 
             # 1st diffraction order and primary beam don't overlap
             if sx**2 + sy**2 > 4*semiconv_pix**2:
@@ -142,7 +155,8 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 class SSB_UDF(UDF):
 
     def __init__(self, U, dpix, semiconv, semiconv_pix,
-            dtype=np.float32, center=None, reconstruct_shape=None, mask_container=None):
+                 dtype=np.float32, center=None, reconstruct_shape=None, mask_container=None,
+                 angle=0.0):
         '''
         Parameters
 
@@ -163,6 +177,9 @@ class SSB_UDF(UDF):
         semiconv_pix: float
             Diameter of the primary beam in the diffraction pattern in pixels
 
+        angle: float
+            Angle of rotation of the detector vs scan in degrees
+
         reconstruct_shape: (int, int)
             Shape to reconstruct into. Default dataset.shape.nav
 
@@ -173,7 +190,7 @@ class SSB_UDF(UDF):
         '''
         super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
                          dtype=dtype, center=center, reconstruct_shape=reconstruct_shape,
-                         mask_container=mask_container)
+                         mask_container=mask_container, angle=angle)
 
     def get_result_buffers(self):
         dtype = np.result_type(np.complex64, self.params.dtype)
@@ -207,7 +224,8 @@ class SSB_UDF(UDF):
                 dpix=self.params.dpix,
                 semiconv=self.params.semiconv,
                 semiconv_pix=self.params.semiconv_pix,
-                center=self.params.center
+                center=self.params.center,
+                angle=self.params.angle,
             )
             container = MaskContainer(
                 mask_factories=lambda: masks, dtype=masks.dtype,
@@ -229,6 +247,8 @@ class SSB_UDF(UDF):
             y_map = y_positions[self.meta.roi]
             x_map = x_positions[self.meta.roi]
 
+        steps_dtype = np.result_type(np.complex64, self.params.dtype)
+
         return {
             "masks": container,
             # Frame positions in the dataset masked by ROI
@@ -236,8 +256,8 @@ class SSB_UDF(UDF):
             # processing with ROI applied
             "y_map": xp.array(y_map),
             "x_map": xp.array(x_map),
-            "row_steps": xp.array(row_steps),
-            "col_steps": xp.array(col_steps),
+            "row_steps": xp.array(row_steps.astype(steps_dtype)),
+            "col_steps": xp.array(col_steps.astype(steps_dtype)),
         }
 
     def merge(self, dest, src):
@@ -256,14 +276,16 @@ class SSB_UDF(UDF):
         y_indices = self.task_data.y_map[tile_start:tile_start+tile_depth]
         x_indices = self.task_data.x_map[tile_start:tile_start+tile_depth]
 
+        factors_dtype = np.result_type(np.complex64, self.params.dtype)
+
         fourier_factors_row = xp.exp(
             y_indices[:, np.newaxis, np.newaxis]
             * self.task_data.row_steps[np.newaxis, :half_y, np.newaxis]
-        )
+        ).astype(factors_dtype)
         fourier_factors_col = xp.exp(
             x_indices[:, np.newaxis, np.newaxis]
             * self.task_data.col_steps[np.newaxis, np.newaxis, :]
-        )
+        ).astype(factors_dtype)
 
         masks = self.task_data.masks.get(self.meta.slice, transpose=True, backend=self.meta.backend)
         tile_flat = tile.reshape(tile.shape[0], -1)
@@ -283,7 +305,9 @@ class SSB_UDF(UDF):
         # The coordinates of the bottom half are inverted and
         # the zero column is rolled around to the front
         # The real part is inverted
-        buffer_frame[half_y:] = -xp.conj(xp.roll(xp.flip(xp.flip(extracted, axis=0), axis=1), shift=1, axis=1))
+        buffer_frame[half_y:] = -xp.conj(
+            xp.roll(xp.flip(xp.flip(extracted, axis=0), axis=1), shift=1, axis=1)
+        )
 
         self.results.pixels[:] += buffer_frame
 
@@ -291,18 +315,20 @@ class SSB_UDF(UDF):
         return ('numpy', 'cupy')
 
     def get_tiling_preferences(self):
-        result_size = np.prod(self.reconstruct_shape) * 8
-        if self.meta.backend =='cupy':
-            good_depth= min(1, 100e6 / result_size)
+        dtype = np.result_type(np.complex64, self.params.dtype)
+        result_size = np.prod(self.reconstruct_shape) * dtype.itemsize
+        if self.meta.backend == 'cupy':
+            total_size = 10e6
+            good_depth = max(1, total_size / result_size)
             return {
                 "depth": good_depth,
-                "total_size": 100e6,
+                "total_size": total_size,
             }
         else:
-            good_depth= min(1, 1e6 / result_size)
+            good_depth = max(1, 1e6 / result_size)
             return {
                 "depth": int(good_depth),
-                "total_size": UDF.TILE_SIZE_MAX,
+                "total_size": 1e6,
             }
 
 
