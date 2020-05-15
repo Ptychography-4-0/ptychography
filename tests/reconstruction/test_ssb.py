@@ -5,6 +5,7 @@ import pytest
 from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.io.dataset.memory import MemoryDataSet
+from libertem.masks import circular
 
 from ptychography.reconstruction.ssb import (
     SSB_UDF, wavelength,
@@ -138,13 +139,15 @@ def test_masks():
         dpix=dpix,
         semiconv=semiconv,
         semiconv_pix=semiconv_pix,
-        center=(cy, cx)
+        center=(cy, cx),
+        angle=0.,
     ).todense()
 
     assert reference_masks.shape == masks.shape
     print(reference_masks)
     print(masks)
     print(reference_masks - masks)
+    print("maximum difference: ", np.max(np.abs(reference_masks - masks)))
     print(np.where(reference_masks != masks))
     assert np.any(reference_masks != 0)
     assert np.allclose(reference_masks, masks)
@@ -216,10 +219,15 @@ def reference_ssb(data, U, dpix, semiconv, semiconv_pix, cy=None, cx=None):
         cy = data.shape[-2] / 2
 
     y, x = np.ogrid[0:Nscatter[0], 0:Nscatter[1]]
-    filter_center = (y - cy)**2 + (x - cx)**2 < semiconv_pix**2
+    filter_center = circular(
+        centerX=cx, centerY=cy,
+        imageSizeX=Nscatter[1], imageSizeY=Nscatter[0],
+        radius=semiconv_pix,
+        antialiased=True
+    )
 
-    for q in range(Nblock[0]):
-        for p in range(Nblock[1]):
+    for p in range(Nblock[0]):
+        for q in range(Nblock[1]):
             qp = np.array((q, p))
             flip = qp > Nblock / 2
             real_qp = qp.copy()
@@ -227,29 +235,38 @@ def reference_ssb(data, U, dpix, semiconv, semiconv_pix, cy=None, cx=None):
 
             sx, sy = real_qp * d_Qp / d_Kf
 
-            filter_positive = (y - cy - sy)**2 + (x - cx - sx)**2 < semiconv_pix**2
-            filter_negative = (y - cy + sy)**2 + (x - cx + sx)**2 < semiconv_pix**2
+            filter_positive = circular(
+                centerX=cx+sx, centerY=cy+sy,
+                imageSizeX=Nscatter[1], imageSizeY=Nscatter[0],
+                radius=semiconv_pix,
+                antialiased=True
+            )
 
-            mask_positive = np.all((filter_center, filter_positive,
-                                    np.invert(filter_negative)), axis=0)
-            mask_negative = np.all((filter_center, filter_negative,
-                                    np.invert(filter_positive)), axis=0)
+            filter_negative = circular(
+                centerX=cx-sx, centerY=cy-sy,
+                imageSizeX=Nscatter[1], imageSizeY=Nscatter[0],
+                radius=semiconv_pix,
+                antialiased=True
+            )
+            mask_positive = filter_center * filter_positive * (filter_negative == 0)
+            mask_negative = filter_center * filter_negative * (filter_positive == 0)
 
-            f = rearranged_ffts[q, p]
+            non_zero_positive = mask_positive.sum()
+            non_zero_negative = mask_negative.sum()
 
-            non_zero_positive = np.count_nonzero(mask_positive)
-            non_zero_negative = np.count_nonzero(mask_negative)
+            f = rearranged_ffts[p, q]
 
-            if non_zero_positive > 0 and non_zero_negative > 0:
-                result_f[q, p] = (np.average(f[mask_positive]) - np.average(f[mask_negative])) / 2
-                masks[q, p] = ((mask_positive / non_zero_positive) - (
+            if non_zero_positive >= 1 and non_zero_negative >= 1:
+                tmp = ((f * mask_positive).sum() / non_zero_positive - (f * mask_negative).sum() / non_zero_negative) / 2
+                result_f[p, q] = tmp
+                masks[p, q] = ((mask_positive / non_zero_positive) - (
                                mask_negative / non_zero_negative)) / 2
-                assert np.allclose(result_f[q, p], (f*masks[q, p]).sum())
+                assert np.allclose(result_f[p, q], (f*masks[p, q]).sum())
             else:
-                assert non_zero_positive == 0
-                assert non_zero_negative == 0
+                assert non_zero_positive < 1
+                assert non_zero_negative < 1
 
-    result_f[0, 0] = np.average(rearranged_ffts[0, 0, filter_center])
-    masks[0, 0] = filter_center / np.count_nonzero(filter_center)
+    result_f[0, 0] = (rearranged_ffts[0, 0] * filter_center).sum() / filter_center.sum()
+    masks[0, 0] = filter_center / filter_center.sum()
 
     return result_f, masks
