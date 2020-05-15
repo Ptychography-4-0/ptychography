@@ -11,6 +11,7 @@ from libertem.udf import UDF
 from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.common.container import MaskContainer
+from libertem.masks import circular
 
 
 def main():
@@ -73,7 +74,7 @@ def rotate_sysx(real_sy, real_sx, cos_angle, sin_angle):
 
 
 def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
-        semiconv_pix, angle, center=None):
+        semiconv_pix, angle, center=None, cutoff=1):
     reconstruct_shape = np.array(reconstruct_shape)
 
     d_Kf = np.sin(semiconv)/wavelength/semiconv_pix
@@ -84,19 +85,23 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 
     cy, cx = center
 
-    y, x = np.ogrid[0:mask_shape[0], 0:mask_shape[1]]
-    filter_center = (y - cy)**2 + (x - cx)**2 < semiconv_pix**2
+    filter_center = circular(
+        centerX=cx, centerY=cy,
+        imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
+        radius=semiconv_pix,
+        antialiased=True
+    )
 
     half_reconstruct = (reconstruct_shape[0]//2 + 1, reconstruct_shape[1])
     masks = []
 
-    cos_angle = np.cos(np.pi / 180 * angle)
-    sin_angle = np.sin(np.pi / 180 * angle)
+    cos_angle = 1 # np.cos(np.pi / 180 * angle)
+    sin_angle = 0 # np.sin(np.pi / 180 * angle)
 
     for row in range(half_reconstruct[0]):
         for column in range(half_reconstruct[1]):
             # Do an fftshift of q and p
-            qp = np.array((row, column))
+            qp = np.array((column, row))
             flip = qp > (reconstruct_shape / 2)
             real_qp = qp.copy()
             real_qp[flip] = qp[flip] - reconstruct_shape[flip]
@@ -112,38 +117,37 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
                 masks.append(sparse.zeros(mask_shape, dtype=dtype))
                 continue
 
-            filter_positive = (
-                (y - cy - sy)**2 + (x - cx - sx)**2 < semiconv_pix**2
-            )
-            filter_negative = (
-                (y - cy + sy)**2 + (x - cx + sx)**2 < semiconv_pix**2
-            )
-            mask_positive = np.all(
-                (filter_center, filter_positive, np.invert(filter_negative)),
-                axis=0
-            )
-            mask_negative = np.all(
-                (filter_center, filter_negative, np.invert(filter_positive)),
-                axis=0
+            filter_positive = circular(
+                centerX=cx+sx, centerY=cy+sy,
+                imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
+                radius=semiconv_pix,
+                antialiased=True
             )
 
-            non_zero_positive = np.count_nonzero(mask_positive)
-            non_zero_negative = np.count_nonzero(mask_negative)
+            filter_negative = circular(
+                centerX=cx-sx, centerY=cy-sy,
+                imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
+                radius=semiconv_pix,
+                antialiased=True
+            )
+            mask_positive = filter_center * filter_positive * (filter_negative == 0)
+            mask_negative = filter_center * filter_negative * (filter_positive == 0)
 
-            if non_zero_positive > 0 and non_zero_negative > 0:
+            non_zero_positive = mask_positive.sum()
+            non_zero_negative = mask_negative.sum()
+
+            if non_zero_positive >= cutoff and non_zero_negative >= cutoff:
                 m = (
                     mask_positive / non_zero_positive
                     - mask_negative / non_zero_negative
                 ) / 2
                 masks.append(sparse.COO(m.astype(dtype)))
             else:
-                # Assert that there are no unbalanced trotters
-                assert non_zero_positive == 0
-                assert non_zero_negative == 0
+                # Exclude small, missing or unbalanced trotters
                 masks.append(sparse.zeros(mask_shape, dtype=dtype))
 
     # The zero order component (0, 0) is special, comes out zero with above code
-    m_0 = filter_center / np.count_nonzero(filter_center)
+    m_0 = filter_center / filter_center.sum()
     masks[0] = sparse.COO(m_0.astype(dtype))
 
     # Since we go through masks in order, this gives a mask stack with
@@ -155,8 +159,8 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 class SSB_UDF(UDF):
 
     def __init__(self, U, dpix, semiconv, semiconv_pix,
-                 dtype=np.float32, center=None, reconstruct_shape=None, mask_container=None,
-                 angle=0.0):
+                 dtype=np.float32, center=None, mask_container=None,
+                 angle=0.0, cutoff=0):
         '''
         Parameters
 
@@ -180,17 +184,14 @@ class SSB_UDF(UDF):
         angle: float
             Angle of rotation of the detector vs scan in degrees
 
-        reconstruct_shape: (int, int)
-            Shape to reconstruct into. Default dataset.shape.nav
-
         mask_container: MaskContainer
             Hack to pass in a precomputed mask stack when using with single thread live data
             or with an inline executor.
             The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
         '''
         super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                         dtype=dtype, center=center, reconstruct_shape=reconstruct_shape,
-                         mask_container=mask_container, angle=angle)
+                         dtype=dtype, center=center,
+                         mask_container=mask_container, angle=angle, cutoff=cutoff)
 
     def get_result_buffers(self):
         dtype = np.result_type(np.complex64, self.params.dtype)
@@ -203,11 +204,7 @@ class SSB_UDF(UDF):
 
     @property
     def reconstruct_shape(self):
-        if self.params.reconstruct_shape is None:
-            shape = tuple(self.meta.dataset_shape.nav)
-        else:
-            shape = self.params.reconstruct_shape
-        return shape
+        return tuple(self.meta.dataset_shape.nav)
 
     def get_task_data(self):
         # shorthand, cupy or numpy
@@ -226,6 +223,7 @@ class SSB_UDF(UDF):
                 semiconv_pix=self.params.semiconv_pix,
                 center=self.params.center,
                 angle=self.params.angle,
+                cutoff=self.params.cutoff
             )
             container = MaskContainer(
                 mask_factories=lambda: masks, dtype=masks.dtype,
@@ -233,6 +231,7 @@ class SSB_UDF(UDF):
             )
         else:
             container = self.params.mask_container
+            assert container.computed_masks.shape[0] == (self.reconstruct_shape[0] // 2 + 1)*self.reconstruct_shape[1]
         ds_nav = tuple(self.meta.dataset_shape.nav)
         y_positions, x_positions = np.mgrid[0:ds_nav[0], 0:ds_nav[1]]
 
