@@ -7,7 +7,7 @@ from libertem.executor.inline import InlineJobExecutor
 from libertem.io.dataset.memory import MemoryDataSet
 from libertem.masks import circular
 
-from ptychography.reconstruction.ssb import (
+from ptychography.reconstruction.ssb_lowmem import (
     SSB_UDF, generate_masks
 )
 
