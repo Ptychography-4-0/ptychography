@@ -7,13 +7,6 @@ import scipy.constants as const
 from libertem.common import Slice, Shape
 
 
-def rotate_sysx(real_sy, real_sx, cos_angle, sin_angle):
-    # https://en.wikipedia.org/wiki/Rotation_matrix
-    sx = cos_angle * real_sx - sin_angle * real_sy
-    sy = sin_angle * real_sx + cos_angle * real_sy
-    return sy, sx
-
-
 @numba.njit(fastmath=True)
 def dot_product_transposed(Ax, Aj, Ap, n_cols, n_rows, Xx, dtype):
 
@@ -72,14 +65,13 @@ def get_shifted(arr_shape: tuple, tile_origin: tuple, tile_shape: tuple, shift: 
     shifted = shift_by(tileslice, shift)
     intersection = full_slice.intersection_with(shifted)
     if intersection.is_null():
-        return ((0, 0) * len(tile_shape), (0, ) * len(tile_shape))
+        return (((0, 0), ) * len(tile_shape), (0, ) * len(tile_shape))
     # We measure by how much we have clipped the zero point
     # This is zero if we didn't shift into the negative region beyond the original array
     clip = offset(shifted, intersection)
     # Now we move the intersection to (0, 0) plus the amount we clipped
     # so that the overlap region is moved by the correct amount, in total
     targetslice = shift_by(shift_to(intersection, (0, 0)), clip)
-    print(targetslice)
     target_tup = tuple((s.start, s.stop) for s in targetslice.get())
     offsets = tuple(s.start - target[0] for (target, s) in zip(target_tup, intersection.get()))
     return (target_tup, offsets)
