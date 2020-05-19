@@ -4,7 +4,7 @@ from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.io.dataset.memory import MemoryDataSet
 from libertem.masks import circular
-from libertem.corrections.coordinates import identity
+from libertem.corrections.coordinates import identity, rotate_deg
 
 from ptychography.reconstruction.ssb import (
     SSB_UDF, generate_masks
@@ -43,6 +43,55 @@ def test_ssb():
 
     dataset = MemoryDataSet(
         data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
+    )
+
+    result = ctx.run_udf(udf=udf, dataset=dataset)
+
+    result_f, _ = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
+                             semiconv_pix=semiconv_pix, cy=cy, cx=cx)
+
+    assert np.allclose(result['pixels'].data, result_f)
+
+
+def test_ssb_rotate():
+    ctx = lt.Context(executor=InlineJobExecutor())
+    dtype = np.float64
+
+    scaling = 4
+    det = 45
+    shape = (29, 30, det, det)
+    #  ? shape = np.random.uniform(1, 300, (4,1,))
+
+    # The acceleration voltage U in keV
+    U = 300
+    # STEM pixel size in m, here 50 STEM pixels on 0.5654 nm
+    dpix = 0.5654/50*1e-9
+    # STEM semiconvergence angle in radians
+    semiconv = 25e-3
+    # Diameter of the primary beam in the diffraction pattern in pixels
+    semiconv_pix = 78.6649 / scaling
+
+    cy = det // 2
+    cx = det // 2
+
+    input_data = (
+        np.random.uniform(0, 1, np.prod(shape))
+        * np.linspace(1.0, 1000.0, num=np.prod(shape))
+    )
+    input_data = input_data.astype(np.float64).reshape(shape)
+
+    data_90deg = np.zeros_like(input_data)
+
+    # Rotate 90 degrees clockwise
+    for y in range(det):
+        for x in range(det):
+            data_90deg[:, :, x, det-1-y] = input_data[:, :, y, x]
+
+    udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                  dtype=dtype, center=(cy, cx), transformation=rotate_deg(-90.))
+
+    dataset = MemoryDataSet(
+        data=data_90deg, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
     )
 
     result = ctx.run_udf(udf=udf, dataset=dataset)
