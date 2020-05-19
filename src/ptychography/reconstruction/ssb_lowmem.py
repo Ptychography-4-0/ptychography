@@ -137,7 +137,7 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 class SSB_UDF(UDF):
 
     def __init__(self, U, dpix, semiconv, semiconv_pix,
-                 dtype=np.float32, center=None, filter_center,
+                 dtype=np.float32, center=None, filter_center=None,
                  angle=0.0, cutoff=0):
         '''
         Parameters
@@ -169,7 +169,7 @@ class SSB_UDF(UDF):
         '''
         super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
                          dtype=dtype, center=center,
-                         mask_container=mask_container, angle=angle, cutoff=cutoff)
+                         filter_center=filter_center, angle=angle, cutoff=cutoff)
 
     def get_result_buffers(self):
         dtype = np.result_type(np.complex64, self.params.dtype)

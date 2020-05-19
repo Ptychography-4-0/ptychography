@@ -1,15 +1,15 @@
 import numpy as np
-from scipy.sparse import csc_matrix
-import pytest
 
 from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.io.dataset.memory import MemoryDataSet
 from libertem.masks import circular
+from libertem.corrections.coordinates import identity
 
 from ptychography.reconstruction.ssb import (
     SSB_UDF, generate_masks
 )
+from ptychography.reconstruction.common import wavelength
 
 
 def test_ssb():
@@ -139,7 +139,7 @@ def test_masks():
         semiconv=semiconv,
         semiconv_pix=semiconv_pix,
         center=(cy, cx),
-        angle=0.,
+        transformation=identity(),
     ).todense()
 
     assert reference_masks.shape == masks.shape
@@ -188,44 +188,44 @@ def reference_ssb(data, U, dpix, semiconv, semiconv_pix, cy=None, cx=None):
         imageSizeX=Nscatter[1], imageSizeY=Nscatter[0],
         radius=semiconv_pix,
         antialiased=True
-    )
+    ).astype(np.float64)
 
-    for p in range(Nblock[0]):
-        for q in range(Nblock[1]):
-            qp = np.array((q, p))
+    for row in range(Nblock[0]):
+        for column in range(Nblock[1]):
+            qp = np.array((row, column))
             flip = qp > Nblock / 2
             real_qp = qp.copy()
             real_qp[flip] = qp[flip] - Nblock[flip]
 
-            sx, sy = real_qp * d_Qp / d_Kf
+            sy, sx = real_qp * d_Qp / d_Kf
 
             filter_positive = circular(
                 centerX=cx+sx, centerY=cy+sy,
                 imageSizeX=Nscatter[1], imageSizeY=Nscatter[0],
                 radius=semiconv_pix,
                 antialiased=True
-            )
+            ).astype(np.float64)
 
             filter_negative = circular(
                 centerX=cx-sx, centerY=cy-sy,
                 imageSizeX=Nscatter[1], imageSizeY=Nscatter[0],
                 radius=semiconv_pix,
                 antialiased=True
-            )
+            ).astype(np.float64)
             mask_positive = filter_center * filter_positive * (filter_negative == 0)
             mask_negative = filter_center * filter_negative * (filter_positive == 0)
 
             non_zero_positive = mask_positive.sum()
             non_zero_negative = mask_negative.sum()
 
-            f = rearranged_ffts[p, q]
+            f = rearranged_ffts[row, column]
 
             if non_zero_positive >= 1 and non_zero_negative >= 1:
                 tmp = ((f * mask_positive).sum() / non_zero_positive - (f * mask_negative).sum() / non_zero_negative) / 2
-                result_f[p, q] = tmp
-                masks[p, q] = ((mask_positive / non_zero_positive) - (
+                result_f[row, column] = tmp
+                masks[row, column] = ((mask_positive / non_zero_positive) - (
                                mask_negative / non_zero_negative)) / 2
-                assert np.allclose(result_f[p, q], (f*masks[p, q]).sum())
+                assert np.allclose(result_f[row, column], (f*masks[row, column]).sum())
             else:
                 assert non_zero_positive < 1
                 assert non_zero_negative < 1
