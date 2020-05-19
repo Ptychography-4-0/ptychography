@@ -4,16 +4,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from numba import njit
-
+import scipy.constants as const
 import sparse
 
 from libertem.udf import UDF
 from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.common.container import MaskContainer
-from libertem.masks import circular, ring
+from libertem.common import Slice, Shape
+from libertem.masks import circular
 
-from .common import wavelength, rotate_sysx
+from .common import wavelength, rotate_sysx, get_shifted, to_slices
 
 
 def main():
@@ -36,8 +37,35 @@ def main():
     input("press return to continue")
 
 
+def mask_tile_pair(tileslice, filter_center, sy, sx):
+    sy, sx, = np.int(np.round(sy)), np.int(np.round(sx))
+    tileslice = tileslice.discard_nav()
+    center_tile = tileslice.get(arr=filter_center)
+    positive_tile = np.zeros_like(center_tile)
+    negative_tile = np.zeros_like(center_tile)
+    (target_slice_p, source_slice_p) = to_slices(get_shifted(
+        arr_shape=filter_center.shape,
+        tile_origin=tileslice.origin,
+        tile_shape=tuple(tileslice.shape),
+        shift=(sy, sx)
+    ))
+    (target_slice_n, source_slice_n) = to_slices(get_shifted(
+        arr_shape=filter_center.shape,
+        tile_origin=tileslice.origin,
+        tile_shape=tuple(tileslice.shape),
+        shift=(-sy, -sx)
+    ))
+    positive_tile[target_slice_p] = filter_center[source_slice_p]
+    negative_tile[target_slice_n] = filter_center[source_slice_n]
+
+    positive_mask = center_tile * positive_tile * (negative_tile == 0)
+    negative_mask = center_tile * negative_tile * (positive_tile == 0)
+
+    return (positive_mask, negative_mask)
+
+
 def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
-        semiconv_pix, transformation=None, center=None, cutoff=1):
+        semiconv_pix, angle, center=None, cutoff=1):
     reconstruct_shape = np.array(reconstruct_shape)
 
     d_Kf = np.sin(semiconv)/wavelength/semiconv_pix
@@ -54,9 +82,13 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
         radius=semiconv_pix,
         antialiased=True
     )
+    full_slice = Slice(origin=(0, 0), shape=Shape(mask_shape, sig_dims=2))
 
     half_reconstruct = (reconstruct_shape[0]//2 + 1, reconstruct_shape[1])
     masks = []
+
+    cos_angle = np.cos(np.pi / 180 * angle)
+    sin_angle = np.sin(np.pi / 180 * angle)
 
     for row in range(half_reconstruct[0]):
         for column in range(half_reconstruct[1]):
@@ -69,32 +101,15 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
             # Shift of diffraction order relative to zero order
             # without rotation
             real_sx, real_sy = real_qp * d_Qp / d_Kf
-            # We apply the transformation backwards to go
-            # from physical coordinates to detector coordinates,
-            # while the forward direction in center of mass analysis
-            # goes from detector coordinates to physical coordinates
-            sy, sx = (real_sy, real_sx) @ transformation
 
-            # 1st diffraction order and primary beam don't overlap
-            if sx**2 + sy**2 > 4*semiconv_pix**2:
-                masks.append(sparse.zeros(mask_shape, dtype=dtype))
-                continue
+            sy, sx = rotate_sysx(real_sy, real_sx, cos_angle, sin_angle)
 
-            filter_positive = circular(
-                centerX=cx+sx, centerY=cy+sy,
-                imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
-                radius=semiconv_pix,
-                antialiased=True
+            mask_positive, mask_negative = mask_tile_pair(
+                tileslice=full_slice,
+                filter_center=filter_center,
+                sy=sy,
+                sx=sx
             )
-
-            filter_negative = circular(
-                centerX=cx-sx, centerY=cy-sy,
-                imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
-                radius=semiconv_pix,
-                antialiased=True
-            )
-            mask_positive = filter_center * filter_positive * (filter_negative == 0)
-            mask_negative = filter_center * filter_negative * (filter_positive == 0)
 
             non_zero_positive = mask_positive.sum()
             non_zero_negative = mask_negative.sum()
@@ -122,8 +137,8 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 class SSB_UDF(UDF):
 
     def __init__(self, U, dpix, semiconv, semiconv_pix,
-                 dtype=np.float32, center=None, mask_container=None,
-                 transformation=None, cutoff=0):
+                 dtype=np.float32, center=None, filter_center,
+                 angle=0.0, cutoff=0):
         '''
         Parameters
 
@@ -144,9 +159,8 @@ class SSB_UDF(UDF):
         semiconv_pix: float
             Diameter of the primary beam in the diffraction pattern in pixels
 
-        transformation: numpy.ndarray() of shape (2, 2)
-            Transformation matrix to apply to shift vectors. This allows to adjust for scan rotation
-            and mismatch of detector coordinate system handedness, such as flipped y axis for MIB.
+        angle: float
+            Angle of rotation of the detector vs scan in degrees
 
         mask_container: MaskContainer
             Hack to pass in a precomputed mask stack when using with single thread live data
@@ -154,8 +168,8 @@ class SSB_UDF(UDF):
             The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
         '''
         super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                         dtype=dtype, center=center, mask_container=mask_container,
-                         transformation=transformation, cutoff=cutoff)
+                         dtype=dtype, center=center,
+                         mask_container=mask_container, angle=angle, cutoff=cutoff)
 
     def get_result_buffers(self):
         dtype = np.result_type(np.complex64, self.params.dtype)
@@ -163,7 +177,7 @@ class SSB_UDF(UDF):
             'pixels': self.buffer(
                 kind="single", dtype=dtype, extra_shape=self.reconstruct_shape,
                 where='device'
-            ),
+             )
         }
 
     @property
@@ -186,7 +200,7 @@ class SSB_UDF(UDF):
                 semiconv=self.params.semiconv,
                 semiconv_pix=self.params.semiconv_pix,
                 center=self.params.center,
-                transformation=self.params.transformation,
+                angle=self.params.angle,
                 cutoff=self.params.cutoff
             )
             container = MaskContainer(
@@ -212,8 +226,6 @@ class SSB_UDF(UDF):
 
         steps_dtype = np.result_type(np.complex64, self.params.dtype)
 
-        cy, cx = self.params.center
-        fy, fx = tuple(self.meta.dataset_shape.sig)
         return {
             "masks": container,
             # Frame positions in the dataset masked by ROI
@@ -283,7 +295,7 @@ class SSB_UDF(UDF):
         dtype = np.result_type(np.complex64, self.params.dtype)
         result_size = np.prod(self.reconstruct_shape) * dtype.itemsize
         if self.meta.backend == 'cupy':
-            total_size = 1000e6
+            total_size = 10e6
             good_depth = max(1, total_size / result_size)
             return {
                 "depth": good_depth,
