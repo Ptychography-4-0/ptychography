@@ -1,9 +1,6 @@
-import math
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from numba import njit
 
 import sparse
 
@@ -12,28 +9,9 @@ from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.common.container import MaskContainer
 from libertem.masks import circular, ring
+from libertem.corrections.coordinates import identity
 
-from .common import wavelength, rotate_sysx
-
-
-def main():
-    path = r'C:\Users\lesnic\Nextcloud\Dieter\cGaN_sim_300kV\DPs\CBED_MSAP.raw'
-    # Shape = (Number of probe scan pixels per scan row, number of scan rows,
-    #          ...)
-    shape = (50, 50, 189, 189)
-    ctx = lt.Context(executor=InlineJobExecutor())
-    data_s = ctx.load(
-        "raw", path=path, dtype="float32",
-        scan_size=shape[:2], detector_size=shape[-2:]
-    )
-    udf = SSB_UDF(U=300, dpix=0.5654/50*1e-9, semiconv=25e-3,
-                  semiconv_pix=78.6649, dtype=np.float64)
-    result = ctx.run_udf(udf=udf, dataset=data_s)
-    fig, axes = plt.subplots(1, 2)
-    axes[0].imshow(np.abs(result['pixels']), norm=LogNorm())
-    axes[1].imshow(np.angle(np.fft.ifft2(result['pixels'])))
-
-    input("press return to continue")
+from .common import wavelength
 
 
 def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
@@ -45,6 +23,9 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 
     if center is None:
         center = np.array(mask_shape) / 2
+
+    if transformation is None:
+        transformation = identity()
 
     cy, cx = center
 
@@ -61,14 +42,14 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
     for row in range(half_reconstruct[0]):
         for column in range(half_reconstruct[1]):
             # Do an fftshift of q and p
-            qp = np.array((column, row))
+            qp = np.array((row, column))
             flip = qp > (reconstruct_shape / 2)
             real_qp = qp.copy()
             real_qp[flip] = qp[flip] - reconstruct_shape[flip]
 
             # Shift of diffraction order relative to zero order
             # without rotation
-            real_sx, real_sy = real_qp * d_Qp / d_Kf
+            real_sy, real_sx = real_qp * d_Qp / d_Kf
             # We apply the transformation backwards to go
             # from physical coordinates to detector coordinates,
             # while the forward direction in center of mass analysis
@@ -123,7 +104,7 @@ class SSB_UDF(UDF):
 
     def __init__(self, U, dpix, semiconv, semiconv_pix,
                  dtype=np.float32, center=None, mask_container=None,
-                 transformation=None, cutoff=0):
+                 transformation=None, cutoff=1):
         '''
         Parameters
 
@@ -144,7 +125,7 @@ class SSB_UDF(UDF):
         semiconv_pix: float
             Diameter of the primary beam in the diffraction pattern in pixels
 
-        transformation: numpy.ndarray() of shape (2, 2)
+        transformation: numpy.ndarray() of shape (2, 2) or None
             Transformation matrix to apply to shift vectors. This allows to adjust for scan rotation
             and mismatch of detector coordinate system handedness, such as flipped y axis for MIB.
 
@@ -152,6 +133,9 @@ class SSB_UDF(UDF):
             Hack to pass in a precomputed mask stack when using with single thread live data
             or with an inline executor.
             The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
+
+        cutoff : int
+            Minimum number of pixels in a trotter
         '''
         super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
                          dtype=dtype, center=center, mask_container=mask_container,
@@ -295,7 +279,3 @@ class SSB_UDF(UDF):
                 "depth": int(good_depth),
                 "total_size": 1e6,
             }
-
-
-if __name__ == '__main__':
-    main()
