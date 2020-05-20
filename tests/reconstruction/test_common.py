@@ -3,10 +3,8 @@ from scipy.sparse import csc_matrix
 
 import pytest
 
-from libertem.common import Shape, Slice
-
 from ptychography.reconstruction.common import (
-    rotate_sysx, dot_product_transposed, wavelength, offset, get_shifted, to_slices,
+    dot_product_transposed, wavelength, offset, get_shifted, to_slices,
     bounding_box
 )
 
@@ -48,17 +46,18 @@ def test_wavelength(dtype, atol):
 
 def test_get_shifted_base():
     data = np.random.random((6, 7))
-    tile_origin = (0, 0)
-    tile_shape = (6, 7)
+    tile_origin = np.array((0, 0))
+    tile_shape = np.array((6, 7))
     target_tup, offsets = get_shifted(
-        arr_shape=data.shape,
+        arr_shape=np.array(data.shape),
         tile_origin=tile_origin,
         tile_shape=tile_shape,
-        shift=(0,0)
+        shift=np.array((0, 0))
     )
     print(target_tup)
     print(offsets)
     (target_slice, source_slice) = to_slices(target_tup, offsets)
+    print(target_slice, source_slice)
     res = np.full(tile_shape, 17, dtype=data.dtype)
     res[target_slice] = data[source_slice]
     print("result:", res)
@@ -69,15 +68,15 @@ def test_get_shifted_base():
 
 
 def test_get_shifted_plus():
-    data_shape = (4, 5)
+    data_shape = np.array((4, 5))
     data = np.random.random(data_shape)
-    tile_origin = (0, 0)
+    tile_origin = np.array((0, 0))
     tile_shape = data_shape
     target_tup, offsets = get_shifted(
-        arr_shape=data.shape,
+        arr_shape=np.array(data.shape),
         tile_origin=tile_origin,
         tile_shape=tile_shape,
-        shift=(1,2)
+        shift=np.array((1, 2))
     )
     print(target_tup)
     print(offsets)
@@ -94,15 +93,15 @@ def test_get_shifted_plus():
 
 
 def test_get_shifted_minus():
-    data_shape = (4, 5)
+    data_shape = np.array((4, 5))
     data = np.random.random(data_shape)
-    tile_origin = (0, 0)
+    tile_origin = np.array((0, 0))
     tile_shape = data_shape
     target_tup, offsets = get_shifted(
-        arr_shape=data.shape,
+        arr_shape=np.array(data.shape),
         tile_origin=tile_origin,
         tile_shape=tile_shape,
-        shift=(-2,-3)
+        shift=np.array((-2, -3))
     )
     print(target_tup)
     print(offsets)
@@ -120,15 +119,15 @@ def test_get_shifted_minus():
 
 
 def test_get_shifted_partial():
-    data_shape = (6, 7)
+    data_shape = np.array((6, 7))
     data = np.random.random(data_shape)
-    tile_origin = (1, 2)
-    tile_shape = (3, 4)
+    tile_origin = np.array((1, 2))
+    tile_shape = np.array((3, 4))
     target_tup, offsets = get_shifted(
-        arr_shape=data.shape,
+        arr_shape=np.array(data.shape),
         tile_origin=tile_origin,
         tile_shape=tile_shape,
-        shift=(0,0)
+        shift=np.array((0, 0))
     )
     print(target_tup)
     print(offsets)
@@ -143,15 +142,15 @@ def test_get_shifted_partial():
 
 
 def test_get_shifted_plus_partial():
-    data_shape = (6, 7)
+    data_shape = np.array((6, 7))
     data = np.random.random(data_shape)
-    tile_origin = (1, 2)
-    tile_shape = (3, 4)
+    tile_origin = np.array((1, 2))
+    tile_shape = np.array((3, 4))
     target_tup, offsets = get_shifted(
-        arr_shape=data.shape,
+        arr_shape=np.array(data.shape),
         tile_origin=tile_origin,
         tile_shape=tile_shape,
-        shift=(1,1)
+        shift=np.array((1,1))
     )
     print(target_tup)
     print(offsets)
@@ -166,15 +165,15 @@ def test_get_shifted_plus_partial():
 
 
 def test_get_shifted_plusplus_partial():
-    data_shape = (6, 7)
+    data_shape = np.array((6, 7))
     data = np.random.random(data_shape)
-    tile_origin = (1, 2)
-    tile_shape = (3, 4)
+    tile_origin = np.array((1, 2))
+    tile_shape = np.array((3, 4))
     target_tup, offsets = get_shifted(
-        arr_shape=data.shape,
+        arr_shape=np.array(data.shape),
         tile_origin=tile_origin,
         tile_shape=tile_shape,
-        shift=(3,4)
+        shift=np.array((3, 4))
     )
     print(target_tup)
     print(offsets)
@@ -191,15 +190,15 @@ def test_get_shifted_plusplus_partial():
 
 
 def test_get_shifted_minus_partial():
-    data_shape = (6, 7)
+    data_shape = np.array((6, 7))
     data = np.random.random(data_shape)
-    tile_origin = (1, 2)
-    tile_shape = (3, 4)
+    tile_origin = np.array((1, 2))
+    tile_shape = np.array((3, 4))
     target_tup, offsets = get_shifted(
-        arr_shape=data.shape,
+        arr_shape=np.array(data.shape),
         tile_origin=tile_origin,
         tile_shape=tile_shape,
-        shift=(-1,-2)
+        shift=np.array((-1, -2))
     )
     print(target_tup)
     print(offsets)
@@ -214,15 +213,15 @@ def test_get_shifted_minus_partial():
 
 
 def test_get_shifted_minusminus_partial():
-    data_shape = (6, 7)
+    data_shape = np.array((6, 7))
     data = np.random.random(data_shape)
-    tile_origin = (1, 2)
-    tile_shape = (3, 4)
+    tile_origin = np.array((1, 2))
+    tile_shape = np.array((3, 4))
     target_tup, offsets = get_shifted(
-        arr_shape=data.shape,
+        arr_shape=np.array(data.shape),
         tile_origin=tile_origin,
         tile_shape=tile_shape,
-        shift=(-2,-4)
+        shift=np.array((-2, -4))
     )
     print(target_tup)
     print(offsets)

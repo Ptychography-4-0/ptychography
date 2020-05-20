@@ -1,14 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
-
 import sparse
 
 from libertem.udf import UDF
-from libertem import api as lt
-from libertem.executor.inline import InlineJobExecutor
 from libertem.common.container import MaskContainer
-from libertem.masks import circular, ring
+from libertem.masks import circular
 from libertem.corrections.coordinates import identity
 
 from .common import wavelength
@@ -175,7 +170,7 @@ class SSB_UDF(UDF):
             )
             container = MaskContainer(
                 mask_factories=lambda: masks, dtype=masks.dtype,
-                use_sparse='scipy.sparse.csr', count=masks.shape[0], backend=self.meta.backend
+                use_sparse='scipy.sparse.csc', count=masks.shape[0], backend=self.meta.backend
             )
         else:
             container = self.params.mask_container
