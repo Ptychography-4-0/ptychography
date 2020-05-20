@@ -39,41 +39,68 @@ def wavelength(U):
     return lambda_e
 
 
-def offset(s1: Slice, s2: Slice):
-    return (right - left for (left, right) in zip(s1.origin, s2.origin))
+@numba.njit
+def offset(s1, s2):
+    o1, ss1 = s1
+    o2, ss2 = s2
+    return o2 - o1
 
 
-def shift_by(slice: Slice, shift):
-    return Slice(
-        origin=tuple(our_coord + shift for (our_coord, shift) in zip(slice.origin, shift)),
-        shape=slice.shape
+@numba.njit
+def shift_by(sl, shift):
+    origin, shape = sl
+    return (
+        origin + shift,
+        shape
     )
 
 
-def shift_to(slice: Slice, origin):
-    return Slice(
-        origin=origin,
-        shape=slice.shape
+@numba.njit
+def shift_to(s1, origin):
+    o1, ss1 = s1
+    return (
+        origin,
+        ss1
     )
 
 
+@numba.njit
+def intersection(s1, s2):
+    o1, ss1 = s1
+    o2, ss2 = s2
+    # Adapted from libertem.common.slice
+    new_origin = np.maximum(o1, o2)
+    new_shape = np.minimum(
+        (o1 + ss1) - new_origin,
+        (o2 + ss2) - new_origin,
+    )
+    new_shape = np.maximum(0, new_shape)
+    return (new_origin, new_shape)
+
+
+@numba.njit
 def get_shifted(arr_shape: tuple, tile_origin: tuple, tile_shape: tuple, shift: tuple):
     # TODO this could be adapted for full sig, nav, n-D etc support
     # and included as a method in Slice?
-    full_slice = Slice(origin=(0,)*len(tile_origin), shape=Shape(arr_shape, sig_dims=len(arr_shape)))
-    tileslice = Slice(origin=tile_origin, shape=Shape(tile_shape, sig_dims=len(tile_shape)))
+    full_slice = (np.array((0, 0)), arr_shape)
+    tileslice = (tile_origin, tile_shape)
     shifted = shift_by(tileslice, shift)
-    intersection = full_slice.intersection_with(shifted)
-    if intersection.is_null():
-        return (((0, 0), ) * len(tile_shape), (0, ) * len(tile_shape))
+    isect = intersection(full_slice, shifted)
+    if np.prod(isect[1]) == 0:
+        return (
+            np.array([(0, 0), (0, 0)]),
+            np.array([0, 0])
+        )
     # We measure by how much we have clipped the zero point
     # This is zero if we didn't shift into the negative region beyond the original array
-    clip = offset(shifted, intersection)
+    clip = offset(shifted, isect)
     # Now we move the intersection to (0, 0) plus the amount we clipped
     # so that the overlap region is moved by the correct amount, in total
-    targetslice = shift_by(shift_to(intersection, (0, 0)), clip)
-    target_tup = tuple((s.start, s.stop) for s in targetslice.get())
-    offsets = tuple(s.start - target[0] for (target, s) in zip(target_tup, intersection.get()))
+    targetslice = shift_by(shift_to(isect, np.array((0, 0))), clip)
+    start = targetslice[0]
+    length = targetslice[1]
+    target_tup = np.stack((start, start+length), axis=1)
+    offsets = isect[0] - targetslice[0]
     return (target_tup, offsets)
 
 
@@ -90,6 +117,6 @@ def bounding_box(array):
     if np.any(rows):
         y_min, y_max = np.where(rows)[0][[0, -1]]
         x_min, x_max = np.where(cols)[0][[0, -1]]
-        return ((y_min, y_max), (x_min, x_max))
+        return np.array(((y_min, y_max), (x_min, x_max)))
     else:
-        return ((0, 0), (0, 0))
+        return np.array([(0, 0), (0, 0)])
