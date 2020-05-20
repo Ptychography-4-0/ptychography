@@ -333,6 +333,10 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
             real_qp = qp.copy()
             real_qp[flip] = qp[flip] - reconstruct_shape[flip]
 
+            if np.sum(real_qp**2) > cutoff_freq**2:
+                masks.append(sparse.zeros(mask_shape, dtype=dtype))
+                continue
+
             # Shift of diffraction order relative to zero order
             # without rotation
             real_sy, real_sx = real_qp * d_Qp / d_Kf
