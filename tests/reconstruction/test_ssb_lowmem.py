@@ -8,8 +8,39 @@ from libertem.io.dataset.memory import MemoryDataSet
 from libertem.masks import circular
 
 from ptychography.reconstruction.ssb_lowmem import (
-    SSB_UDF, generate_masks
+    SSB_UDF, generate_masks, mask_tile_pair
 )
+
+
+def test_mask_tile_pair_within():
+    shape = (13, 17)
+    filter_center = circular(
+        centerX=6,
+        centerY=7,
+        imageSizeX=shape[1],
+        imageSizeY=shape[0],
+        radius=4
+    )
+
+    reference_pair = mask_tile_pair(
+        center_tile=filter_center,
+        tile_origin=np.array((0,0)),
+        tile_shape=np.array(shape),
+        filter_center=filter_center,
+        sy=3,
+        sx=3,
+    )
+    trimmed_pair = mask_tile_pair(
+        center_tile=filter_center[1:11, 2:15],
+        tile_origin=np.array((1, 2)),
+        tile_shape=np.array((10, 13)),
+        filter_center=filter_center,
+        sy=3,
+        sx=3,
+    )
+    assert trimmed_pair[0].shape == (10, 13)
+    assert np.allclose(trimmed_pair[0], reference_pair[0][1:11, 2:15])
+    assert np.allclose(trimmed_pair[3], reference_pair[3][1:11, 2:15])
 
 
 def test_ssb():
