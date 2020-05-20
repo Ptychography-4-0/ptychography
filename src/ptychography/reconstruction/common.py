@@ -112,11 +112,12 @@ def to_slices(target_tup, offsets):
 
 def bounding_box(array):
     # Based on https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
+    # But return values that work as start:stop slices
     rows = np.any(array, axis=1)
     cols = np.any(array, axis=0)
     if np.any(rows):
         y_min, y_max = np.where(rows)[0][[0, -1]]
         x_min, x_max = np.where(cols)[0][[0, -1]]
-        return np.array(((y_min, y_max), (x_min, x_max)))
+        return np.array(((y_min, y_max+1), (x_min, x_max+1)))
     else:
         return np.array([(0, 0), (0, 0)])

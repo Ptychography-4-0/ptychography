@@ -7,6 +7,9 @@ from libertem.common.container import MaskContainer
 from libertem.masks import circular
 from libertem.corrections.coordinates import identity
 
+import matplotlib.pyplot as plt
+from libertem.common import Slice
+
 from .common import wavelength, get_shifted, to_slices, bounding_box
 
 
@@ -53,7 +56,7 @@ def mask_tile_pair(center_tile, tile_origin, tile_shape, filter_center, sy, sx):
 
 
 def generate_skyline(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
-        semiconv_pix, tiling_scheme, filter_center,
+        semiconv_pix, tiling_scheme, filter_center, debug_masks,
         transformation=None, center=None, cutoff=1):
     
     reconstruct_shape = np.array(reconstruct_shape)
@@ -108,6 +111,9 @@ def generate_skyline(reconstruct_shape, mask_shape, dtype, wavelength, dpix, sem
     for tile_index, tile_slice in enumerate(tiling_scheme):
         tile_slice = tile_slice.discard_nav()
         center_tile = tile_slice.get(filter_center, sig_only=True)
+        # print(tile_slice.origin)
+        # print(tile_slice.shape)
+        # print("cutoff generate skyline", cutoff)
         for row in range(half_reconstruct[0]):
             for column in range(half_reconstruct[1]):
                 # Do an fftshift of q and p
@@ -138,6 +144,15 @@ def generate_skyline(reconstruct_shape, mask_shape, dtype, wavelength, dpix, sem
                     sx=sx
                 )
                 if row != 0 or column != 0:
+                    # m = (
+                    #     mask_positive# / skyline["nnz_p"][row, column]
+                    #     # - mask_negative# / skyline["nnz_n"][row, column]
+                    # ) / 2
+                    # print(row, column)
+                    # print(np.where(np.abs(m - dbm) > 1e-7))
+                    # print(np.max(np.abs(m - dbm)))
+                    # print(dbm.shape)
+                    # assert np.allclose(m, dbm)
                     nnz_p[row, column] += mask_positive.sum()
                     nnz_n[row, column] += mask_negative.sum()
                     target_ranges_p[tile_index, row, column] = target_tup_p.flatten()
@@ -147,16 +162,26 @@ def generate_skyline(reconstruct_shape, mask_shape, dtype, wavelength, dpix, sem
                     bbox_p[tile_index, row, column] = bounding_box(mask_positive).flatten()
                     bbox_n[tile_index, row, column] = bounding_box(mask_negative).flatten()
                 else:
-                    nnz_p[0, 0] += center_tile.sum()
-                    nnz_p[0, 0] = 1  # nnz_n remains 1 to avoid div0
+                    c = center_tile*center_tile
+                    # We will divide by 2 later in the skyline dot, have to 
+                    # compensate for that
+                    nnz_p[0, 0] += c.sum() / 2
+                    nnz_n[0, 0] += c.sum() / 2 # nnz_n remains to avoid culling
                     target_ranges_p[tile_index, 0, 0] = target_tup_p.flatten()
                     # target_ranges_n remains empty (0)
                     # offsets remain zero
-                    bbox_p[tile_index, 0, 0] = bounding_box(center_tile).flatten()
+                    bbox_p[tile_index, 0, 0] = bounding_box(c).flatten()
                     # Bounding box negative remains empty (0)
+                    # m = center_tile
+                # dbm = tile_slice.get(debug_masks[row, column], sig_only=True)
+                # print(row, column)
+                # print(np.where(np.abs(m - dbm) > 1e-7))
+                # print(np.max(np.abs(m - dbm)))
+                # print(dbm.shape)
+                # assert np.allclose(m, dbm)
     for row in range(half_reconstruct[0]):
         for column in range(half_reconstruct[1]):
-            if nnz_p[row, column] < cutoff or nnz_n[row, column] < cutoff:
+            if nnz_p[row, column] <= cutoff or nnz_n[row, column] <= cutoff:
                 nnz_p[row, column] = 0
                 nnz_n[row, column] = 0
                 target_ranges_p[:, row, column] = 0
@@ -178,7 +203,7 @@ def generate_skyline(reconstruct_shape, mask_shape, dtype, wavelength, dpix, sem
     }
 
 
-def skyline_dot(tile, filter_center, skyline):
+def skyline_dot(tile, filter_center, skyline, debug_masks):
     half_reconstruct = skyline["nnz_p"].shape
     result = np.zeros(
         (tile.shape[0], half_reconstruct[0], half_reconstruct[1]),
@@ -191,7 +216,7 @@ def skyline_dot(tile, filter_center, skyline):
     negative_tile = np.zeros_like(center_tile)
     for row in range(half_reconstruct[0]):
         for column in range(half_reconstruct[1]):
-            # That means nnz_p is zero, too
+            # That means nnz_n is zero, too
             if skyline["nnz_p"][row, column] == 0:
                 # print("skipping", row, column)
                 continue
@@ -210,14 +235,14 @@ def skyline_dot(tile, filter_center, skyline):
                 sta_x+off_x:sto_x+off_x
             ]
             mask_positive = center_tile * positive_tile * (negative_tile == 0)
-            sta_y, sto_y, sta_x, sto_x = skyline["bbox_p"][tile_index, row, column]
+            mask_negative = center_tile * negative_tile * (positive_tile == 0)
 
+            # 
+            sta_y, sto_y, sta_x, sto_x = skyline["bbox_p"][tile_index, row, column]
             result[:, row, column] = (
                 tile[:, sta_y:sto_y, sta_x:sto_x]
-                * mask_positive[sta_y:sto_y, sta_x:sto_x]
+                * mask_positive[np.newaxis, sta_y:sto_y, sta_x:sto_x]
             ).sum(axis=(1, 2)) / skyline["nnz_p"][row, column]
-
-            mask_negative = center_tile * negative_tile * (positive_tile == 0)
             sta_y, sto_y, sta_x, sto_x = skyline["bbox_n"][tile_index, row, column]
             # ...and here we subtract
             result[:, row, column] -= (
@@ -225,20 +250,49 @@ def skyline_dot(tile, filter_center, skyline):
                 * mask_negative[sta_y:sto_y, sta_x:sto_x]
             ).sum(axis=(1, 2)) / skyline["nnz_n"][row, column]
 
+            if row == 0 and column == 0:
+                neg = (
+                    tile[:, sta_y:sto_y, sta_x:sto_x]
+                    * mask_negative[sta_y:sto_y, sta_x:sto_x]
+                ).sum(axis=(1, 2)) / skyline["nnz_n"][row, column]
+                # print(neg)
+                assert np.allclose(neg, 0)
+                # fig, axes = plt.subplots(2)
+                # axes[0].imshow(mask_positive)
+                # axes[1].imshow(mask_positive - center_tile**2)
+                assert np.allclose(mask_positive, center_tile**2)
+                
             result[:, row, column] /= 2
-            sy, sx = skyline["shift_map"][row, column]
-            (m_p, target_tup_p, o_p, m_n, target_tup_n, o_n) = mask_tile_pair(
-                center_tile=center_tile,
-                tile_origin=np.array(tile_slice.origin[1:]),
-                tile_shape=np.array(tile_slice.shape[1:]),
-                filter_center=filter_center,
-                sy=sy,
-                sx=sx,
-            )
 
+
+
+            # assert np.allclose(mask_positive[sta_y:sto_y, sta_x:sto_x].sum(), mask_positive.sum())
+            
+            # result[:, row, column] = (
+            #     tile * debug_masks[row, column]
+            # ).sum(axis=(1, 2))
             if row != 0 or column != 0:
-                assert np.allclose(m_n, mask_negative)
-                assert np.allclose(m_p, mask_positive)
+                m = (
+                    mask_positive / skyline["nnz_p"][row, column]
+                    - mask_negative / skyline["nnz_n"][row, column]
+                ) / 2
+                assert np.allclose(result[:, row, column], (tile * m).sum(axis=(1, 2)))
+            else:
+                m = center_tile**2 / skyline["nnz_p"][row, column] / 2
+                reference = (
+                    tile * m
+                ).sum(axis=(1, 2)) 
+                assert np.allclose(result[:, row, column], reference)
+                # result[:, row, column] = reference
+
+            # assert np.allclose(mask_negative[sta_y:sto_y, sta_x:sto_x].sum(), mask_negative.sum())
+            # print(row, column)
+            # print(np.where(np.abs(m - debug_masks[row, column]) > 1e-7))
+            # print(np.max(np.abs(m - debug_masks[row, column])))
+            # print("skyline target p", skyline["target_ranges_p"][tile_index, row, column])
+            # print("skyline offset p", skyline["offsets_p"][tile_index, row, column])
+            # print("skyline shift map", skyline["shift_map"][row, column])
+            assert np.allclose(m, debug_masks[row, column])
 
             # Treatment of (0, 0): The skyline is doctored to
             # give the correct result as well.
@@ -246,7 +300,7 @@ def skyline_dot(tile, filter_center, skyline):
 
 
 def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
-        semiconv_pix, transformation=None, center=None, cutoff=1):
+        semiconv_pix, transformation=None, center=None, cutoff=1, filter_center=None):
     reconstruct_shape = np.array(reconstruct_shape)
 
     d_Kf = np.sin(semiconv)/wavelength/semiconv_pix
@@ -260,12 +314,13 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 
     cy, cx = center
 
-    filter_center = circular(
-        centerX=cx, centerY=cy,
-        imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
-        radius=semiconv_pix,
-        antialiased=True
-    )
+    if filter_center is None:
+        filter_center = circular(
+            centerX=cx, centerY=cy,
+            imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
+            radius=semiconv_pix,
+            antialiased=True
+        )
 
     half_reconstruct = (reconstruct_shape[0]//2 + 1, reconstruct_shape[1])
     masks = []
@@ -301,8 +356,10 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
 
             non_zero_positive = mask_positive.sum()
             non_zero_negative = mask_negative.sum()
+            # if row < 10 and column < 10:
+            #     print("row col nnz_p nnz_n", row, column, non_zero_positive, non_zero_negative)
 
-            if non_zero_positive >= cutoff and non_zero_negative >= cutoff:
+            if non_zero_positive > cutoff and non_zero_negative > cutoff:
                 m = (
                     mask_positive / non_zero_positive
                     - mask_negative / non_zero_negative
@@ -313,7 +370,10 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semic
                 masks.append(sparse.zeros(mask_shape, dtype=dtype))
 
     # The zero order component (0, 0) is special, comes out zero with above code
-    m_0 = filter_center / filter_center.sum()
+    # "Tweaked" to product for compatibility with the dot product.
+    # This is only affecting antialiased border pixels
+    c = filter_center*filter_center
+    m_0 = c / c.sum()
     masks[0] = sparse.COO(m_0.astype(dtype))
 
     # Since we go through masks in order, this gives a mask stack with
@@ -326,7 +386,7 @@ class SSB_UDF(UDF):
 
     def __init__(self, U, dpix, semiconv, semiconv_pix,
                  dtype=np.float32, center=None, filter_center=None,
-                 transformation=None, cutoff=0):
+                 transformation=None, cutoff=1):
         '''
         Parameters
 
@@ -404,6 +464,20 @@ class SSB_UDF(UDF):
 
         steps_dtype = np.result_type(np.complex64, self.params.dtype)
 
+        masks = generate_masks(
+            reconstruct_shape=self.reconstruct_shape,
+            mask_shape=tuple(self.meta.dataset_shape.sig),
+            dtype=self.params.dtype,
+            wavelength=wavelength(self.params.U),
+            dpix=self.params.dpix,
+            semiconv=self.params.semiconv,
+            semiconv_pix=self.params.semiconv_pix,
+            center=self.params.center,
+            transformation=self.params.transformation,
+            cutoff=self.params.cutoff,
+            filter_center=filter_center
+        )
+
         skyline = generate_skyline(
             reconstruct_shape=self.reconstruct_shape,
             mask_shape=tuple(self.meta.dataset_shape.sig),
@@ -416,14 +490,23 @@ class SSB_UDF(UDF):
             filter_center=filter_center,
             center=self.params.center,
             transformation=self.params.transformation,
-            cutoff=self.params.cutoff
+            cutoff=self.params.cutoff,
+            debug_masks=masks.reshape((
+                self.reconstruct_shape[0]//2 + 1,
+                self.reconstruct_shape[1],
+                *tuple(self.meta.dataset_shape.sig)
+            )).todense()
         )
-
+        container = MaskContainer(
+            mask_factories=lambda: masks, dtype=masks.dtype,
+            use_sparse='scipy.sparse.csc', count=masks.shape[0], backend=self.meta.backend
+        )
         return {
             # Frame positions in the dataset masked by ROI
             # to easily access position in dataset when
             # processing with ROI applied
             "skyline": skyline,
+            "masks": container,
             "filter_center": xp.array(filter_center),
             "y_map": xp.array(y_map),
             "x_map": xp.array(x_map),
@@ -457,12 +540,33 @@ class SSB_UDF(UDF):
             x_indices[:, np.newaxis, np.newaxis]
             * self.task_data.col_steps[np.newaxis, np.newaxis, :]
         ).astype(factors_dtype)
-
+        
+        masks = self.task_data.masks.get(self.meta.slice, transpose=True, backend=self.meta.backend)
+        
         dot_result = skyline_dot(
             tile=tile,
             filter_center=self.task_data.filter_center,
-            skyline=self.task_data.skyline
+            skyline=self.task_data.skyline,
+            debug_masks=masks.T.toarray().reshape((half_y, buffer_frame.shape[1], *tile.tile_slice.shape[1:]))
         )
+        
+        tile_flat = tile.reshape((tile.shape[0], -1))
+        mask_dot_result = tile_flat * masks
+        mask_dot_result = mask_dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))
+
+        for row in range(half_y):
+            for column in range(buffer_frame.shape[1]):
+                if row == 0 and column == 0:
+                    continue
+                m = dot_result[:, row, column]
+                rm = mask_dot_result[:, row, column]
+                # print("checking dot result")
+                # print(row, column)
+                # print(np.where(np.abs(m - rm) > 1e-7)
+                # print(np.max(np.abs(m - rm)))
+                assert np.allclose(m, rm)
+
+        assert np.allclose(dot_result, mask_dot_result)
 
         buffer_frame[:half_y] = (dot_result*fourier_factors_row*fourier_factors_col).sum(axis=0)
         # patch accounts for even and odd sizes

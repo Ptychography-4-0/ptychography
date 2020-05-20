@@ -244,9 +244,9 @@ def test_bounding_box():
     ((y_min, y_max), (x_min, x_max)) = bounding_box(data)
 
     assert y_min == 1
-    assert y_max == 3
+    assert y_max == 4
     assert x_min == 2
-    assert x_max == 4
+    assert x_max == 5
 
 
 def test_bounding_full():
@@ -254,9 +254,9 @@ def test_bounding_full():
     ((y_min, y_max), (x_min, x_max)) = bounding_box(data)
 
     assert y_min == 0
-    assert y_max == 5
+    assert y_max == 6
     assert x_min == 0
-    assert x_max == 6
+    assert x_max == 7
 
 
 def test_bounding_box_empty():
@@ -275,6 +275,6 @@ def test_bounding_box_single():
     ((y_min, y_max), (x_min, x_max)) = bounding_box(data)
 
     assert y_min == 3
-    assert y_max == 3
+    assert y_max == 4
     assert x_min == 4
-    assert x_max == 4
+    assert x_max == 5
