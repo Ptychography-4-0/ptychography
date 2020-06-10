@@ -6,21 +6,20 @@ Each project extends the requirements of its predecessor project. The order is s
 
 ## simple_cpp
 
+git
+
 ``` bash
-  conda install -c conda-forge cmake=3.16 pybind11
+  conda install -c conda-forge cmake=3.16
   conda install -c anaconda numpy
+  // or
+  // pip install cmake numpy
 ```
 
-or
-
 ``` bash
-  pip install cmake numpy
-
-  # unfortunately, the pybind11 pip package has a bug at provding the cmake files
-  # install from source
-  PYBIND11_VERSION=2.5.0
-  wget -nc --quiet https://github.com/pybind/pybind11/archive/v${PYBIND11_VERSION}.tar.gz
-  tar -xf v${PYBIND11_VERSION}.tar.gz && cd pybind11-${PYBIND11_VERSION}
+  # there is a bugfix (https://github.com/pybind/pybind11/pull/2240), which is not in a release yet
+  git clone https://github.com/pybind/pybind11.git
+  cd pybind11
+  git checkout c776e9e
   mkdir build && cd build && cmake -DPYBIND11_TEST=off -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} ..
   cmake --install .
 ```
@@ -34,9 +33,9 @@ CUDA > 9.0
 boost >= 1.67.0
 
 ``` bash
-  git clone https://github.com/alpaka-group/alpaka.git
+  git clone --depth=1 --branch release-0.5.0 https://github.com/alpaka-group/alpaka.git
   mkdir alpaka/build && cd alpaka/build
-  cmake .. -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} -Dalpaka_BUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF
+  cmake .. -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX}
   cmake --install .
 ```
 
