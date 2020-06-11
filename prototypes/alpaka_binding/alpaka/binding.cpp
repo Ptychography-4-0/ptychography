@@ -8,7 +8,7 @@ namespace py = pybind11;
 template <typename ALGO_CLASS_T>
 void decare_algo_binding(py::module &m, const std::string &class_name) {
   py::class_<ALGO_CLASS_T>(m, class_name.c_str(), py::module_local())
-      .def(py::init<size_t>())
+      .def(py::init<size_t, size_t>())
       .def("init", &ALGO_CLASS_T::init)
       .def("deinit", &ALGO_CLASS_T::deinit)
       .def("get_size", &ALGO_CLASS_T::get_size)

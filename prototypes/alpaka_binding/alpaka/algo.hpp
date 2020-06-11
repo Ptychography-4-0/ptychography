@@ -74,8 +74,8 @@ private:
   bool m_init = false;
 
 public:
-  Algo(SIZE_T size)
-      : m_size(size), devDev(alpaka::pltf::getDevByIdx<DevPltf>(0u)),
+  Algo(SIZE_T size, unsigned int device_id = 0)
+      : m_size(size), devDev(alpaka::pltf::getDevByIdx<DevPltf>(device_id)),
         devQueue(devDev), extends(Vec::all(static_cast<SIZE_T>(m_size))) {
 
     hostDev =
