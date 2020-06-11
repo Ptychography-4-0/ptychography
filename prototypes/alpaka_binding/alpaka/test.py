@@ -3,7 +3,7 @@ import numpy as np
 
 def main():
     array_size = 12
-    a = alpakaBinding.AlgoFI(array_size)
+    a = alpakaBinding.AlgoFI(array_size, 0)
 
     print("test AlgoFI")
     if(test(a)):
