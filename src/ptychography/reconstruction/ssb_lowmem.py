@@ -300,7 +300,7 @@ def skyline_dot(tile, filter_center, skyline, debug_masks):
 
 
 def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
-        semiconv_pix, transformation=None, center=None, cutoff=1, filter_center=None):
+        semiconv_pix, filter_center=None, transformation=None, center=None, cutoff=1, cutoff_freq=np.float32('inf')):
     reconstruct_shape = np.array(reconstruct_shape)
 
     d_Kf = np.sin(semiconv)/wavelength/semiconv_pix
