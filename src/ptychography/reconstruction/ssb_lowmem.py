@@ -1,64 +1,17 @@
 import numpy as np
-import numba
-import sparse
 
 from libertem.udf import UDF
 from libertem.common.container import MaskContainer
 from libertem.masks import circular
 from libertem.corrections.coordinates import identity
 
-import matplotlib.pyplot as plt
-from libertem.common import Slice
-
-from .common import wavelength, get_shifted, to_slices, bounding_box
-
-
-@numba.njit
-def mask_tile_pair(center_tile, tile_origin, tile_shape, filter_center, sy, sx):
-
-    sy, sx, = np.int(np.round(sy)), np.int(np.round(sx))
-    positive_tile = np.zeros_like(center_tile)
-    negative_tile = np.zeros_like(center_tile)
-    # We get from negative coordinates,
-    # that means it looks like shifted to positive
-    target_tup_p, offsets_p = get_shifted(
-        arr_shape=np.array(filter_center.shape),
-        tile_origin=tile_origin,
-        tile_shape=tile_shape,
-        shift=np.array((-sy, -sx))
-    )
-    # We get from positive coordinates,
-    # that means it looks like shifted to negative
-    target_tup_n, offsets_n = get_shifted(
-        arr_shape=np.array(filter_center.shape),
-        tile_origin=tile_origin,
-        tile_shape=tile_shape,
-        shift=np.array((sy, sx))
-    )
-
-    sta_y, sto_y, sta_x, sto_x = target_tup_p.flatten()
-    off_y, off_x = offsets_p
-    positive_tile[sta_y:sto_y, sta_x:sto_x] = filter_center[
-        sta_y+off_y:sto_y+off_y,
-        sta_x+off_x:sto_x+off_x
-    ]
-    sta_y, sto_y, sta_x, sto_x = target_tup_n.flatten()
-    off_y, off_x = offsets_n
-    negative_tile[sta_y:sto_y, sta_x:sto_x] = filter_center[
-        sta_y+off_y:sto_y+off_y,
-        sta_x+off_x:sto_x+off_x
-    ]
-
-    mask_positive = center_tile * positive_tile * (negative_tile == 0)
-    mask_negative = center_tile * negative_tile * (positive_tile == 0)
-
-    return (mask_positive, target_tup_p, offsets_p, mask_negative, target_tup_n, offsets_n)
+from .common import wavelength, bounding_box
+from .ssb import mask_tile_pair
 
 
 def generate_skyline(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
         semiconv_pix, tiling_scheme, filter_center, debug_masks,
         transformation=None, center=None, cutoff=1):
-    
     reconstruct_shape = np.array(reconstruct_shape)
     # print("mask shape", filter_center.shape)
     d_Kf = np.sin(semiconv)/wavelength/semiconv_pix
@@ -166,7 +119,7 @@ def generate_skyline(reconstruct_shape, mask_shape, dtype, wavelength, dpix, sem
                     # We will divide by 2 later in the skyline dot, have to 
                     # compensate for that
                     nnz_p[0, 0] += c.sum() / 2
-                    nnz_n[0, 0] += c.sum() / 2 # nnz_n remains to avoid culling
+                    nnz_n[0, 0] += c.sum() / 2  # nnz_n remains to avoid culling
                     target_ranges_p[tile_index, 0, 0] = target_tup_p.flatten()
                     # target_ranges_n remains empty (0)
                     # offsets remain zero
@@ -264,8 +217,6 @@ def skyline_dot(tile, filter_center, skyline, debug_masks):
                 
             result[:, row, column] /= 2
 
-
-
             # assert np.allclose(mask_positive[sta_y:sto_y, sta_x:sto_x].sum(), mask_positive.sum())
             
             # result[:, row, column] = (
@@ -299,95 +250,7 @@ def skyline_dot(tile, filter_center, skyline, debug_masks):
     return result
 
 
-def generate_masks(reconstruct_shape, mask_shape, dtype, wavelength, dpix, semiconv,
-        semiconv_pix, filter_center=None, transformation=None, center=None, cutoff=1, cutoff_freq=np.float32('inf')):
-    reconstruct_shape = np.array(reconstruct_shape)
-
-    d_Kf = np.sin(semiconv)/wavelength/semiconv_pix
-    d_Qp = 1/dpix/reconstruct_shape
-
-    if center is None:
-        center = np.array(mask_shape) / 2
-
-    if transformation is None:
-        transformation = identity()
-
-    cy, cx = center
-
-    if filter_center is None:
-        filter_center = circular(
-            centerX=cx, centerY=cy,
-            imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
-            radius=semiconv_pix,
-            antialiased=True
-        )
-
-    half_reconstruct = (reconstruct_shape[0]//2 + 1, reconstruct_shape[1])
-    masks = []
-
-    for row in range(half_reconstruct[0]):
-        for column in range(half_reconstruct[1]):
-            # Do an fftshift of q and p
-            qp = np.array((row, column))
-            flip = qp > (reconstruct_shape / 2)
-            real_qp = qp.copy()
-            real_qp[flip] = qp[flip] - reconstruct_shape[flip]
-
-            if np.sum(real_qp**2) > cutoff_freq**2:
-                masks.append(sparse.zeros(mask_shape, dtype=dtype))
-                continue
-
-            # Shift of diffraction order relative to zero order
-            # without rotation
-            real_sy, real_sx = real_qp * d_Qp / d_Kf
-
-            # We apply the transformation backwards to go
-            # from physical coordinates to detector coordinates,
-            # while the forward direction in center of mass analysis
-            # goes from detector coordinates to physical coordinates
-            sy, sx = (real_sy, real_sx) @ transformation
-
-            (mask_positive, target_tup_p, offsets_p,
-            mask_negative, target_tup_n, offsets_n) = mask_tile_pair(
-                center_tile=np.array(filter_center),
-                tile_origin=np.array((0, 0)),
-                tile_shape=np.array(mask_shape),
-
-                filter_center=np.array(filter_center),
-                sy=sy,
-                sx=sx
-            )
-
-            non_zero_positive = mask_positive.sum()
-            non_zero_negative = mask_negative.sum()
-            # if row < 10 and column < 10:
-            #     print("row col nnz_p nnz_n", row, column, non_zero_positive, non_zero_negative)
-
-            if non_zero_positive > cutoff and non_zero_negative > cutoff:
-                m = (
-                    mask_positive / non_zero_positive
-                    - mask_negative / non_zero_negative
-                ) / 2
-                masks.append(sparse.COO(m.astype(dtype)))
-            else:
-                # Exclude small, missing or unbalanced trotters
-                masks.append(sparse.zeros(mask_shape, dtype=dtype))
-
-    # The zero order component (0, 0) is special, comes out zero with above code
-    # "Tweaked" to product for compatibility with the dot product.
-    # This is only affecting antialiased border pixels
-    c = filter_center*filter_center
-    m_0 = c / c.sum()
-    masks[0] = sparse.COO(m_0.astype(dtype))
-
-    # Since we go through masks in order, this gives a mask stack with
-    # flattened (q, p) dimension to work with dot product and mask container
-    masks = sparse.stack(masks)
-    return masks
-
-
-class SSB_UDF(UDF):
-
+class SSB_UDF_Lowmem(UDF):
     def __init__(self, U, dpix, semiconv, semiconv_pix,
                  dtype=np.float32, center=None, filter_center=None,
                  transformation=None, cutoff=1):

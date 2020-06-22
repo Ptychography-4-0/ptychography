@@ -7,7 +7,7 @@ from libertem.masks import circular
 from libertem.corrections.coordinates import identity, rotate_deg
 
 from ptychography.reconstruction.ssb import (
-    SSB_UDF, generate_masks
+    SSB_UDF, generate_masks_shift, generate_masks_subpix
 )
 from ptychography.reconstruction.common import wavelength
 
@@ -39,7 +39,60 @@ def test_ssb():
     input_data = input_data.astype(np.float64).reshape(shape)
 
     udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                  dtype=dtype, center=(cy, cx))
+                  dtype=dtype, center=(cy, cx), method='subpix')
+
+    dataset = MemoryDataSet(
+        data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
+    )
+
+    result = ctx.run_udf(udf=udf, dataset=dataset)
+
+    result_f, reference_masks = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
+                             semiconv_pix=semiconv_pix, cy=cy, cx=cx)
+
+    task_data = udf.get_task_data()
+
+    udf_masks = task_data['masks'].computed_masks
+
+    half_y = shape[0] // 2 + 1
+    # Use symmetry and reshape like generate_masks()
+    reference_masks = reference_masks[:half_y].reshape((half_y*shape[1], shape[2], shape[3]))
+
+    print(np.max(np.abs(udf_masks.todense() - reference_masks)))
+
+    print(np.max(np.abs(result['pixels'].data - result_f)))
+
+    assert np.allclose(result['pixels'].data, result_f)
+
+
+def test_ssb_shift():
+    ctx = lt.Context(executor=InlineJobExecutor())
+    dtype = np.float64
+
+    scaling = 4
+    shape = (29, 30, 189 // scaling, 197 // scaling)
+    #  ? shape = np.random.uniform(1, 300, (4,1,))
+
+    # The acceleration voltage U in keV
+    U = 300
+    # STEM pixel size in m, here 50 STEM pixels on 0.5654 nm
+    dpix = 0.5654/50*1e-9
+    # STEM semiconvergence angle in radians
+    semiconv = 25e-3
+    # Diameter of the primary beam in the diffraction pattern in pixels
+    semiconv_pix = 78.6649 / scaling
+
+    cy = 93 // scaling
+    cx = 97 // scaling
+
+    input_data = (
+        np.random.uniform(0, 1, np.prod(shape))
+        * np.linspace(1.0, 1000.0, num=np.prod(shape))
+    )
+    input_data = input_data.astype(np.float64).reshape(shape)
+
+    udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                  dtype=dtype, center=(cy, cx), method='shift')
 
     dataset = MemoryDataSet(
         data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
@@ -179,7 +232,7 @@ def test_masks():
     # Use symmetry and reshape like generate_masks()
     reference_masks = reference_masks[:half_y].reshape((half_y*shape[1], shape[2], shape[3]))
 
-    masks = generate_masks(
+    masks = generate_masks_subpix(
         reconstruct_shape=shape[:2],
         mask_shape=shape[2:],
         dtype=dtype,
