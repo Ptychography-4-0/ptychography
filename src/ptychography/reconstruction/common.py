@@ -4,28 +4,6 @@ import numpy as np
 import numba
 import scipy.constants as const
 
-from libertem.common import Slice, Shape
-
-
-@numba.njit(fastmath=True)
-def dot_product_transposed(Ax, Aj, Ap, n_cols, n_rows, Xx, dtype):
-
-    tile_size = Xx.shape[0]
-    Yy = np.zeros((n_rows, tile_size), dtype=dtype)
-    pixel_stack = np.zeros(tile_size, dtype=dtype)
-
-    for i in range(n_cols):
-        offset = Ap[i]
-        j = Ap[i+1] - offset
-        if j > 0:
-            pixel_stack[:] = Xx[:, i]
-            for jj in range(j):
-
-                current_row = Aj[jj + offset]
-                Yy[current_row] += Ax[jj + offset] * pixel_stack
-
-    return Yy
-
 
 # Calculation of the relativistic electron wavelength in meters
 def wavelength(U):

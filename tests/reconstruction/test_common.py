@@ -1,29 +1,11 @@
 import numpy as np
-from scipy.sparse import csc_matrix
 
 import pytest
 
 from ptychography.reconstruction.common import (
-    dot_product_transposed, wavelength, offset, get_shifted, to_slices,
+    wavelength, get_shifted, to_slices,
     bounding_box
 )
-
-
-@pytest.mark.parametrize("dtype,atol", [(np.float32, 1e-8), (np.float64, 1e-8)])
-def test_dot_product(dtype, atol):
-    # dtype = np.float32
-    A = np.random.uniform(0, 2, size=(10, 189*189))
-    Xx = np.random.uniform(0, 1000, size=(1, 189*189))
-    Acsr = csc_matrix(A)
-    n_rows = Acsr.shape[0]
-    n_cols = Acsr.shape[1]
-    Aj = Acsr.indices
-    Ax = Acsr.data
-    Ap = Acsr.indptr
-
-    Result_ssb = dot_product_transposed(Ax, Aj, Ap, n_cols, n_rows, Xx, dtype)
-    Result_expected = Acsr.dot(Xx.T)
-    assert np.allclose(Result_ssb, Result_expected, atol=atol)
 
 
 @pytest.mark.parametrize("dtype,atol", [(np.float32, 1e-14), (np.float64, 1e-14)])
@@ -150,7 +132,7 @@ def test_get_shifted_plus_partial():
         arr_shape=np.array(data.shape),
         tile_origin=tile_origin,
         tile_shape=tile_shape,
-        shift=np.array((1,1))
+        shift=np.array((1, 1))
     )
     print(target_tup)
     print(offsets)
