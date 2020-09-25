@@ -10,91 +10,27 @@ from libertem.corrections.coordinates import identity
 from .common import wavelength, get_shifted
 
 
-def generate_masks_subpix(reconstruct_shape, mask_shape, dtype, lamb, dpix, semiconv,
-        semiconv_pix, transformation=None, center=None, cutoff=1):
+def empty_mask(mask_shape, dtype):
+    return sparse.zeros(mask_shape, dtype=dtype)
 
-    reconstruct_shape = np.array(reconstruct_shape)
 
-    d_Kf = np.sin(semiconv)/lamb/semiconv_pix
-    d_Qp = 1/dpix/reconstruct_shape
-
-    if center is None:
-        center = np.array(mask_shape) / 2
-
-    if transformation is None:
-        transformation = identity()
-
-    cy, cx = center
-
-    filter_center = circular(
-        centerX=cx, centerY=cy,
+def mask_pair_subpix(cy, cx, sy, sx, filter_center, semiconv_pix, cutoff, mask_shape):
+    filter_positive = circular(
+        centerX=cx+sx, centerY=cy+sy,
         imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
         radius=semiconv_pix,
         antialiased=True
     )
 
-    half_reconstruct = (reconstruct_shape[0]//2 + 1, reconstruct_shape[1])
-    masks = []
-
-    for row in range(half_reconstruct[0]):
-        for column in range(half_reconstruct[1]):
-            # Do an fftshift of q and p
-            qp = np.array((row, column))
-            flip = qp > (reconstruct_shape / 2)
-            real_qp = qp.copy()
-            real_qp[flip] = qp[flip] - reconstruct_shape[flip]
-
-            # Shift of diffraction order relative to zero order
-            # without rotation
-            real_sy, real_sx = real_qp * d_Qp / d_Kf
-            # We apply the transformation backwards to go
-            # from physical coordinates to detector coordinates,
-            # while the forward direction in center of mass analysis
-            # goes from detector coordinates to physical coordinates
-            sy, sx = (real_sy, real_sx) @ transformation
-
-            # 1st diffraction order and primary beam don't overlap
-            if sx**2 + sy**2 > 4*semiconv_pix**2:
-                masks.append(sparse.zeros(mask_shape, dtype=dtype))
-                continue
-
-            filter_positive = circular(
-                centerX=cx+sx, centerY=cy+sy,
-                imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
-                radius=semiconv_pix,
-                antialiased=True
-            )
-
-            filter_negative = circular(
-                centerX=cx-sx, centerY=cy-sy,
-                imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
-                radius=semiconv_pix,
-                antialiased=True
-            )
-            mask_positive = filter_center * filter_positive * (filter_negative == 0)
-            mask_negative = filter_center * filter_negative * (filter_positive == 0)
-
-            non_zero_positive = mask_positive.sum()
-            non_zero_negative = mask_negative.sum()
-
-            if non_zero_positive >= cutoff and non_zero_negative >= cutoff:
-                m = (
-                    mask_positive / non_zero_positive
-                    - mask_negative / non_zero_negative
-                ) / 2
-                masks.append(sparse.COO(m.astype(dtype)))
-            else:
-                # Exclude small, missing or unbalanced trotters
-                masks.append(sparse.zeros(mask_shape, dtype=dtype))
-
-    # The zero order component (0, 0) is special, comes out zero with above code
-    m_0 = filter_center / filter_center.sum()
-    masks[0] = sparse.COO(m_0.astype(dtype))
-
-    # Since we go through masks in order, this gives a mask stack with
-    # flattened (q, p) dimension to work with dot product and mask container
-    masks = sparse.stack(masks)
-    return masks
+    filter_negative = circular(
+        centerX=cx-sx, centerY=cy-sy,
+        imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
+        radius=semiconv_pix,
+        antialiased=True
+    )
+    mask_positive = filter_center * filter_positive * (filter_negative == 0)
+    mask_negative = filter_center * filter_negative * (filter_positive == 0)
+    return mask_positive, mask_negative
 
 
 @numba.njit
@@ -139,10 +75,67 @@ def mask_tile_pair(center_tile, tile_origin, tile_shape, filter_center, sy, sx):
     return (mask_positive, target_tup_p, offsets_p, mask_negative, target_tup_n, offsets_n)
 
 
-def generate_masks_shift(reconstruct_shape, mask_shape, dtype, lamb, dpix, semiconv,
-        semiconv_pix, filter_center=None, transformation=None, center=None, cutoff=1,
-        cutoff_freq=np.float32('inf')):
+def mask_pair_shift(cy, cx, sy, sx, filter_center, semiconv_pix, cutoff, mask_shape):
+    (mask_positive, target_tup_p, offsets_p,
+    mask_negative, target_tup_n, offsets_n) = mask_tile_pair(
+        center_tile=np.array(filter_center),
+        tile_origin=np.array((0, 0)),
+        tile_shape=np.array(mask_shape),
+
+        filter_center=np.array(filter_center),
+        sy=sy,
+        sx=sx
+    )
+    return mask_positive, mask_negative
+
+
+def generate_mask(cy, cx, sy, sx, filter_center, semiconv_pix,
+                  cutoff, mask_shape, dtype, method='subpix'):
+    # 1st diffraction order and primary beam don't overlap
+    if sx**2 + sy**2 > 4*np.sum(semiconv_pix**2):
+        return empty_mask(mask_shape, dtype=dtype)
+
+    if np.allclose((sy, sx), (0, 0)):
+        # The zero order component (0, 0) is special, comes out zero with above code
+        m_0 = filter_center / filter_center.sum()
+        return sparse.COO(m_0.astype(dtype))
+
+    params = dict(
+        cy=cy, cx=cx, sy=sy, sx=sx,
+        filter_center=filter_center,
+        semiconv_pix=semiconv_pix,
+        cutoff=cutoff,
+        mask_shape=mask_shape,
+    )
+
+    if method == 'subpix':
+        mask_positive, mask_negative = mask_pair_subpix(**params)
+    elif method == 'shift':
+        mask_positive, mask_negative = mask_pair_shift(**params)
+    else:
+        raise ValueError(f"Unsupported method {method}. Allowed are 'subpix' and 'shift'")
+
+    non_zero_positive = mask_positive.sum()
+    non_zero_negative = mask_negative.sum()
+
+    if non_zero_positive >= cutoff and non_zero_negative >= cutoff:
+        m = (
+            mask_positive / non_zero_positive
+            - mask_negative / non_zero_negative
+        ) / 2
+        return sparse.COO(m.astype(dtype))
+    else:
+        # Exclude small, missing or unbalanced trotters
+        return empty_mask(mask_shape, dtype=dtype)
+
+
+def generate_masks(reconstruct_shape, mask_shape, dtype, lamb, dpix, semiconv,
+        semiconv_pix, transformation=None, center=None, cutoff=1, cutoff_freq=np.float32('inf'),
+        method='subpix'):
+
     reconstruct_shape = np.array(reconstruct_shape)
+
+    dpix = np.array(dpix)
 
     d_Kf = np.sin(semiconv)/lamb/semiconv_pix
     d_Qp = 1/dpix/reconstruct_shape
@@ -155,13 +148,12 @@ def generate_masks_shift(reconstruct_shape, mask_shape, dtype, lamb, dpix, semic
 
     cy, cx = center
 
-    if filter_center is None:
-        filter_center = circular(
-            centerX=cx, centerY=cy,
-            imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
-            radius=semiconv_pix,
-            antialiased=True
-        )
+    filter_center = circular(
+        centerX=cx, centerY=cy,
+        imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
+        radius=semiconv_pix,
+        antialiased=True
+    )
 
     half_reconstruct = (reconstruct_shape[0]//2 + 1, reconstruct_shape[1])
     masks = []
@@ -175,51 +167,29 @@ def generate_masks_shift(reconstruct_shape, mask_shape, dtype, lamb, dpix, semic
             real_qp[flip] = qp[flip] - reconstruct_shape[flip]
 
             if np.sum(real_qp**2) > cutoff_freq**2:
-                masks.append(sparse.zeros(mask_shape, dtype=dtype))
+                masks.append(empty_mask(mask_shape, dtype=dtype))
                 continue
 
             # Shift of diffraction order relative to zero order
-            # without rotation
-            real_sy, real_sx = real_qp * d_Qp / d_Kf
-
+            # without rotation in physical coordinates
+            real_sy_phys, real_sx_phys = real_qp * d_Qp
             # We apply the transformation backwards to go
-            # from physical coordinates to detector coordinates,
+            # from physical orientation to detector orientation,
             # while the forward direction in center of mass analysis
             # goes from detector coordinates to physical coordinates
-            sy, sx = (real_sy, real_sx) @ transformation
+            # Afterwards, we transform from physical detector coordinates
+            # to pixel coordinates
+            sy, sx = ((real_sy_phys, real_sx_phys) @ transformation) / d_Kf
 
-            (mask_positive, target_tup_p, offsets_p,
-            mask_negative, target_tup_n, offsets_n) = mask_tile_pair(
-                center_tile=np.array(filter_center),
-                tile_origin=np.array((0, 0)),
-                tile_shape=np.array(mask_shape),
-
-                filter_center=np.array(filter_center),
-                sy=sy,
-                sx=sx
-            )
-
-            non_zero_positive = mask_positive.sum()
-            non_zero_negative = mask_negative.sum()
-            # if row < 10 and column < 10:
-            #     print("row col nnz_p nnz_n", row, column, non_zero_positive, non_zero_negative)
-
-            if non_zero_positive >= cutoff and non_zero_negative >= cutoff:
-                m = (
-                    mask_positive / non_zero_positive
-                    - mask_negative / non_zero_negative
-                ) / 2
-                masks.append(sparse.COO(m.astype(dtype)))
-            else:
-                # Exclude small, missing or unbalanced trotters
-                masks.append(sparse.zeros(mask_shape, dtype=dtype))
-
-    # The zero order component (0, 0) is special, comes out zero with above code
-    # "Tweaked" to product for compatibility with the dot product.
-    # This is only affecting antialiased border pixels
-    c = filter_center*filter_center
-    m_0 = c / c.sum()
-    masks[0] = sparse.COO(m_0.astype(dtype))
+            masks.append(generate_mask(
+                cy=cy, cx=cx, sy=sy, sx=sx,
+                filter_center=filter_center,
+                semiconv_pix=semiconv_pix,
+                cutoff=cutoff,
+                mask_shape=mask_shape,
+                dtype=dtype,
+                method=method,
+            ))
 
     # Since we go through masks in order, this gives a mask stack with
     # flattened (q, p) dimension to work with dot product and mask container
@@ -231,7 +201,7 @@ class SSB_UDF(UDF):
 
     def __init__(self, U, dpix, semiconv, semiconv_pix,
                  dtype=np.float32, center=None, mask_container=None,
-                 transformation=None, cutoff=1, method='shift'):
+                 transformation=None, cutoff=1, method='subpix'):
         '''
         Parameters
 
@@ -240,7 +210,7 @@ class SSB_UDF(UDF):
 
         center: (float, float)
 
-        dpix: float
+        dpix: float or Iterable(y, x)
             STEM pixel size in m
 
         semiconv: float
@@ -263,6 +233,9 @@ class SSB_UDF(UDF):
 
         cutoff : int
             Minimum number of pixels in a trotter
+
+        method : 'subpix' or 'shift'
+            Method to use for generating the mask stack
         '''
         super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
                          dtype=dtype, center=center, mask_container=mask_container,
@@ -295,14 +268,6 @@ class SSB_UDF(UDF):
         # Hack to pass a fixed external container
         # In particular useful for single-process live processing
         # or inline executor
-        if self.params.method == 'subpix':
-            generate_masks = generate_masks_subpix
-        elif self.params.method == 'shift':
-            generate_masks = generate_masks_shift
-        else:
-            raise ValueError(
-                f'Unknown method {self.params.method}, supported are "subpix" and "shift".'
-            )
         if self.params.mask_container is None:
             masks = generate_masks(
                 reconstruct_shape=self.reconstruct_shape,
@@ -314,7 +279,8 @@ class SSB_UDF(UDF):
                 semiconv_pix=self.params.semiconv_pix,
                 center=self.params.center,
                 transformation=self.params.transformation,
-                cutoff=self.params.cutoff
+                cutoff=self.params.cutoff,
+                method=self.params.method,
             )
             container = MaskContainer(
                 mask_factories=lambda: masks, dtype=masks.dtype,
@@ -397,8 +363,7 @@ class SSB_UDF(UDF):
         )
         tile_flat = tile.reshape(tile.shape[0], -1)
 
-        # Dot product from old matrix interface
-        dot_result = tile_flat * masks
+        dot_result = tile_flat @ masks
 
         dot_result = dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))
 
