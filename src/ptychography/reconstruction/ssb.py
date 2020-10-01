@@ -364,7 +364,6 @@ class SSB_UDF(UDF):
         tile_flat = tile.reshape(tile.shape[0], -1)
 
         dot_result = tile_flat @ masks
-
         dot_result = dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))
 
         buffer_frame[:half_y] = (dot_result*fourier_factors_row*fourier_factors_col).sum(axis=0)
@@ -380,7 +379,6 @@ class SSB_UDF(UDF):
         buffer_frame[half_y:] = -xp.conj(
             xp.roll(xp.flip(xp.flip(extracted, axis=0), axis=1), shift=1, axis=1)
         )
-
         self.results.pixels[:] += buffer_frame
 
     def get_backends(self):
@@ -402,3 +400,19 @@ class SSB_UDF(UDF):
                 "depth": int(good_depth),
                 "total_size": 1e6,
             }
+
+
+def get_results(udf_result):
+    '''
+    Derive real space wave front from Fourier space
+
+    To be included in UDF after https://github.com/LiberTEM/LiberTEM/issues/628
+    '''
+    # Since we derive the wave front from intensities,
+    # but the wave front is inherently an amplitude,
+    # we take the square root of the calculated amplitude and
+    # combine it with the calculated phase.
+    rec = np.fft.ifft2(udf_result["pixels"].data)
+    amp = np.abs(rec)
+    phase = np.angle(rec)
+    return np.sqrt(amp) * np.exp(1j*phase)
