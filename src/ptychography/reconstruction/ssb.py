@@ -408,7 +408,7 @@ def get_results(udf_result):
 
     To be included in UDF after https://github.com/LiberTEM/LiberTEM/issues/628
     '''
-    # Since we derive the wave front from intensities,
+    # Since we derive the wave front with a linear function from intensities,
     # but the wave front is inherently an amplitude,
     # we take the square root of the calculated amplitude and
     # combine it with the calculated phase.
