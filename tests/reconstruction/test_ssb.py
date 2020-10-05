@@ -12,7 +12,7 @@ from libertem.masks import circular
 from libertem.corrections.coordinates import identity, rotate_deg
 from libertem.common.container import MaskContainer
 
-from ptychography.reconstruction.ssb import SSB_UDF, generate_masks, mask_tile_pair
+from ptychography.reconstruction.ssb import SSB_UDF, generate_masks, mask_tile_pair, get_results
 from ptychography.reconstruction.common import wavelength
 
 
@@ -480,11 +480,18 @@ def test_validate_ssb(real_params, real_intensity_ds, real_plane_wave,
 
     result_f, reference_masks = real_reference_ssb
 
-    ssb_res = np.fft.ifft2(result["pixels"].data)
-    reference_ssb_res = np.fft.ifft2(result_f)
+    ssb_res = get_results(result)
+    # We apply the amplitude scaling to the raw reference SSB result
+    reference_ssb_raw = np.fft.ifft2(result_f)
+    reference_ssb_amp = np.abs(reference_ssb_raw)
+    reference_ssb_phase = np.angle(reference_ssb_raw)
+    reference_ssb_res = np.sqrt(reference_ssb_amp) * np.exp(1j*reference_ssb_phase)
 
     ssb_phase = np.angle(ssb_res)
     ref_phase = np.angle(real_plane_wave)
+
+    ssb_amp = np.abs(ssb_res)
+    ref_amp = np.abs(real_plane_wave)
 
     # The phases are usually shifted by a constant offset
     # Looking at Std removes the offset
@@ -492,9 +499,16 @@ def test_validate_ssb(real_params, real_intensity_ds, real_plane_wave,
     # TODO work towards 100 % correspondence with suitable test dataset
     assert np.std(ssb_phase - ref_phase) < 0.1 * np.std(ssb_phase)
 
+    # Compare reconstructed amplitude
+    # We can't use std(amp) since the amplitude is nearly constant over the FOV
+    print("Max ref: ", np.max(np.abs(ssb_amp - ref_amp)), np.max(np.abs(ref_amp)))
+    assert np.max(np.abs(ssb_amp - ref_amp)) < 0.1 * np.max(np.abs(ref_amp))
+
     # Make sure the methods are at least reasonably comparable
     # TODO work towards 100 % correspondence with suitable test dataset
     # TODO make the amplitude of the reconstruction match
+    print("Max between: ", np.max(np.abs(ssb_res - reference_ssb_res)), np.max(np.abs(ssb_res)))
+    print("Std between: ", np.std(ssb_res - reference_ssb_res), np.std(ssb_res))
     assert np.max(np.abs(ssb_res - reference_ssb_res)) < 0.01*np.max(np.abs(ssb_res))
     assert np.std(ssb_res - reference_ssb_res) < 0.01*np.std(ssb_res)
 

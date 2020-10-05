@@ -358,12 +358,21 @@ class SSB_UDF(UDF):
             * self.task_data.col_steps[np.newaxis, np.newaxis, :]
         ).astype(factors_dtype)
 
-        masks = self.task_data.masks.get(
-            self.meta.slice, transpose=True, backend=self.task_data.backend
-        )
         tile_flat = tile.reshape(tile.shape[0], -1)
+        if self.task_data.backend == 'cupy':
+            masks = self.task_data.masks.get(
+                self.meta.slice, transpose=False, backend=self.task_data.backend,
+                sparse_backend='scipy.sparse.csr'
+            )
+            # As of now, cupy doesn't seem to support __rmatmul__ with sparse matrices
+            dot_result = masks.dot(tile_flat.T).T
+        else:
+            masks = self.task_data.masks.get(
+                self.meta.slice, transpose=True, backend=self.task_data.backend,
+                sparse_backend='scipy.sparse.csc'
+            )
+            dot_result = tile_flat @ masks
 
-        dot_result = tile_flat @ masks
         dot_result = dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))
 
         buffer_frame[:half_y] = (dot_result*fourier_factors_row*fourier_factors_col).sum(axis=0)
