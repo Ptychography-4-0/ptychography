@@ -15,6 +15,12 @@ from libertem.common.container import MaskContainer
 from ptychography.reconstruction.ssb import SSB_UDF, generate_masks, mask_tile_pair, get_results
 from ptychography.reconstruction.common import wavelength
 
+try:
+    from libertem.utils.devices import detect, has_cupy
+    from libertem.common.backend import set_use_cpu, set_use_cuda
+    use_cupy = detect()['cudas'] and has_cupy()
+except ImportError:
+    use_cupy = False
 
 DATA_PATH = "/storage/holo/clausen/testdata/ER-C-1/projects/ptycho-4.0/data/RefData/slice_00002_thick_0.312293_nm_blocksz.mat"
 PARAM_PATH = "/storage/holo/clausen/testdata/ER-C-1/projects/ptycho-4.0/data/slice_00002_thick_0.312293_nm_blocksz.params.json"
@@ -103,54 +109,63 @@ def test_mask_tile_pair_within():
     # Second one tests for different y and x dpix
     'dpix', (0.5654/50*1e-9, (0.5654/50*1e-9, 0.5654/49*1e-9))
 )
-def test_ssb(dpix, lt_ctx):
-    dtype = np.float64
+@pytest.mark.parametrize(
+    'backend', ('numpy', 'cupy') if use_cupy else ('numpy', )
+)
+def test_ssb(dpix, lt_ctx, backend):
+    try:
+        if backend == 'cupy':
+            set_use_cuda(0)
+        dtype = np.float64
 
-    scaling = 4
-    shape = (29, 30, 189 // scaling, 197 // scaling)
+        scaling = 4
+        shape = (29, 30, 189 // scaling, 197 // scaling)
 
-    # The acceleration voltage U in keV
-    U = 300
+        # The acceleration voltage U in keV
+        U = 300
 
-    # STEM semiconvergence angle in radians
-    semiconv = 25e-3
-    # Diameter of the primary beam in the diffraction pattern in pixels
-    semiconv_pix = 78.6649 / scaling
+        # STEM semiconvergence angle in radians
+        semiconv = 25e-3
+        # Diameter of the primary beam in the diffraction pattern in pixels
+        semiconv_pix = 78.6649 / scaling
 
-    cy = 93 // scaling
-    cx = 97 // scaling
+        cy = 93 // scaling
+        cx = 97 // scaling
 
-    input_data = (
-        np.random.uniform(0, 1, np.prod(shape))
-        * np.linspace(1.0, 1000.0, num=np.prod(shape))
-    )
-    input_data = input_data.astype(np.float64).reshape(shape)
+        input_data = (
+            np.random.uniform(0, 1, np.prod(shape))
+            * np.linspace(1.0, 1000.0, num=np.prod(shape))
+        )
+        input_data = input_data.astype(np.float64).reshape(shape)
 
-    udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                  dtype=dtype, center=(cy, cx), method='subpix')
+        udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                    dtype=dtype, center=(cy, cx), method='subpix')
 
-    dataset = MemoryDataSet(
-        data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
-    )
+        dataset = MemoryDataSet(
+            data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
+        )
 
-    result = lt_ctx.run_udf(udf=udf, dataset=dataset)
+        result = lt_ctx.run_udf(udf=udf, dataset=dataset)
 
-    result_f, reference_masks = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
-                             semiconv_pix=semiconv_pix, cy=cy, cx=cx)
+        result_f, reference_masks = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
+                                semiconv_pix=semiconv_pix, cy=cy, cx=cx)
 
-    task_data = udf.get_task_data()
+        task_data = udf.get_task_data()
 
-    udf_masks = task_data['masks'].computed_masks
+        udf_masks = task_data['masks'].computed_masks
 
-    half_y = shape[0] // 2 + 1
-    # Use symmetry and reshape like generate_masks()
-    reference_masks = reference_masks[:half_y].reshape((half_y*shape[1], shape[2], shape[3]))
+        half_y = shape[0] // 2 + 1
+        # Use symmetry and reshape like generate_masks()
+        reference_masks = reference_masks[:half_y].reshape((half_y*shape[1], shape[2], shape[3]))
 
-    print(np.max(np.abs(udf_masks.todense() - reference_masks)))
+        print(np.max(np.abs(udf_masks.todense() - reference_masks)))
 
-    print(np.max(np.abs(result['pixels'].data - result_f)))
+        print(np.max(np.abs(result['pixels'].data - result_f)))
 
-    assert np.allclose(result['pixels'].data, result_f)
+        assert np.allclose(result['pixels'].data, result_f)
+    finally:
+        if backend == 'cupy':
+            set_use_cpu(0)
 
 
 @pytest.mark.parametrize(
@@ -158,73 +173,82 @@ def test_ssb(dpix, lt_ctx):
     # Second one tests for different y and x dpix
     'dpix', (0.5654/50*1e-9, (0.5654/50*1e-9, 0.5654/49*1e-9))
 )
-def test_ssb_container(dpix, lt_ctx):
-    dtype = np.float64
+@pytest.mark.parametrize(
+    'backend', ('numpy', 'cupy') if use_cupy else ('numpy', )
+)
+def test_ssb_container(dpix, lt_ctx, backend):
+    try:
+        if backend == 'cupy':
+            set_use_cuda(0)
+        dtype = np.float64
 
-    scaling = 4
-    shape = (29, 30, 189 // scaling, 197 // scaling)
+        scaling = 4
+        shape = (29, 30, 189 // scaling, 197 // scaling)
 
-    # The acceleration voltage U in keV
-    U = 300
+        # The acceleration voltage U in keV
+        U = 300
 
-    # STEM semiconvergence angle in radians
-    semiconv = 25e-3
-    # Diameter of the primary beam in the diffraction pattern in pixels
-    semiconv_pix = 78.6649 / scaling
+        # STEM semiconvergence angle in radians
+        semiconv = 25e-3
+        # Diameter of the primary beam in the diffraction pattern in pixels
+        semiconv_pix = 78.6649 / scaling
 
-    cy = 93 // scaling
-    cx = 97 // scaling
+        cy = 93 // scaling
+        cx = 97 // scaling
 
-    input_data = (
-        np.random.uniform(0, 1, np.prod(shape))
-        * np.linspace(1.0, 1000.0, num=np.prod(shape))
-    )
-    input_data = input_data.astype(np.float64).reshape(shape)
+        input_data = (
+            np.random.uniform(0, 1, np.prod(shape))
+            * np.linspace(1.0, 1000.0, num=np.prod(shape))
+        )
+        input_data = input_data.astype(np.float64).reshape(shape)
 
-    masks = generate_masks(
-        reconstruct_shape=shape[:2],
-        mask_shape=shape[2:],
-        dtype=dtype,
-        lamb=wavelength(U),
-        dpix=dpix,
-        semiconv=semiconv,
-        semiconv_pix=semiconv_pix,
-        center=(cy, cx),
-        method='subpix'
-    )
+        masks = generate_masks(
+            reconstruct_shape=shape[:2],
+            mask_shape=shape[2:],
+            dtype=dtype,
+            lamb=wavelength(U),
+            dpix=dpix,
+            semiconv=semiconv,
+            semiconv_pix=semiconv_pix,
+            center=(cy, cx),
+            method='subpix'
+        )
 
-    mask_container = MaskContainer(
-        mask_factories=lambda: masks, dtype=masks.dtype,
-        use_sparse='scipy.sparse.csc', count=masks.shape[0],
-    )
+        mask_container = MaskContainer(
+            mask_factories=lambda: masks, dtype=masks.dtype,
+            use_sparse='scipy.sparse.csc', count=masks.shape[0],
+        )
 
-    udf = SSB_UDF(
-        U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-        dtype=dtype, center=(cy, cx), mask_container=mask_container
-    )
+        udf = SSB_UDF(
+            U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+            dtype=dtype, center=(cy, cx), mask_container=mask_container
+        )
 
-    dataset = MemoryDataSet(
-        data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
-    )
+        dataset = MemoryDataSet(
+            data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
+        )
 
-    result = lt_ctx.run_udf(udf=udf, dataset=dataset)
+        result = lt_ctx.run_udf(udf=udf, dataset=dataset)
 
-    result_f, reference_masks = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
-                             semiconv_pix=semiconv_pix, cy=cy, cx=cx)
+        result_f, reference_masks = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
+                                semiconv_pix=semiconv_pix, cy=cy, cx=cx)
 
-    task_data = udf.get_task_data()
+        task_data = udf.get_task_data()
 
-    udf_masks = task_data['masks'].computed_masks
+        udf_masks = task_data['masks'].computed_masks
 
-    half_y = shape[0] // 2 + 1
-    # Use symmetry and reshape like generate_masks()
-    reference_masks = reference_masks[:half_y].reshape((half_y*shape[1], shape[2], shape[3]))
+        half_y = shape[0] // 2 + 1
+        # Use symmetry and reshape like generate_masks()
+        reference_masks = reference_masks[:half_y].reshape((half_y*shape[1], shape[2], shape[3]))
 
-    print(np.max(np.abs(udf_masks.todense() - reference_masks)))
+        print(np.max(np.abs(udf_masks.todense() - reference_masks)))
 
-    print(np.max(np.abs(result['pixels'].data - result_f)))
+        print(np.max(np.abs(result['pixels'].data - result_f)))
 
-    assert np.allclose(result['pixels'].data, result_f)
+        assert np.allclose(result['pixels'].data, result_f)
+    finally:
+        if backend == 'cupy':
+            set_use_cpu(0)
 
 
 def test_ssb_rotate():
