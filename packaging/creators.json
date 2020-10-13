@@ -72,5 +72,12 @@
         "authorname": "zu Castell, Wolfgang",
         "affiliation": "HZM",
         "contribution": "Member of Ptychography 4.0"
+    },
+	{
+        "displayname": "Oleh Melnyk",
+        "authorname": "Melnyk, Oleh",
+        "affiliation": "HZM, TU Munich",
+        "contribution": "stitching",
+        "orcid": "0000-0002-1816-7613"
     }
 ]
