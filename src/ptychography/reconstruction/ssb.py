@@ -376,7 +376,7 @@ class SSB_UDF(UDF):
         fourier_factors_row = self.task_data.row_exp[y_indices, :half_y, np.newaxis]
         fourier_factors_col = self.task_data.col_exp[x_indices, np.newaxis, :]
 
-        # The masks are in order [col, row], but flattened. Here we undo the flattening
+        # The masks are in order [row, col], but flattened. Here we undo the flattening
         dot_result = dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))
 
         # Calculate the part of the Fourier transform for this tile.
