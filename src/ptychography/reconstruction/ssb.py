@@ -355,14 +355,12 @@ class SSB_UDF(UDF):
         tile_start = self.meta.slice.origin[0]
         tile_depth = dot_result.shape[0]
 
-        buffer_frame = xp.zeros_like(self.results.pixels)
-
         # We calculate only half of the Fourier transform due to the
         # inherent symmetry of the mask stack. In this case we
         # cut the y axis in half. The "+ 1" accounts for odd sizes
         # The mask stack is already trimmed in y direction to only contain
         # one of the trotter pairs
-        half_y = buffer_frame.shape[0] // 2 + 1
+        half_y = self.results.pixels.shape[0] // 2 + 1
 
         # Get the real x and y indices within the dataset navigation dimension
         # for the current tile
@@ -377,7 +375,7 @@ class SSB_UDF(UDF):
         fourier_factors_col = self.task_data.col_exp[x_indices, np.newaxis, :]
 
         # The masks are in order [row, col], but flattened. Here we undo the flattening
-        dot_result = dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))
+        dot_result = dot_result.reshape((tile_depth, half_y, self.results.pixels.shape[1]))
 
         # Calculate the part of the Fourier transform for this tile.
         # Reconstructed shape corresponds to depth of mask stack, see above.
@@ -393,25 +391,29 @@ class SSB_UDF(UDF):
         # stack before patching the missing half for the full result.
         # Einsum is about 3x faster in this scenario, likely because of not building a large
         # intermediate array before summation
-        buffer_frame[:half_y] = xp.einsum(
+        self.results.pixels[:half_y] += xp.einsum(
             'i...,i...,i...',
             dot_result,
             fourier_factors_row,
             fourier_factors_col
         )
+
+    def postprocess(self):
+        # shorthand, cupy or numpy
+        xp = self.xp
+        half_y = self.results.pixels.shape[0] // 2 + 1
         # patch accounts for even and odd sizes
         # FIXME make sure this is correct using an example that transmits also
         # the high spatial frequencies
-        patch = buffer_frame.shape[0] % 2
+        patch = self.results.pixels.shape[0] % 2
         # We skip the first row since it would be outside the FOV
-        extracted = buffer_frame[1:buffer_frame.shape[0] // 2 + patch]
+        extracted = self.results.pixels[1:self.results.pixels.shape[0] // 2 + patch]
         # The coordinates of the bottom half are inverted and
         # the zero column is rolled around to the front
         # The real part is inverted
-        buffer_frame[half_y:] = -xp.conj(
+        self.results.pixels[half_y:] = -xp.conj(
             xp.roll(xp.flip(xp.flip(extracted, axis=0), axis=1), shift=1, axis=1)
         )
-        self.results.pixels[:] += buffer_frame
 
     def process_tile(self, tile):
         # We flatten the signal dimension of the tile in preparation of the dot product
