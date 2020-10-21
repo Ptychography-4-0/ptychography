@@ -301,11 +301,28 @@ class SSB_UDF(UDF):
                     "The methods generate_masks_*() help to generate a suitable mask stack."
                 )
         ds_nav = tuple(self.meta.dataset_shape.nav)
-        y_positions, x_positions = np.mgrid[0:ds_nav[0], 0:ds_nav[1]]
 
         # Precalculated values for Fourier transform
+        # The y axis is trimmed in half since the full trotter stack is symmetric,
+        # i.e. the missing half can be reconstructed from the other results
         row_steps = -2j*np.pi*np.linspace(0, 1, self.reconstruct_shape[0], endpoint=False)
         col_steps = -2j*np.pi*np.linspace(0, 1, self.reconstruct_shape[1], endpoint=False)
+
+        half_y = self.reconstruct_shape[0] // 2 + 1
+        full_x = self.reconstruct_shape[1]
+
+        row_exp = np.exp(
+            row_steps[:, np.newaxis]
+            * np.arange(half_y)[np.newaxis, :]
+        )
+        col_exp = np.exp(
+            col_steps[:, np.newaxis]
+            * np.arange(full_x)[np.newaxis, :]
+        )
+
+        # Calculate the x and y indices in the navigation dimension
+        # for each frame, taking the ROI into account
+        y_positions, x_positions = np.mgrid[0:ds_nav[0], 0:ds_nav[1]]
 
         if self.meta.roi is None:
             y_map = y_positions.flatten()
@@ -316,9 +333,6 @@ class SSB_UDF(UDF):
 
         steps_dtype = np.result_type(np.complex64, self.params.dtype)
 
-        cy, cx = self.params.center
-        fy, fx = tuple(self.meta.dataset_shape.sig)
-
         return {
             "masks": container,
             # Frame positions in the dataset masked by ROI
@@ -326,56 +340,65 @@ class SSB_UDF(UDF):
             # processing with ROI applied
             "y_map": xp.array(y_map),
             "x_map": xp.array(x_map),
-            "row_steps": xp.array(row_steps.astype(steps_dtype)),
-            "col_steps": xp.array(col_steps.astype(steps_dtype)),
+            "row_exp": xp.array(row_exp.astype(steps_dtype)),
+            "col_exp": xp.array(col_exp.astype(steps_dtype)),
             "backend": backend
         }
 
     def merge(self, dest, src):
         dest['pixels'][:] = dest['pixels'] + src['pixels']
 
-    def process_tile(self, tile):
+    def merge_dot_result(self, dot_result):
         # shorthand, cupy or numpy
         xp = self.xp
 
         tile_start = self.meta.slice.origin[0]
-        tile_depth = tile.shape[0]
+        tile_depth = dot_result.shape[0]
 
         buffer_frame = xp.zeros_like(self.results.pixels)
+
+        # We calculate only half of the Fourier transform due to the
+        # inherent symmetry of the mask stack. In this case we
+        # cut the y axis in half. The "+ 1" accounts for odd sizes
+        # The mask stack is already trimmed in y direction to only contain
+        # one of the trotter pairs
         half_y = buffer_frame.shape[0] // 2 + 1
 
+        # Get the real x and y indices within the dataset navigation dimension
+        # for the current tile
         y_indices = self.task_data.y_map[tile_start:tile_start+tile_depth]
         x_indices = self.task_data.x_map[tile_start:tile_start+tile_depth]
 
-        factors_dtype = np.result_type(np.complex64, self.params.dtype)
+        # This loads the correct entries for the current tile from the pre-calculated
+        # 1-D DFT matrices using the x and y indices of the frames in the current tile
+        # fourier_factors_row is already trimmed for half_y, but the explicit index
+        # is kept for clarity
+        fourier_factors_row = self.task_data.row_exp[y_indices, :half_y, np.newaxis]
+        fourier_factors_col = self.task_data.col_exp[x_indices, np.newaxis, :]
 
-        fourier_factors_row = xp.exp(
-            y_indices[:, np.newaxis, np.newaxis]
-            * self.task_data.row_steps[np.newaxis, :half_y, np.newaxis]
-        ).astype(factors_dtype)
-        fourier_factors_col = xp.exp(
-            x_indices[:, np.newaxis, np.newaxis]
-            * self.task_data.col_steps[np.newaxis, np.newaxis, :]
-        ).astype(factors_dtype)
-
-        tile_flat = tile.reshape(tile.shape[0], -1)
-        if self.task_data.backend == 'cupy':
-            masks = self.task_data.masks.get(
-                self.meta.slice, transpose=False, backend=self.task_data.backend,
-                sparse_backend='scipy.sparse.csr'
-            )
-            # As of now, cupy doesn't seem to support __rmatmul__ with sparse matrices
-            dot_result = masks.dot(tile_flat.T).T
-        else:
-            masks = self.task_data.masks.get(
-                self.meta.slice, transpose=True, backend=self.task_data.backend,
-                sparse_backend='scipy.sparse.csc'
-            )
-            dot_result = tile_flat @ masks
-
+        # The masks are in order [col, row], but flattened. Here we undo the flattening
         dot_result = dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))
 
-        buffer_frame[:half_y] = (dot_result*fourier_factors_row*fourier_factors_col).sum(axis=0)
+        # Calculate the part of the Fourier transform for this tile.
+        # Reconstructed shape corresponds to depth of mask stack, see above.
+        # Shape of operands:
+        # dot_result: (tile_depth, reconstructed_shape_y // 2 + 1, reconstructed_shape_x)
+        # fourier_factors_row: (tile_depth, reconstructed_shape_y // 2 + 1, 1)
+        # fourier_factors_col: (tile_depth, 1, reconstructed_shape_x)
+        # The einsum is equivalent to
+        # (dot_result*fourier_factors_row*fourier_factors_col).sum(axis=0)
+        # The product of the Fourier factors for row and column implicitly builds part
+        # of the full 2D DFT matrix through NumPy broadcasting
+        # The sum of axis 0 (tile depth) already performs the accumulation for the tile
+        # stack before patching the missing half for the full result.
+        # Einsum is about 3x faster in this scenario, likely because of not building a large
+        # intermediate array before summation
+        buffer_frame[:half_y] = xp.einsum(
+            'i...,i...,i...',
+            dot_result,
+            fourier_factors_row,
+            fourier_factors_col
+        )
         # patch accounts for even and odd sizes
         # FIXME make sure this is correct using an example that transmits also
         # the high spatial frequencies
@@ -389,6 +412,38 @@ class SSB_UDF(UDF):
             xp.roll(xp.flip(xp.flip(extracted, axis=0), axis=1), shift=1, axis=1)
         )
         self.results.pixels[:] += buffer_frame
+
+    def process_tile(self, tile):
+        # We flatten the signal dimension of the tile in preparation of the dot product
+        tile_flat = tile.reshape(tile.shape[0], -1)
+        if self.task_data.backend == 'cupy':
+            # Load the preconditioned trotter stack from the mask container:
+            # * Coutout for current tile
+            # * Flattened signal dimension
+            # * Clean CSR matrix
+            # * On correct device
+            masks = self.task_data.masks.get(
+                self.meta.slice, transpose=False, backend=self.task_data.backend,
+                sparse_backend='scipy.sparse.csr'
+            )
+            # This performs the trotter integration
+            # As of now, cupy doesn't seem to support __rmatmul__ with sparse matrices
+            dot_result = masks.dot(tile_flat.T).T
+        else:
+            # Load the preconditioned trotter stack from the mask container:
+            # * Coutout for current tile
+            # * Flattened signal dimension
+            # * Transposed for right hand side of dot product
+            # * Clean CSC matrix
+            # * On correct device
+            masks = self.task_data.masks.get(
+                self.meta.slice, transpose=True, backend=self.task_data.backend,
+                sparse_backend='scipy.sparse.csc'
+            )
+            # This performs the trotter integration
+            dot_result = tile_flat @ masks
+
+        self.merge_dot_result(dot_result)
 
     def get_backends(self):
         return ('numpy', 'cupy')
