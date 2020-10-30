@@ -16,7 +16,7 @@ def test_stitching():
     d = min( img_re.shape[0],img_re.shape[1],img_im.shape[0],img_im.shape[1])
     psize = 150
     shift = 75
-    noise_level = 1000
+    # noise_level = 1000
 
     d = (d//psize)*psize
 
