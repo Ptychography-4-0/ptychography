@@ -10,7 +10,7 @@ from skimage import data
 import matplotlib.pyplot as plt
 #import sys
 #sys.path.insert(1, '../src/ptychography/')
-import ptychography.stitching
+import ptychography.stitching.stitching as stitch
 
 def show_object(obj):
     
@@ -78,10 +78,10 @@ for r in range(R):
     parts[loc[0]:(loc[0] + psize),loc[1]:(loc[1] + psize),r] = obj[loc[0]:(loc[0] + psize),loc[1]:(loc[1] + psize)]
     
 #    add gaussian noise
-    noise= np.random.normal(size=(psize,psize)) + 1.0j*np.random.normal(size=(psize,psize))
-    noise *= np.sqrt(noise_level)
+    # noise= np.random.normal(size=(psize,psize)) + 1.0j*np.random.normal(size=(psize,psize))
+    # noise *= np.sqrt(noise_level)
     
-    parts[loc[0]:(loc[0] + psize),loc[1]:(loc[1] + psize),r] += noise
+    # parts[loc[0]:(loc[0] + psize),loc[1]:(loc[1] + psize),r] += noise
     
 #    add random phase rotation
     angle = np.random.normal(1) + 1.0j*np.random.normal(1)
