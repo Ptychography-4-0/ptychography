@@ -11,7 +11,7 @@ import numpy.random
 from scipy.sparse.linalg import eigsh
 
 # In paralelized ptychography, each node returns recovered 
-# part of the object up to a phase factor. Our goal is to stich those peaces by synchronizing 
+# part of the object up to a phase factor. Our goal is to stich those pieces by synchronizing 
 # phase factors. To do so, we solve the angular synchronization, a 
 # recovery of the unknown phase factors from their (noisy) pairwise differences
 # To obtain these pairwise differences, we compute the inner product between 
