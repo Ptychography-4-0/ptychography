@@ -7,14 +7,45 @@ from libertem.common.container import MaskContainer
 from libertem.masks import circular
 from libertem.corrections.coordinates import identity
 
-from .common import wavelength, get_shifted
+from .common import get_shifted
 
 
 def empty_mask(mask_shape, dtype):
+    '''
+    Return an empty sparse mask
+
+    Improve readability
+    '''
     return sparse.zeros(mask_shape, dtype=dtype)
 
 
-def mask_pair_subpix(cy, cx, sy, sx, filter_center, semiconv_pix, cutoff, mask_shape):
+def mask_pair_subpix(cy, cx, sy, sx, filter_center, semiconv_pix):
+    '''
+    Calculate positive and negative trotter mask for circular illumination
+    using a method with subpixel capability.
+
+    Parameters
+    ----------
+
+    cy, cx : float
+        Position of the optical axis on the detector in px, center of illumination
+    sy, sx : float
+        Trotter shift value in px
+    filter_center : numpy.ndarray
+        Center illumination, i.e. zero order disk. This has to be circular and match the radius
+        semiconv_pix. It is just passed as an argument for efficientcy to avoid unnecessary
+        recalculation.
+    semiconv_pix : float
+        Semiconvergence angle in measured in detector pixel, i.e. radius of the zero order disk.
+
+    Returns
+    -------
+
+    mask_positive, mask_negative : numpy.ndarray
+        Positive and negative trotter mask
+    '''
+    mask_shape = filter_center.shape
+
     filter_positive = circular(
         centerX=cx+sx, centerY=cy+sy,
         imageSizeX=mask_shape[1], imageSizeY=mask_shape[0],
@@ -35,7 +66,41 @@ def mask_pair_subpix(cy, cx, sy, sx, filter_center, semiconv_pix, cutoff, mask_s
 
 @numba.njit
 def mask_tile_pair(center_tile, tile_origin, tile_shape, filter_center, sy, sx):
+    '''
+    Numerical work horse for :meth:`mask_pair_shift`, including tiling support.
 
+    The tiling support could be used to calculate the mask stack on the fly,
+    including support for UDF.process_tile().
+
+    Parameters
+    ----------
+
+    center_tile : numpy.ndarray
+        Tile cut out from :code:`filter_center` for re-use to increase efficiency
+    tile_origin : tuple
+        Origin of the tile to calculate
+    tile_shape : tuple
+        Shape of the tile
+    filter_center : numpy.ndarray
+        Center illumination, i.e. zero order disk.
+    sy, sx : float
+        Trotter shift value in px
+
+    Returns
+    -------
+    mask_positive : numpy.ndarray
+        Positive trotter tile
+    target_tup_p : numpy.ndarray of int
+        Start and stop indices per axis that were used for shifting the positive trotter tile.
+    offsets_p : numpy.ndarray
+        Offsets per axis that were used for shifting the positive trotter tile.
+    mask_negative : numpy.ndarray
+        Negative trotter tile
+    target_tup_n : numpy.ndarray
+        Start and stop indices per axis that were used for shifting the negative trotter tile.
+    offsets_n : numpy.ndarray
+        Offsets per axis that were used for shifting the negative trotter tile.
+    '''
     sy, sx, = np.int(np.round(sy)), np.int(np.round(sx))
     positive_tile = np.zeros_like(center_tile)
     negative_tile = np.zeros_like(center_tile)
@@ -75,12 +140,37 @@ def mask_tile_pair(center_tile, tile_origin, tile_shape, filter_center, sy, sx):
     return (mask_positive, target_tup_p, offsets_p, mask_negative, target_tup_n, offsets_n)
 
 
-def mask_pair_shift(cy, cx, sy, sx, filter_center, semiconv_pix, cutoff, mask_shape):
+def mask_pair_shift(cy, cx, sy, sx, filter_center, semiconv_pix):
+    '''
+    Calculate positive and negative trotter mask using a fast shifting method.
+
+    It has the same signature as :meth:`mask_pair_subpix` for easy changing
+    between the methods. That means several parameters that are only relevant
+    for the subpix method are ignored in this function.
+
+    Parameters
+    ----------
+
+    cy, cx : float
+        Ignored, given implicitly by filter_center
+    sy, sx : float
+        Trotter shift value in px
+    filter_center : numpy.ndarray
+        Center illumination, i.e. zero order disk.
+    semiconv_pix : float
+        Ignored, given implicitly by filter_center
+
+    Returns
+    -------
+
+    mask_positive, mask_negative : numpy.ndarray
+        Positive and negative trotter mask
+    '''
     (mask_positive, target_tup_p, offsets_p,
     mask_negative, target_tup_n, offsets_n) = mask_tile_pair(
         center_tile=np.array(filter_center),
         tile_origin=np.array((0, 0)),
-        tile_shape=np.array(mask_shape),
+        tile_shape=np.array(filter_center.shape),
 
         filter_center=np.array(filter_center),
         sy=sy,
@@ -90,7 +180,39 @@ def mask_pair_shift(cy, cx, sy, sx, filter_center, semiconv_pix, cutoff, mask_sh
 
 
 def generate_mask(cy, cx, sy, sx, filter_center, semiconv_pix,
-                  cutoff, mask_shape, dtype, method='subpix'):
+                  cutoff, dtype, method='subpix'):
+    '''
+    Generate the trotter mask for a specific shift sy, sx
+
+    Parameters
+    ----------
+
+    cy, cx : float
+        Position of the optical axis on the detector in px, center of illumination
+    sy, sx : float
+        Trotter shift value in px
+    filter_center : numpy.ndarray
+        Center illumination, i.e. zero order disk. This has to be circular and match the radius
+        semiconv_pix if :code:`method=subpix`. It is passed for re-use to avoid unnecessary
+        recalculation
+    semiconv_pix : float
+        Semiconvergence angle in measured in detector pixel, i.e. radius of the zero order disk.
+    cutoff : int
+        Minimum number of pixels in the positive and negative trotter. This can be used to purge
+        very small trotters to reduce noise.
+    dtype : numpy dtype
+        dtype to use for the mask
+    method : str, optional
+        Can be :code:`'subpix'`(default) or :code:`'shift'` to switch between
+        :meth:`mask_pair_subpix` and :meth:`mask_pair_shift` to generate the trotter pair.
+
+    Returns
+    -------
+    mask : sparse.COO
+        Mask in sparse.pydata.org COO format
+
+    '''
+    mask_shape = filter_center.shape
     # 1st diffraction order and primary beam don't overlap
     if sx**2 + sy**2 > 4*np.sum(semiconv_pix**2):
         return empty_mask(mask_shape, dtype=dtype)
@@ -104,8 +226,6 @@ def generate_mask(cy, cx, sy, sx, filter_center, semiconv_pix,
         cy=cy, cx=cx, sy=sy, sx=sx,
         filter_center=filter_center,
         semiconv_pix=semiconv_pix,
-        cutoff=cutoff,
-        mask_shape=mask_shape,
     )
 
     if method == 'subpix':
@@ -130,9 +250,60 @@ def generate_mask(cy, cx, sy, sx, filter_center, semiconv_pix,
 
 
 def generate_masks(reconstruct_shape, mask_shape, dtype, lamb, dpix, semiconv,
-        semiconv_pix, transformation=None, center=None, cutoff=1, cutoff_freq=np.float32('inf'),
-        method='subpix'):
+        semiconv_pix, transformation=None, cy=None, cx=None, cutoff=1,
+        cutoff_freq=np.float32('inf'), method='subpix'):
+    '''
+    Generate the trotter mask stack.
 
+    The y dimension is trimmed to size(y)//2 + 1 to exploit the inherent
+    symmetry of the mask stack.
+
+    Parameters
+    ----------
+
+    reconstruct_shape : tuple(int)
+        Shape of the reconstructed area
+    mask_shape : tuple(int)
+        Shape of the detector
+    dtype : numpy dtype
+        dtype to use for the mask stack
+    lamb : float
+        Wavelength of the illuminating radiation in m
+    dpix : float or (float, float)
+        Scan step in m. Tuple (y, x) in case scan step is different in x and y direction.
+    semiconv : float
+        Semiconvergence angle of the illumination in radians
+    semiconv_pix : float
+        Semiconvergence angle in measured in detector pixel, i.e. radius of the zero order disk.
+    transformation : numpy.ndarray, optional
+        Matrix for affine transformation from the scan coordinate directions
+        to the detector coordinate directions. This does not include the scale, which is handled by
+        dpix, lamb, semiconv and semiconv_pix. It should only be used to rotate and flip
+        the coordinate system as necessary. See also
+        https://github.com/LiberTEM/LiberTEM/blob/master/src/libertem/corrections/coordinates.py
+    cy, cx : float, optional
+        Position of the optical axis on the detector in px, center of illumination.
+        Default: Center of the detector
+    cutoff : int, optional
+        Minimum number of pixels in the positive and negative trotter. This can be used to purge
+        very small trotters to reduce noise. Default is 1, i.e. no cutoff unless one trotter is
+        empty.
+    cutoff_freq: float
+        Trotters belonging to a spatial frequency higher than this value in reciprocal pixel
+        coordinates will be cut off.
+    method : str, optional
+        Can be :code:`'subpix'`(default) or :code:`'shift'` to switch between
+        :meth:`mask_pair_subpix` and :meth:`mask_pair_shift` to generate a trotter pair.
+
+    Returns
+    -------
+    masks : sparse.COO
+        Masks in sparse.pydata.org COO format. y and x frequency index are FFT shifted, i.e. the
+        zero frequency is at (0,0) and negative frequencies are in the far quadrant and reversed.
+        The y frequency index is cut in half with size(y)//2 + 1 to exploit the inherent symmetry
+        of a real-valued Fourier transform. The y and x index are then flattened to make it
+        suitable for using it with MaskContainer.
+    '''
     reconstruct_shape = np.array(reconstruct_shape)
 
     dpix = np.array(dpix)
@@ -140,13 +311,13 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, lamb, dpix, semiconv,
     d_Kf = np.sin(semiconv)/lamb/semiconv_pix
     d_Qp = 1/dpix/reconstruct_shape
 
-    if center is None:
-        center = np.array(mask_shape) / 2
+    if cy is None:
+        cy = mask_shape[0] / 2
+    if cx is None:
+        cx = mask_shape[1] / 2
 
     if transformation is None:
         transformation = identity()
-
-    cy, cx = center
 
     filter_center = circular(
         centerX=cx, centerY=cy,
@@ -186,7 +357,6 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, lamb, dpix, semiconv,
                 filter_center=filter_center,
                 semiconv_pix=semiconv_pix,
                 cutoff=cutoff,
-                mask_shape=mask_shape,
                 dtype=dtype,
                 method=method,
             ))
@@ -198,47 +368,45 @@ def generate_masks(reconstruct_shape, mask_shape, dtype, lamb, dpix, semiconv,
 
 
 class SSB_UDF(UDF):
-
-    def __init__(self, U, dpix, semiconv, semiconv_pix,
-                 dtype=np.float32, center=None, mask_container=None,
-                 transformation=None, cutoff=1, method='subpix'):
+    '''
+    UDF to perform ptychography using the single side band (SSB) method :cite:`Pennycook2015`.
+    '''
+    def __init__(self, lamb, dpix, semiconv, semiconv_pix,
+                 dtype=np.float32, cy=None, cx=None, transformation=None,
+                 cutoff=1, method='subpix', mask_container=None,):
         '''
         Parameters
+        ----------
 
-        U: float
-            The acceleration voltage U in kV
-
-        center: (float, float)
-
+        lamb: float
+            The illumination wavelength in m. The function :meth:`ptychography.common.wavelength`
+            allows to calculate the electron wavelength as a function of acceleration voltage.
         dpix: float or Iterable(y, x)
             STEM pixel size in m
-
         semiconv: float
             STEM semiconvergence angle in radians
-
         dtype: np.dtype
             dtype to perform the calculation in
-
         semiconv_pix: float
             Diameter of the primary beam in the diffraction pattern in pixels
-
+        cy, cx : float, optional
+            Position of the optical axis on the detector in px, center of illumination.
+            Default: Center of the detector
         transformation: numpy.ndarray() of shape (2, 2) or None
             Transformation matrix to apply to shift vectors. This allows to adjust for scan rotation
             and mismatch of detector coordinate system handedness, such as flipped y axis for MIB.
-
-        mask_container: MaskContainer
-            Hack to pass in a precomputed mask stack when using with single thread live data
-            or with an inline executor.
-            The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
-
         cutoff : int
             Minimum number of pixels in a trotter
-
         method : 'subpix' or 'shift'
             Method to use for generating the mask stack
+        mask_container: MaskContainer
+            Allows to pass in a precomputed mask stack when using with single thread live data
+            or with an inline executor as a work-around. The number of masks is sanity-checked
+            to match the other parameters.
+            The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
         '''
-        super().__init__(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                         dtype=dtype, center=center, mask_container=mask_container,
+        super().__init__(lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                         dtype=dtype, cy=cy, cx=cx, mask_container=mask_container,
                          transformation=transformation, cutoff=cutoff, method=method)
 
     def get_result_buffers(self):
@@ -273,18 +441,19 @@ class SSB_UDF(UDF):
                 reconstruct_shape=self.reconstruct_shape,
                 mask_shape=tuple(self.meta.dataset_shape.sig),
                 dtype=self.params.dtype,
-                lamb=wavelength(self.params.U),
+                lamb=self.params.lamb,
                 dpix=self.params.dpix,
                 semiconv=self.params.semiconv,
                 semiconv_pix=self.params.semiconv_pix,
-                center=self.params.center,
+                cy=self.params.cy,
+                cx=self.params.cx,
                 transformation=self.params.transformation,
                 cutoff=self.params.cutoff,
                 method=self.params.method,
             )
             container = MaskContainer(
                 mask_factories=lambda: masks, dtype=masks.dtype,
-                use_sparse='scipy.sparse.csc', count=masks.shape[0], backend=backend
+                use_sparse='scipy.sparse.csr', count=masks.shape[0], backend=backend
             )
         else:
             container = self.params.mask_container
@@ -302,7 +471,7 @@ class SSB_UDF(UDF):
                 )
         ds_nav = tuple(self.meta.dataset_shape.nav)
 
-        # Precalculated values for Fourier transform
+        # Precalculated LUT for Fourier transform
         # The y axis is trimmed in half since the full trotter stack is symmetric,
         # i.e. the missing half can be reconstructed from the other results
         row_steps = -2j*np.pi*np.linspace(0, 1, self.reconstruct_shape[0], endpoint=False)
@@ -311,10 +480,12 @@ class SSB_UDF(UDF):
         half_y = self.reconstruct_shape[0] // 2 + 1
         full_x = self.reconstruct_shape[1]
 
+        # This creates a 2D array of row x spatial frequency
         row_exp = np.exp(
             row_steps[:, np.newaxis]
             * np.arange(half_y)[np.newaxis, :]
         )
+        # This creates a 2D array of col x spatial frequency
         col_exp = np.exp(
             col_steps[:, np.newaxis]
             * np.arange(full_x)[np.newaxis, :]
@@ -435,15 +606,23 @@ class SSB_UDF(UDF):
             # Load the preconditioned trotter stack from the mask container:
             # * Coutout for current tile
             # * Flattened signal dimension
-            # * Transposed for right hand side of dot product
-            # * Clean CSC matrix
+            # * Not transposed for left hand side of dot product
+            #   (the tile and the result will be transposed instead)
+            # * Clean CSR matrix
             # * On correct device
             masks = self.task_data.masks.get(
-                self.meta.slice, transpose=True, backend=self.task_data.backend,
-                sparse_backend='scipy.sparse.csc'
+                self.meta.slice, transpose=False, backend=self.task_data.backend,
+                sparse_backend='scipy.sparse.csr'
             )
             # This performs the trotter integration
-            dot_result = tile_flat @ masks
+            # Since we restrict the size of the input matrix in get_tiling_preferences()
+            # and the mask side of the product is much, much larger than the
+            # tile, taking a transposed copy of the tile with optimized memory layout
+            # for the fast scipy.sparse.csr __matmul__ is worth the effort here.
+            # See also https://github.com/scipy/scipy/issues/13211
+            # The optimal way to perform this dot product may also depend
+            # on the shape of the data and the size of the zero order disk
+            dot_result = (masks @ tile_flat.T.copy()).T
 
         self.merge_dot_result(dot_result)
 
@@ -454,17 +633,22 @@ class SSB_UDF(UDF):
         dtype = np.result_type(np.complex64, self.params.dtype)
         result_size = np.prod(self.reconstruct_shape) * dtype.itemsize
         if self.meta.device_class == 'cuda':
-            total_size = 1000e6
+            # TODO adjust based on free GPU RAM
+            total_size = 500e6
             good_depth = max(1, total_size / result_size)
             return {
                 "depth": good_depth,
                 "total_size": total_size,
             }
         else:
+            # We limit the depth of a tile so that the intermediate
+            # results from processing a tile fit into the CPU cache.
             good_depth = max(1, 1e6 / result_size)
             return {
                 "depth": int(good_depth),
-                "total_size": 1e6,
+                # We reduce the size of a tile since a transposed copy of
+                # each tile will be taken to speed up the sparse matrix product
+                "total_size": 0.5e6,
             }
 
 

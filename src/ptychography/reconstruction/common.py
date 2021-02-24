@@ -7,6 +7,21 @@ import scipy.constants as const
 
 # Calculation of the relativistic electron wavelength in meters
 def wavelength(U):
+    '''
+    Calculate the electron wavelength
+
+    Parameters
+    ----------
+
+    U : float
+        Acceleration voltage in kV
+
+    Returns
+    -------
+
+    wavelength : float
+        Wavelength in m
+    '''
     e = const.elementary_charge  # Elementary charge  !!! 1.602176634×10−19
     h = const.Planck  # Planck constant    !!! 6.62607004 × 10-34
     c = const.speed_of_light  # Speed of light
@@ -58,6 +73,12 @@ def intersection(s1, s2):
 
 @numba.njit
 def get_shifted(arr_shape: tuple, tile_origin: tuple, tile_shape: tuple, shift: tuple):
+    '''
+    Calculate the slices to cut out a shifted part of a 2D source
+    array and place it into a target array, including tiling support.
+
+    This works with negative and positive integer shifts.
+    '''
     # TODO this could be adapted for full sig, nav, n-D etc support
     # and included as a method in Slice?
     full_slice = (np.array((0, 0)), arr_shape)
