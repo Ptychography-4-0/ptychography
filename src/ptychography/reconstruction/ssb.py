@@ -615,9 +615,9 @@ class SSB_UDF(UDF):
         dtype = np.result_type(np.complex64, self.params.dtype)
         result_size = np.prod(self.reconstruct_shape) * dtype.itemsize
         if self.meta.device_class == 'cuda':
-            # TODO adjust based on free GPU RAM
-            total_size = 500e6
-            good_depth = max(1, total_size / result_size)
+            free, total = self.xp.cuda.runtime.memGetInfo()
+            total_size = min(100e6, free // 4)
+            good_depth = max(1, total_size / result_size * 4)
             return {
                 "depth": good_depth,
                 "total_size": total_size,
