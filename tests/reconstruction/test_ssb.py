@@ -123,6 +123,7 @@ def test_ssb(dpix, lt_ctx, backend):
 
         # The acceleration voltage U in keV
         U = 300
+        lamb = wavelength(U)
 
         # STEM semiconvergence angle in radians
         semiconv = 25e-3
@@ -138,8 +139,8 @@ def test_ssb(dpix, lt_ctx, backend):
         )
         input_data = input_data.astype(np.float64).reshape(shape)
 
-        udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                    dtype=dtype, center=(cy, cx), method='subpix')
+        udf = SSB_UDF(lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                    dtype=dtype, cy=cy, cx=cx, method='subpix')
 
         dataset = MemoryDataSet(
             data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
@@ -187,6 +188,7 @@ def test_ssb_container(dpix, lt_ctx, backend):
 
         # The acceleration voltage U in keV
         U = 300
+        lamb = wavelength(U)
 
         # STEM semiconvergence angle in radians
         semiconv = 25e-3
@@ -206,11 +208,12 @@ def test_ssb_container(dpix, lt_ctx, backend):
             reconstruct_shape=shape[:2],
             mask_shape=shape[2:],
             dtype=dtype,
-            lamb=wavelength(U),
+            lamb=lamb,
             dpix=dpix,
             semiconv=semiconv,
             semiconv_pix=semiconv_pix,
-            center=(cy, cx),
+            cy=cy,
+            cx=cx,
             method='subpix'
         )
 
@@ -220,8 +223,8 @@ def test_ssb_container(dpix, lt_ctx, backend):
         )
 
         udf = SSB_UDF(
-            U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-            dtype=dtype, center=(cy, cx), mask_container=mask_container
+            lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+            dtype=dtype, cy=cy, cx=cx, mask_container=mask_container
         )
 
         dataset = MemoryDataSet(
@@ -262,6 +265,7 @@ def test_ssb_rotate():
 
     # The acceleration voltage U in keV
     U = 300
+    lamb = wavelength(U)
     # STEM pixel size in m, here 50 STEM pixels on 0.5654 nm
     dpix = 0.5654/50*1e-9
     # STEM semiconvergence angle in radians
@@ -285,8 +289,8 @@ def test_ssb_rotate():
         for x in range(det):
             data_90deg[:, :, x, det-1-y] = input_data[:, :, y, x]
 
-    udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                  dtype=dtype, center=(cy, cx), transformation=rotate_deg(-90.))
+    udf = SSB_UDF(lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                  dtype=dtype, cy=cy, cx=cx, transformation=rotate_deg(-90.))
 
     dataset = MemoryDataSet(
         data=data_90deg, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
@@ -310,6 +314,7 @@ def test_ssb_roi():
 
     # The acceleration voltage U in keV
     U = 300
+    lamb = wavelength(U)
     # STEM pixel size in m, here 50 STEM pixels on 0.5654 nm
     dpix = 0.5654/50*1e-9
     # STEM semiconvergence angle in radians
@@ -326,8 +331,8 @@ def test_ssb_roi():
     )
     input_data = input_data.astype(np.float64).reshape(shape)
 
-    udf = SSB_UDF(U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                  dtype=dtype, center=(cy, cx))
+    udf = SSB_UDF(lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                  dtype=dtype, cy=cy, cx=cx)
 
     dataset = MemoryDataSet(
         data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
@@ -385,7 +390,8 @@ def test_masks():
         dpix=dpix,
         semiconv=semiconv,
         semiconv_pix=semiconv_pix,
-        center=(cy, cx),
+        cy=cy,
+        cx=cx,
         transformation=identity(),
         method="subpix"
     ).todense()
@@ -459,6 +465,7 @@ def test_validate_ssb(real_params, real_intensity_ds, real_plane_wave,
 
     # The acceleration voltage U in keV
     U = real_params["U"]
+    lamb = wavelength(U)
 
     # STEM semiconvergence angle in radians
     semiconv = real_params["semiconv"]
@@ -477,11 +484,12 @@ def test_validate_ssb(real_params, real_intensity_ds, real_plane_wave,
             reconstruct_shape=shape[:2],
             mask_shape=shape[2:],
             dtype=dtype,
-            lamb=wavelength(U),
+            lamb=lamb,
             dpix=dpix,
             semiconv=semiconv,
             semiconv_pix=semiconv_pix,
-            center=(cy, cx),
+            cy=cy,
+            cx=cx,
             transformation=transformation,
             method=method,
             cutoff=1,
@@ -495,8 +503,8 @@ def test_validate_ssb(real_params, real_intensity_ds, real_plane_wave,
         mask_container = None
 
     udf = SSB_UDF(
-        U=U, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-        dtype=dtype, center=(cy, cx), mask_container=mask_container, method=method,
+        lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+        dtype=dtype, cy=cy, cx=cx, mask_container=mask_container, method=method,
         cutoff=1,
     )
 
