@@ -469,7 +469,6 @@ class SSB_UDF(UDF):
                     "Mask shape self.meta.dataset_shape.sig. "
                     "The methods generate_masks_*() help to generate a suitable mask stack."
                 )
-        ds_nav = tuple(self.meta.dataset_shape.nav)
 
         # Precalculated LUT for Fourier transform
         # The y axis is trimmed in half since the full trotter stack is symmetric,
@@ -491,26 +490,10 @@ class SSB_UDF(UDF):
             * np.arange(full_x)[np.newaxis, :]
         )
 
-        # Calculate the x and y indices in the navigation dimension
-        # for each frame, taking the ROI into account
-        y_positions, x_positions = np.mgrid[0:ds_nav[0], 0:ds_nav[1]]
-
-        if self.meta.roi is None:
-            y_map = y_positions.flatten()
-            x_map = x_positions.flatten()
-        else:
-            y_map = y_positions[self.meta.roi]
-            x_map = x_positions[self.meta.roi]
-
         steps_dtype = np.result_type(np.complex64, self.params.dtype)
 
         return {
             "masks": container,
-            # Frame positions in the dataset masked by ROI
-            # to easily access position in dataset when
-            # processing with ROI applied
-            "y_map": xp.array(y_map),
-            "x_map": xp.array(x_map),
             "row_exp": xp.array(row_exp.astype(steps_dtype)),
             "col_exp": xp.array(col_exp.astype(steps_dtype)),
             "backend": backend
@@ -523,7 +506,6 @@ class SSB_UDF(UDF):
         # shorthand, cupy or numpy
         xp = self.xp
 
-        tile_start = self.meta.slice.origin[0]
         tile_depth = dot_result.shape[0]
 
         # We calculate only half of the Fourier transform due to the
@@ -535,8 +517,8 @@ class SSB_UDF(UDF):
 
         # Get the real x and y indices within the dataset navigation dimension
         # for the current tile
-        y_indices = self.task_data.y_map[tile_start:tile_start+tile_depth]
-        x_indices = self.task_data.x_map[tile_start:tile_start+tile_depth]
+        y_indices = self.meta.coordinates[:, 0]
+        x_indices = self.meta.coordinates[:, 1]
 
         # This loads the correct entries for the current tile from the pre-calculated
         # 1-D DFT matrices using the x and y indices of the frames in the current tile
