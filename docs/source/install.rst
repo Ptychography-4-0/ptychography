@@ -62,7 +62,7 @@ indicate that the environment is active:
 
 For more information about virtualenv, for example if you are using a shell
 without `source`, please `refer to the virtualenv documentation
-<https://virtualenv.pypa.io/en/stable/userguide/#user-guide>`_. If you are often
+<https://virtualenv.pypa.io/en/latest/user_guide.html>`_. If you are often
 working with virtualenvs, using a convenience wrapper like `virtualenvwrapper
 <https://virtualenvwrapper.readthedocs.io/en/latest/>`_ is recommended.
 
@@ -170,7 +170,7 @@ Windows
 -------
 
 The recommended method to install ptychography on Windows is based on `Miniconda 64
-bit with Python version 3.6 or 3.7 <https://www.anaconda.com/distribution/>`_.
+bit with Python version 3.6 or 3.7 <https://docs.conda.io/en/latest/miniconda.html>`_.
 This installs a Python distribution.
 
 For `installing from a git clone`_ you require a suitable git client, for
