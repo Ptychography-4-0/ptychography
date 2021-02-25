@@ -6,8 +6,9 @@ Reference
 .. toctree::
    :maxdepth: 2
 
-   api
-   application
+   ssb
+   stitching
+   common
 
 Indices and tables
 ------------------

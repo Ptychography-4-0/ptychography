@@ -24,10 +24,7 @@ Generally, we follow user demand with our developments.
 For design of new features we roughly follow the `lead user method
 <https://en.wikipedia.org/wiki/Lead_user>`_, which means that we develop new
 features closely along a non-trivial real-world application in order to make
-sure the developments are appropriate and easy to use in practice. The interface
-for :ref:`user-defined functions`, as an example, follows the requirements
-around implementing and running complex algorithms like :ref:`strain mapping`
-for distributed systems.
+sure the developments are appropriate and easy to use in practice.
 
 Furthermore we value a systematic approach to development with requirements
 analysis and evaluation of design options as well as iterative design with fast
@@ -53,8 +50,7 @@ To make sure our code base stays readable, we follow a `Code Style`_.
 Please update ``packaging/creators.json`` with your author information when you
 contribute to Ptychography 4.0 for the first time. This helps us to keep track of all
 contributors and give credit where credit is due! Please let us know if you
-wouldn't like to be credited. Our :ref:`authorship` describes in more detail how
-we manage authorship of Ptychography 4.0 and related material.
+wouldn't like to be credited.
 
 If you are changing parts of Ptychography 4.0 that are currently not covered by tests,
 please consider writing new tests! When changing example code, which is not run
@@ -131,7 +127,7 @@ Now you can run pytest on a subset of tests, for example:
 
 .. code-block:: shell
 
-   (ptychography) $ pytest tests/test_analysis_masks.py
+   (ptychography) $ pytest tests/reconstruction/test_ssb.py
 
 See the `pytest documentation
 <https://docs.pytest.org/en/latest/usage.html#specifying-tests-selecting-tests>`_

@@ -49,6 +49,7 @@ class SSB_UDF(UDF):
                          transformation=transformation, cutoff=cutoff, method=method)
 
     def get_result_buffers(self):
+        ''
         dtype = np.result_type(np.complex64, self.params.dtype)
         return {
             'pixels': self.buffer(
@@ -62,6 +63,7 @@ class SSB_UDF(UDF):
         return tuple(self.meta.dataset_shape.nav)
 
     def get_task_data(self):
+        ''
         # shorthand, cupy or numpy
         xp = self.xp
 
@@ -139,6 +141,7 @@ class SSB_UDF(UDF):
         }
 
     def merge(self, dest, src):
+        ''
         dest['pixels'][:] = dest['pixels'] + src['pixels']
 
     def merge_dot_result(self, dot_result):
@@ -191,6 +194,7 @@ class SSB_UDF(UDF):
         )
 
     def postprocess(self):
+        ''
         # shorthand, cupy or numpy
         xp = self.xp
         half_y = self.results.pixels.shape[0] // 2 + 1
@@ -208,6 +212,7 @@ class SSB_UDF(UDF):
         )
 
     def process_tile(self, tile):
+        ''
         # We flatten the signal dimension of the tile in preparation of the dot product
         tile_flat = tile.reshape(tile.shape[0], -1)
         if self.task_data.backend == 'cupy':
@@ -254,9 +259,11 @@ class SSB_UDF(UDF):
         self.merge_dot_result(dot_result)
 
     def get_backends(self):
+        ''
         return ('numpy', 'cupy')
 
     def get_tiling_preferences(self):
+        ''
         dtype = np.result_type(np.complex64, self.params.dtype)
         result_size = np.prod(self.reconstruct_shape) * dtype.itemsize
         if self.meta.device_class == 'cuda':
@@ -284,6 +291,17 @@ def get_results(udf_result):
     Derive real space wave front from Fourier space
 
     To be included in UDF after https://github.com/LiberTEM/LiberTEM/issues/628
+
+    Parameters
+    ----------
+
+    udf_result : Dict[str, libertem.common.buffers.BufferWrapper]
+        Result from running :class:`SSB_UDF` with a LiberTEM Context
+
+    Returns
+    -------
+    reconstruction : numpy.ndarray
+        Reconstruction result in real space as complex numbers.
     '''
     # Since we derive the wave front with a linear function from intensities,
     # but the wave front is inherently an amplitude,
