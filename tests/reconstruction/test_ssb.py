@@ -12,7 +12,8 @@ from libertem.masks import circular
 from libertem.corrections.coordinates import identity, rotate_deg
 from libertem.common.container import MaskContainer
 
-from ptychography.reconstruction.ssb import SSB_UDF, generate_masks, mask_tile_pair, get_results
+from ptychography.reconstruction.ssb import SSB_UDF, generate_masks, get_results
+from ptychography.reconstruction.ssb.trotters import mask_tile_pair
 from ptychography.reconstruction.common import wavelength
 
 try:
