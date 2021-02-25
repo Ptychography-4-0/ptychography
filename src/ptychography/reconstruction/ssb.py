@@ -581,6 +581,9 @@ class SSB_UDF(UDF):
                 self.meta.slice, transpose=False, backend=self.task_data.backend,
                 sparse_backend='scipy.sparse.csr'
             )
+            # Skip an empty tile since the contribution is 0
+            if masks.nnz == 0:
+                return
             # This performs the trotter integration
             # As of now, cupy doesn't seem to support __rmatmul__ with sparse matrices
             dot_result = masks.dot(tile_flat.T).T
@@ -596,6 +599,9 @@ class SSB_UDF(UDF):
                 self.meta.slice, transpose=False, backend=self.task_data.backend,
                 sparse_backend='scipy.sparse.csr'
             )
+            # Skip an empty tile since the contribution is 0
+            if masks.nnz == 0:
+                return
             # This performs the trotter integration
             # Since we restrict the size of the input matrix in get_tiling_preferences()
             # and the mask side of the product is much, much larger than the
