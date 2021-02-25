@@ -46,17 +46,6 @@ Before (using a release candidate package)
 * Install release candidate packages in a clean environment
   (for example: 
   :code:`pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple 'ptychography==0.2.0rc11'`)
-* Copy test files of all supported types to a fresh location or purge the parameter cache
-    * Include floats, ints, big endian, little endian, complex raw data
-* Open each test file
-    * Are parameters recognized correctly, as far as implemented?
-    * Any bad default values?
-    * Does the file open correctly?
-* Perform all analyses on each test file.
-    * Does the result change when the input parameters are changed?
-    * Reasonable performance?
-* Try opening all file types with wrong parameters
-    * Proper understandable error messages?
 * Run all examples
 * Confirm that pull requests and issues are handled as intended, i.e. milestoned and merged
   in appropriate branch.

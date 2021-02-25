@@ -18,14 +18,10 @@ Documentation
    
 
    install
-   api
-   applications
-   debugging
+   algorithms
    reference/index
    changelog
-   tips
    contributing
-   authorship
    citing
    acknowledgments
 

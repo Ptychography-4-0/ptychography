@@ -4,27 +4,25 @@ Installation
 ============
 
 .. note::
-    Installation of Ptychography 4.0 is currently not working smoothly with Python 3.8
-    because of installation issues with some dependencies. Python 3.6 and Python
-    3.7 are supported.
+    Ptychography 4.0 is currently not working with Python 3.9
+    because support in LiberTEM is still pending:
+    https://github.com/LiberTEM/LiberTEM/issues/914. Python 3.6, Python
+    3.7 and Python 3.8 are supported.
 
-.. note::
-    Distinguish between installing a released version and installing the latest
-    development version. Both `installing from PyPi`_ and `installing from a git
-    clone`_ use pip, but they do fundamentally different things. :code:`pip
-    install ptychography` downloads the latest release from PyPi, which can be
-    somewhat older.
-    
-    Changing directory to a git clone and running :code:`pip install -e .`
-    installs from the local directory in editable mode. "Editable mode" means
-    that the source directory is linked into the current Python environment
-    rather than copied. That means changes in the source directory are
-    immediately active in the Python environment.
-    
-    Installing from a git clone in editable mode is the correct setup for
-    development work and using :ref:`the latest features in the development
-    branch <continuous>`. Installing from PyPI is easier and preferred for new
-    users.
+The short version
+-----------------
+
+.. code-block:: shell
+
+    $ virtualenv -p python3 ~/ptychography-venv/
+    $ source ~/ptychography-venv/bin/activate
+    (ptychography) $ python -m pip install ptychography
+
+    # optional for GPU support
+    (ptychography) $ python -m pip install cupy
+
+For details, please read on!
+
 
 Linux and Mac OS X
 ------------------
@@ -71,8 +69,8 @@ working with virtualenvs, using a convenience wrapper like `virtualenvwrapper
 Using conda
 ###########
 
-If you are already using conda, or if you don't have a system-wide Python 3.6 or
-3.7 installation, you can create a conda environment for ptychography.
+If you are already using conda, or if you don't have a system-wide Python 3.6, 3.7 or
+3.8 installation, you can create a conda environment for ptychography.
 
 This section assumes that you have `installed conda
 <https://conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation>`_
@@ -90,7 +88,7 @@ command:
 
 .. code-block:: shell  
 
-    $ source activate ptychography
+    $ conda activate ptychography
 
 Afterwards, your shell prompt should be prefixed with :code:`(ptychography)` to
 indicate that the environment is active:
@@ -113,10 +111,10 @@ managing environments
 
 .. .. code-block:: shell
 
-..    (ptychography) $ pip install ptychography
+..    (ptychography) $ python -m pip install ptychography
 
 .. This should install ptychography and its dependencies in the environment. Please
-   continue by reading the :ref:`usage documentation`.
+   continue by reading about the :ref:`algorithms`.
 
 .. _`installing from a git clone`:
 
@@ -137,16 +135,10 @@ current directory!
 
 .. code-block:: shell
     
-    (ptychography) $ pip install -e .
+    (ptychography) $ python -m pip install -e .
 
 This should download the dependencies and install ptychography in the environment.
-Please continue by reading the :ref:`usage documentation`.
-
-
-Other extra packages
-~~~~~~~~~~~~~~~~~~~~
-
-FIXME update
+Please continue by reading about the :ref:`algorithms`.
 
 Updating
 ~~~~~~~~
@@ -164,6 +156,15 @@ mode <https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs>`_.
 That means the changes pulled from git are active immediately. Only if the
 requirements for installed third-party packages have changed, you can re-run
 ``pip install -e .`` in order to install any missing packages.
+
+CuPy
+----
+
+GPU support is based on `CuPy <https://cupy.dev/>`_.
+
+.. code-block:: shell
+
+    (libertem) $ python -m pip install cupy
 
 Windows
 -------
@@ -206,7 +207,7 @@ into your ptychography virtual environment.
 
 .. code-block:: shell
 
-    (ptychography) $ pip install jupyter
+    (ptychography) $ python -m pip install jupyter
 
 You can then run a local notebook from within the ptychography environment, which
 should open a browser window with Jupyter that uses your ptychography environment.
@@ -234,7 +235,7 @@ environment you additionally install ipykernel:
 
 .. code-block:: shell
 
-    (ptychography) $ pip install ipykernel
+    (ptychography) $ python -m pip install ipykernel
 
 Now you can create a custom ipython kernel definition for your environment:
 
