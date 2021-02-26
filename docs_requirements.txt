@@ -1,0 +1,8 @@
+sphinx>=3.5.1
+sphinx-autobuild
+sphinxcontrib-bibtex>=2
+sphinx-issues
+sphinx-rtd-theme
+nbsphinx
+nbsphinx_link
+ipython
