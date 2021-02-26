@@ -140,12 +140,9 @@ htmlcov
 coverage.xml
 .coverage*
 .pytest_cache
-node_modules
 build
 dist
-*.AppImage
 dask-worker-space
-AppDir
 Miniconda3-latest-Linux-x86_64.sh
 MANIFEST
 .vscode
