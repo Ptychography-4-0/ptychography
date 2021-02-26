@@ -1,0 +1,9 @@
+click
+pygithub
+requests
+twine
+html5lib
+docutils
+bibtexparser
+ghp-import
+wheel

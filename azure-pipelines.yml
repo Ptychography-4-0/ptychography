@@ -1,0 +1,334 @@
+trigger:
+  branches:
+    include:
+      - master
+      - 'v*'
+
+variables:
+  - group: Packaging
+  - name: PIP_CACHE_DIR
+    value: $(Pipeline.Workspace)/.pip
+
+stages:
+  - stage: test
+    jobs:
+    - job: linux_tests
+      pool:
+        vmImage: 'ubuntu-latest'
+      strategy:
+        matrix:
+          Python36:
+            python.version: '3.6'
+            TOXENV: 'py36'
+          Python37:
+            python.version: '3.7'
+            TOXENV: 'py37'
+          Python38:
+            python.version: '3.8'
+            TOXENV: 'py38'
+      variables:
+        TOXENV: '$(TOXENV)'
+      steps:
+      - task: UsePythonVersion@0
+        displayName: 'Use Python $(python.version)'
+        inputs:
+          versionSpec: '$(python.version)'
+
+      - task: Cache@2
+        inputs:
+          key: 'python | "$(Agent.OS)" | test_requirements.txt'
+          restoreKeys: |
+            python | "$(Agent.OS)"
+            python
+          path: $(PIP_CACHE_DIR)
+        displayName: 'cache pip packages'
+
+      - bash: pip install -U tox
+        displayName: 'install requirements'
+
+      - bash: tox
+        displayName: 'Run tox tests'
+
+      - bash: bash <(curl -s https://codecov.io/bash) -f coverage.xml
+        displayName: 'Submit coverage to codecov.io'
+
+      - task: PublishTestResults@2
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFiles: 'junit.xml'
+          testRunTitle: 'Publish test results for Python $(python.version)'
+
+      - task: PublishCodeCoverageResults@1
+        inputs:
+          codeCoverageTool: Cobertura
+          summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+          reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+
+    - job: numba_coverage
+      pool:
+        vmImage: 'ubuntu-latest'
+      variables:
+        TOXENV: 'numba_coverage'
+      steps:
+      - task: UsePythonVersion@0
+        displayName: 'Use Python $(python.version)'
+        inputs:
+          versionSpec: '3.8'
+
+      - task: Cache@2
+        inputs:
+          key: 'python | "$(Agent.OS)" | test_requirements.txt'
+          restoreKeys: |
+            python | "$(Agent.OS)"
+            python
+          path: $(PIP_CACHE_DIR)
+        displayName: 'cache pip packages'
+
+      - bash: pip install -U tox
+        displayName: 'install requirements'
+
+      - bash: tox
+        displayName: 'Run tox tests'
+
+      - bash: bash <(curl -s https://codecov.io/bash) -f coverage.xml
+        displayName: 'Submit coverage to codecov.io'
+
+      - task: PublishTestResults@2
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFiles: 'junit.xml'
+          testRunTitle: 'Publish test results for Python $(python.version)'
+
+      - task: PublishCodeCoverageResults@1
+        inputs:
+          codeCoverageTool: Cobertura
+          summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+          reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+
+    - job: lint
+      pool:
+        vmImage: 'ubuntu-latest'
+      strategy:
+        matrix:
+          flake8:
+            TOXENV: 'flake8'
+          qa:
+            TOXENV: 'qa'
+          docs-check:
+            TOXENV: 'docs-check'
+      variables:
+        TOXENV: '$(TOXENV)'
+      steps:
+      - task: UsePythonVersion@0
+        displayName: 'Use Python 3.8'
+        inputs:
+          versionSpec: '3.8'
+      - task: Cache@2
+        inputs:
+          key: 'python | "$(Agent.OS)" | test_requirements.txt'
+          restoreKeys: |
+            python | "$(Agent.OS)"
+            python
+          path: $(PIP_CACHE_DIR)
+        displayName: 'cache pip packages'
+      - bash: sudo apt install -y pandoc
+        displayName: install required debian packages
+      - bash: pip install -U tox
+        displayName: 'install requirements'
+      - bash: tox
+        displayName: 'Run tox tests'
+
+    - job: lint_allow_failure
+      pool:
+        vmImage: 'ubuntu-latest'
+      strategy:
+        matrix:
+          mypy:
+            TOXENV: 'mypy'
+      variables:
+        TOXENV: '$(TOXENV)'
+      steps:
+      - task: UsePythonVersion@0
+        displayName: 'Use Python $(python.version)'
+        inputs:
+          versionSpec: '3.8'
+      - bash: pip install -U tox
+        displayName: 'install requirements'
+      - bash: tox || exit 0
+        displayName: 'Run tox tests'
+
+    - job: windows_tests
+      pool:
+        vmImage: 'windows-latest'
+      strategy:
+        matrix:
+          Python36:
+            python.version: '3.6'
+            TOXENV: 'py36'
+          Python37:
+            python.version: '3.7'
+            TOXENV: 'py37'
+          Python38:
+            python.version: '3.8'
+            TOXENV: 'py38'
+      variables:
+        TOXENV: '$(TOXENV)'
+      steps:
+      - task: UsePythonVersion@0
+        displayName: 'Use Python $(python.version)'
+        inputs:
+          versionSpec: '$(python.version)'
+
+      - task: Cache@2
+        inputs:
+          key: 'python | "$(Agent.OS)" | test_requirements.txt'
+          restoreKeys: |
+            python | "$(Agent.OS)"
+            python
+          path: $(PIP_CACHE_DIR)
+        displayName: 'cache pip packages'
+
+      - bash: pip install -U tox
+        displayName: 'install requirements'
+
+      - bash: tox
+        displayName: 'Run tox tests'
+
+      - bash: bash <(curl -s https://codecov.io/bash) -f coverage.xml
+        displayName: 'Submit coverage to codecov.io'
+
+      - task: PublishTestResults@2
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFiles: 'junit.xml'
+          testRunTitle: 'Publish test results for Python $(python.version)'
+
+      - task: PublishCodeCoverageResults@1
+        inputs:
+          codeCoverageTool: Cobertura
+          summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+          reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+
+    - job: macos_tests
+      pool:
+        vmImage: 'macOS-latest'
+      strategy:
+        matrix:
+          Python36:
+            python.version: '3.6'
+            TOXENV: 'py36'
+          Python37:
+            python.version: '3.7'
+            TOXENV: 'py37'
+          Python38:
+            python.version: '3.8'
+            TOXENV: 'py38'
+      variables:
+        TOXENV: '$(TOXENV)'
+      steps:
+      - task: UsePythonVersion@0
+        displayName: 'Use Python $(python.version)'
+        inputs:
+          versionSpec: '$(python.version)'
+
+      - task: Cache@2
+        inputs:
+          key: 'python | "$(Agent.OS)" | test_requirements.txt'
+          restoreKeys: |
+            python | "$(Agent.OS)"
+            python
+          path: $(PIP_CACHE_DIR)
+        displayName: 'cache pip packages'
+
+      - bash: pip install -U tox
+        displayName: 'install requirements'
+
+      - bash: tox
+        displayName: 'Run tox tests'
+
+      - bash: bash <(curl -s https://codecov.io/bash) -f coverage.xml
+        displayName: 'Submit coverage to codecov.io'
+
+      - task: PublishTestResults@2
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFiles: 'junit.xml'
+          testRunTitle: 'Publish test results for Python $(python.version)'
+
+      - task: PublishCodeCoverageResults@1
+        inputs:
+          codeCoverageTool: Cobertura
+          summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+          reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+
+  - stage: deploy
+    jobs:
+    - job: deploy_docs
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+      - task: UsePythonVersion@0
+        displayName: 'Use Python 3.8'
+        inputs:
+          versionSpec: '3.8'
+      - bash: sudo apt install -y pandoc
+        displayName: 'install required debian packages'
+
+      - task: Cache@2
+        inputs:
+          key: 'python | "$(Agent.OS)" | test_requirements.txt'
+          restoreKeys: |
+            python | "$(Agent.OS)"
+            python
+          path: $(PIP_CACHE_DIR)
+        displayName: 'cache pip packages'
+
+      - bash: pip install -U tox && pip install -r scripts/requirements.txt
+        displayName: 'install requirements'
+
+      - bash: tox -e docs-build-ci
+        displayName: 'build docs'
+
+      - task: DownloadSecureFile@1
+        inputs:
+          secureFile: deploy_key
+        displayName: 'Get the deploy key'
+
+      - script: |
+          mkdir ~/.ssh && mv $DOWNLOADSECUREFILE_SECUREFILEPATH ~/.ssh/id_rsa
+          chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+
+      - bash: ./scripts/deploy_docs docs/build/html/
+        displayName: 'deploy docs'
+        condition: |
+            and(not(eq(variables['Build.Reason'], 'PullRequest')),
+                eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    - job: make_upload_packages
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+      - task: UsePythonVersion@0
+        displayName: 'Use Python 3.8'
+        inputs:
+          versionSpec: '3.8'
+      - task: Cache@2
+        inputs:
+          key: 'python | "$(Agent.OS)" | test_requirements.txt'
+          restoreKeys: |
+            python | "$(Agent.OS)"
+            python
+          path: $(PIP_CACHE_DIR)
+        displayName: 'cache pip packages'
+      - bash: pip install -U tox && pip install -r scripts/requirements.txt
+        displayName: 'install requirements'
+      - bash: python scripts/release --verbose upload --no-dry-run
+        displayName: 'Upload packages / release'
+        env:
+          PTY_RELEASE_UPLOAD_PYPI_PASSWORD: $(PTY_RELEASE_UPLOAD_PYPI_PASSWORD)
+          PTY_RELEASE_UPLOAD_PYPI_TEST_PASSWORD: $(PTY_RELEASE_UPLOAD_PYPI_TEST_PASSWORD)
+          PTY_RELEASE_UPLOAD_TOKEN: $(PTY_RELEASE_UPLOAD_TOKEN)
+          PTY_RELEASE_UPLOAD_ZENODO_SANDBOX_TOKEN: $(PTY_RELEASE_UPLOAD_ZENODO_SANDBOX_TOKEN)
+          PTY_RELEASE_UPLOAD_ZENODO_TOKEN: $(PTY_RELEASE_UPLOAD_ZENODO_TOKEN)
+          PTY_RELEASE_UPLOAD_ZENODO_SANDBOX_PARENT: $(PTY_RELEASE_UPLOAD_ZENODO_SANDBOX_PARENT)
+          PTY_RELEASE_UPLOAD_ZENODO_PARENT: $(PTY_RELEASE_UPLOAD_ZENODO_PARENT)

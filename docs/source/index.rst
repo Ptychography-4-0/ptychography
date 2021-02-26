@@ -24,6 +24,7 @@ Documentation
    contributing
    citing
    acknowledgments
+   releasing
 
 Indices and tables
 ------------------
