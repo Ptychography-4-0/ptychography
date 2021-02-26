@@ -21,6 +21,12 @@ def wavelength(U):
 
     wavelength : float
         Wavelength in m
+
+    Examples
+    --------
+
+    >>> wavelength(300)
+    1.9687489006848795e-12
     '''
     e = const.elementary_charge  # Elementary charge  !!! 1.602176634×10−19
     h = const.Planck  # Planck constant    !!! 6.62607004 × 10-34

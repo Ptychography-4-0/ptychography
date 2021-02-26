@@ -54,10 +54,6 @@ if has_real:
         return real_complex_diffract[:, :, cy, cx]
 
     @pytest.fixture(scope="session")
-    def lt_ctx():
-        return lt.Context(executor=InlineJobExecutor())
-
-    @pytest.fixture(scope="session")
     def real_intensity_ds(real_intensity, lt_ctx):
         return lt_ctx.load("memory", data=real_intensity, sig_dims=2)
 
