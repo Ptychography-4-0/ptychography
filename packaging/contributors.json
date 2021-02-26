@@ -1,8 +1,21 @@
 [
     {
+        "displayname": "Rafal Dunin-Borkowski",
+        "authorname": "Dunin-Borkowski, Rafal",
+        "affiliation": "Jülich Research Centre",
+        "contribution": "Discussions, support",
+        "orcid": "0000-0001-8082-0647"
+    },
+    {
         "displayname": "Christoph Koch",
         "authorname": "Koch, Christoph",
         "affiliation": "HU Berlin",
+        "contribution": "Discussions"
+    },
+    {
+        "displayname": "Penghan Lu",
+        "authorname": "Lu, Penghan",
+        "affiliation": "FZ J\u00fclich",
         "contribution": "Discussions"
     },
     {
