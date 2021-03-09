@@ -42,8 +42,8 @@ def get_travis_env():
 def get_azure_env():
     return {
         'log_url': None,
-        'commit': os.environ.get('BUILD_SOURCEVERSION'),
-        'branch': os.environ.get('BUILD_SOURCEBRANCHNAME'),
+        'commit': os.environ.get('BUILD_SOURCEVERSION', ''),
+        'branch': os.environ.get('BUILD_SOURCEBRANCHNAME', ''),
         'is_pr': os.environ.get('BUILD_REASON') == 'PullRequest',
     }
 
