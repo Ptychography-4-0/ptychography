@@ -1,3 +1,5 @@
+import functools
+
 import numpy as np
 import sparse
 import numba
@@ -8,6 +10,7 @@ from libertem.corrections.coordinates import identity
 from ptychography40.reconstruction.common import get_shifted
 
 
+@functools.lru_cache(None)
 def empty_mask(mask_shape, dtype):
     '''
     Return an empty sparse mask
@@ -241,7 +244,9 @@ def generate_mask(cy, cx, sy, sx, filter_center, semiconv_pix,
             mask_positive / non_zero_positive
             - mask_negative / non_zero_negative
         ) / 2
-        return sparse.COO(m.astype(dtype))
+        m_dt = m.astype(dtype)
+        m_sparse = sparse.COO(m_dt)
+        return m_sparse
     else:
         # Exclude small, missing or unbalanced trotters
         return empty_mask(mask_shape, dtype=dtype)
