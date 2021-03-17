@@ -7,7 +7,7 @@ from libertem.common.container import MaskContainer
 from ptychography40.reconstruction.ssb.trotters import generate_masks
 
 
-@numba.njit(fastmath=True, cache=True, parallel=True)
+@numba.njit(fastmath=True, cache=True, parallel=True, nogil=True)
 def rmatmul_csc_fourier(n_threads, left_dense, right_data, right_indices, right_indptr,
                         coordinates, row_exp, col_exp, res_inout):
     '''
