@@ -27,7 +27,8 @@ def rmatmul_csc_fourier(n_threads, left_dense, right_data, right_indices, right_
     # We subdivide in blocks per thread so that each thread
     # writes exclusively to its own part of an intermediate result buffer.
     # Using prange and automated '+=' merge leads to wrong results when using threading.
-    blocksize = left_rows // n_threads + 1
+    # XXX blocksize = left_rows // n_threads + 1
+    blocksize = max(int(np.ceil(left_rows / n_threads)), 1)
     resbuf = np.zeros((n_threads, q_size, p_size), dtype=res_inout.dtype)
     # The blocks are processed in parallel
     for block in numba.prange(n_threads):
@@ -110,6 +111,15 @@ class SSB_UDF(UDF):
             'pixels': self.buffer(
                 kind="single", dtype=dtype, extra_shape=self.reconstruct_shape,
                 where='device'
+            ),
+            # FIXME: dtypes
+            'amplitude': self.buffer(
+                kind="single", dtype=np.float32, extra_shape=self.reconstruct_shape,
+                allocate=False,
+            ),
+            'phase': self.buffer(
+                kind="single", dtype=np.float32, extra_shape=self.reconstruct_shape,
+                allocate=False,
             ),
         }
 
@@ -265,6 +275,14 @@ class SSB_UDF(UDF):
         self.results.pixels[half_y:] = -xp.conj(
             xp.roll(xp.flip(xp.flip(extracted, axis=0), axis=1), shift=1, axis=1)
         )
+
+    def get_results(self):
+        results = get_results(self.results)
+        return {
+            'pixels': results,
+            'amplitude': np.abs(results),
+            'phase': np.angle(results),
+        }
 
     def process_tile(self, tile):
         ''
