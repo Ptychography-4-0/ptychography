@@ -1,9 +1,64 @@
 import numpy as np
+import numba
 
 from libertem.udf import UDF
 from libertem.common.container import MaskContainer
 
 from ptychography40.reconstruction.ssb.trotters import generate_masks
+
+
+@numba.njit(fastmath=True, cache=True, parallel=True)
+def rmatmul_csc_fourier(n_threads, left_dense, right_data, right_indices, right_indptr,
+                        coordinates, row_exp, col_exp, res_inout):
+    '''
+    Fold :meth:`SSB_UDF.merge_dot_result` into a sparse dot product from
+    :meth:`libertem.common.numba._rmatmul_csc`
+
+    The result can be directly merged into the result buffer instead of
+    instantiating the intermediate dot result, which can be large. That way,
+    this method can process entire memory-mapped partitions efficiently.
+    Furthermore, it allows early skipping of trotters that are empty in this tile.
+
+    It uses multithreading to process different parts of a tile in parallel.
+    '''
+    left_rows = left_dense.shape[0]
+    p_size = col_exp.shape[1]
+    q_size = row_exp.shape[1]
+    # We subdivide in blocks per thread so that each thread
+    # writes exclusively to its own part of an intermediate result buffer.
+    # Using prange and automated '+=' merge leads to wrong results when using threading.
+    blocksize = left_rows // n_threads + 1
+    resbuf = np.zeros((n_threads, q_size, p_size), dtype=res_inout.dtype)
+    # The blocks are processed in parallel
+    for block in numba.prange(n_threads):
+        start = block * blocksize
+        stop = min((block + 1) * blocksize, left_rows)
+        for left_row in range(start, stop):
+            # Pixel coordinates in nav dimension
+            y, x = coordinates[left_row]
+            for q in range(q_size):
+                for p in range(p_size):
+                    # right_column is the mask index
+                    right_column = q * p_size + p
+                    # Descent into CSC data structure
+                    offset = right_indptr[right_column]
+                    items = right_indptr[right_column+1] - offset
+                    if items > 0:
+                        # We accumulate for the whole mask into acc
+                        # before applying the phase factor
+                        acc = 0
+                        # Iterate over non-zero entries in this mask
+                        for i in range(items):
+                            index = i + offset
+                            right_row = right_indices[index]
+                            right_value = right_data[index]
+                            acc += left_dense[left_row, right_row] * right_value
+                        # Phase factor for this scan point and mask
+                        factor = row_exp[y, q] * col_exp[x, p]
+                        # Applying the factor, accumulate in per-thread buffer
+                        resbuf[block, q, p] += acc * factor
+    # Finally, accumulate per-thread buffer into result
+    res_inout += np.sum(resbuf, axis=0)
 
 
 class SSB_UDF(UDF):
@@ -231,32 +286,45 @@ class SSB_UDF(UDF):
             # This performs the trotter integration
             # As of now, cupy doesn't seem to support __rmatmul__ with sparse matrices
             dot_result = masks.dot(tile_flat.T).T
+            self.merge_dot_result(dot_result)
         else:
+            # We calculate only half of the Fourier transform due to the
+            # inherent symmetry of the mask stack. In this case we
+            # cut the y axis in half. The "+ 1" accounts for odd sizes
+            # The mask stack is already trimmed in y direction to only contain
+            # one of the trotter pairs
+            half_y = self.results.pixels.shape[0] // 2 + 1
+
             # Load the preconditioned trotter stack from the mask container:
             # * Coutout for current tile
             # * Flattened signal dimension
-            # * Not transposed for left hand side of dot product
-            #   (the tile and the result will be transposed instead)
-            # * Clean CSR matrix
-            # * On correct device
+            # * Transposed for right hand side of dot product
+            #   (rmatmul_csc_fourier() takes care of putting things where they belong
+            #    in the result)
+            # * Clean CSC matrix
+            # * On correct device (CPU)
             masks = self.task_data.masks.get(
-                self.meta.slice, transpose=False, backend=self.task_data.backend,
-                sparse_backend='scipy.sparse.csr'
+                self.meta.slice, transpose=True, backend=self.task_data.backend,
+                sparse_backend='scipy.sparse.csc'
             )
             # Skip an empty tile since the contribution is 0
             if masks.nnz == 0:
                 return
-            # This performs the trotter integration
-            # Since we restrict the size of the input matrix in get_tiling_preferences()
-            # and the mask side of the product is much, much larger than the
-            # tile, taking a transposed copy of the tile with optimized memory layout
-            # for the fast scipy.sparse.csr __matmul__ is worth the effort here.
-            # See also https://github.com/scipy/scipy/issues/13211
-            # The optimal way to perform this dot product may also depend
-            # on the shape of the data and the size of the zero order disk
-            dot_result = (masks @ tile_flat.T.copy()).T
 
-        self.merge_dot_result(dot_result)
+            # This combines the trotter integration with merge_dot_result
+            # into a Numba loop that eliminates a potentially large intermediate result
+            # and allows efficient multithreading
+            rmatmul_csc_fourier(
+                n_threads=self.meta.threads_per_worker,
+                left_dense=tile_flat,
+                right_data=masks.data,
+                right_indices=masks.indices,
+                right_indptr=masks.indptr,
+                coordinates=self.meta.coordinates,
+                row_exp=self.task_data.row_exp,
+                col_exp=self.task_data.col_exp,
+                res_inout=self.results.pixels[:half_y]
+            )
 
     def get_backends(self):
         ''
@@ -275,14 +343,12 @@ class SSB_UDF(UDF):
                 "total_size": total_size,
             }
         else:
-            # We limit the depth of a tile so that the intermediate
-            # results from processing a tile fit into the CPU cache.
-            good_depth = max(1, 1e6 / result_size)
+            # The Numba loop can process entire partitions efficiently
+            # since it accumulates in the result without large intermediate
+            # data
             return {
-                "depth": int(good_depth),
-                # We reduce the size of a tile since a transposed copy of
-                # each tile will be taken to speed up the sparse matrix product
-                "total_size": 0.5e6,
+                "depth": self.TILE_DEPTH_MAX,
+                "total_size": self.TILE_SIZE_MAX,
             }
 
 
