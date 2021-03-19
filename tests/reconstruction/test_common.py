@@ -2,7 +2,7 @@ import numpy as np
 
 import pytest
 
-from ptychography.reconstruction.common import (
+from ptychography40.reconstruction.common import (
     wavelength, get_shifted, to_slices,
     bounding_box
 )

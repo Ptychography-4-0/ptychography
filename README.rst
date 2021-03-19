@@ -25,23 +25,24 @@ The short version:
     $ cd ptychography
     (ptychography) $ python -m pip install -e .
 
-Please see `our documentation TODO <https://example.com/fixme>`_ for details!
+Please see `our documentation <https://ptychography-4-0.github.io/ptychography/>`_ for details!
 
 Applications
 ------------
 
 - Scalable, parallel implementation of the Single Side Band method that is suitable for live data processing.
 
-Please see `the algorithms section TODO update
-<https://example.com/fixme>`_ of our documentation
+Please see `the algorithms section
+<https://ptychography-4-0.github.io/ptychography/algorithms.html>`_ of our documentation
 for details!
 
 Ptychography 4.0 is evolving rapidly and prioritizes features following user
 demand and contributions. In the future we'd like to implement live acquisition,
 and more analysis methods for all applications of pixelated STEM and other
 large-scale detector data. If you like to influence the direction this project
-is taking, or if you'd like to `contribute TODO update
-<https://example.com/fixme>`_, please contact us via TODO. 
+is taking, or if you'd like to `contribute
+<https://ptychography-4-0.github.io/ptychography/contributing.html>`_, please
+contact us in the `GitHub Issue tracker <https://github.com/Ptychography-4-0/ptychography/issues>`_. 
 
 License
 -------

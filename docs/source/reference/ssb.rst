@@ -1,6 +1,6 @@
 Single Side Band
 ================
 
-.. automodule:: ptychography.reconstruction.ssb
+.. automodule:: ptychography40.reconstruction.ssb
    :members:
    :special-members: __init__

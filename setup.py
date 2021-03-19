@@ -9,60 +9,6 @@ from setuptools.command.build_py import build_py
 from setuptools import setup
 
 
-class BuildClientCommand(distutils.cmd.Command):
-    description = 'build the js client'
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        cwd = os.path.dirname(__file__)
-        cwd_client = os.path.join(cwd, 'client')
-        self.announce(
-            "building js client",
-            level=distutils.log.INFO
-        )
-        npm = shutil.which('npm')
-        for command in [[npm, 'install'],
-                        [npm, 'run-script', 'build']]:
-            self.announce(' '.join(command), distutils.log.INFO)
-            subprocess.check_call(command, cwd=cwd_client)
-        self.run_command('copy_client')
-
-
-class CopyClientCommand(distutils.cmd.Command):
-    description = 'copy the js client'
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        cwd = os.path.dirname(__file__)
-        cwd_client = os.path.join(cwd, 'client')
-        client = os.path.join(cwd, 'src', 'ptychography', 'web', 'client')
-
-        self.announce(
-            "preparing output directory: %s" % client,
-            level=distutils.log.INFO
-        )
-        shutil.rmtree(client)
-
-        build = os.path.join(cwd_client, "build")
-        self.announce(
-            "copying client: %s -> %s" % (build, client),
-            level=distutils.log.INFO
-        )
-        shutil.copytree(build, client)
-
-
 class BakedRevisionBuilderSdist(sdist):
     def make_release_tree(self, base_dir, files):
         if not self.dry_run:
@@ -94,7 +40,7 @@ def remove_rst_roles(txt):
 
 
 def get_git_rev():
-    # NOTE: this is a copy from src/ptychography/versioning.py
+    # NOTE: this is a copy from src/ptychography40/versioning.py
     # this is because it is not guaranteed that we can import our own packages
     # from setup.py AFAIK
     try:
@@ -106,7 +52,7 @@ def get_git_rev():
 
 
 def write_baked_revision(base_dir):
-    dest_dir = os.path.join(base_dir, 'ptychography')
+    dest_dir = os.path.join(base_dir, 'ptychography40')
     baked_dest = os.path.join(dest_dir, '_baked_revision.py')
     mkpath(dest_dir)
 
@@ -128,7 +74,7 @@ def find_version(*file_paths):
 
 setup(
     name="ptychography40",
-    version=find_version("src", "ptychography", "__version__.py"),
+    version=find_version("src", "ptychography40", "__version__.py"),
     license='GPL v3',
     include_package_data=True,
     zip_safe=False,
@@ -146,12 +92,10 @@ setup(
     },
     package_dir={"": "src"},
     packages=[
-        "ptychography",
+        "ptychography40",
     ],
 
     cmdclass={
-        'build_client': BuildClientCommand,
-        'copy_client': CopyClientCommand,
         'sdist': BakedRevisionBuilderSdist,
         'build_py': BakedRevisionBuilderBuildPy,
     },
@@ -159,7 +103,7 @@ setup(
     description="Phase reconstruction using ptychography",
     long_description=remove_rst_roles(read("README.rst")),
     long_description_content_type="text/x-rst",
-    url="https://example.com/TODO",
+    url="https://ptychography-4-0.github.io/ptychography/",
     author_email="ptychography4@listen.helmholtz-muenchen.de",
     author="the Ptychography 4.0 team",
     classifiers=[

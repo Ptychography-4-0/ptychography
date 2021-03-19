@@ -5,6 +5,8 @@
 * [ ] I have added/updated documentation for all user-facing changes
 * [ ] I have added/updated test cases
 
+<!--
+
 ## Please remove this section
 
 Starting by submitting an incomplete pull request (PR) or draft PR is OK. You
@@ -12,8 +14,10 @@ can work on the checklist step by step by pushing additional commits into the
 PR. Please indicate if you think some items may not be applicable.
 
 You can have a look at [our contributing
-docs TODO update URL](https://libertem.github.io/LiberTEM/contributing.html) for more
+docs](https://ptychography-4-0.github.io/ptychography/contributing.html) for more
 information on contributing to LiberTEM. Please feel free to ask for
 clarification and help, for example in your PR description.
 
 Thank you for your contribution!
+
+-->
