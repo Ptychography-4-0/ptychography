@@ -519,7 +519,7 @@ def status(ctx):
               default=False)
 def bump(new_version, tag, commit, force):
     """
-    bump the version in ptychography.__version__
+    bump the version in ptychography40.__version__
 
     NEW_VERSION should be pep440 compatible and conform to our version conventions
     """

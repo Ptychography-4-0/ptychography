@@ -6,7 +6,7 @@ Created on Thu Oct 29 11:41:54 2020
 """
 import numpy as np
 from skimage import data
-from ptychography.stitching.stitching import stitch
+from ptychography40.stitching.stitching import stitch
 
 
 def test_stitching():

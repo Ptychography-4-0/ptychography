@@ -1,6 +1,6 @@
 Common
 ======
 
-.. automodule:: ptychography.reconstruction.common
+.. automodule:: ptychography40.reconstruction.common
    :members:
    :special-members: __init__

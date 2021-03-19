@@ -5,7 +5,7 @@ import numba
 from libertem.masks import circular
 from libertem.corrections.coordinates import identity
 
-from ptychography.reconstruction.common import get_shifted
+from ptychography40.reconstruction.common import get_shifted
 
 
 def empty_mask(mask_shape, dtype):

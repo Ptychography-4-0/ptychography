@@ -55,10 +55,10 @@ Before (using a release candidate package)
 * `Confirm that wheel and tar.gz are built for the release candidate on
   GitHub <https://github.com/Ptychography-4-0/ptychography/releases>`_
 * Confirm that a new version with the most recent release candidate is created in the
-  `Zenodo.org sandbox TODO fix link <https://example.com/fixme>`_ that is ready for submission.
+  `Zenodo.org sandbox <https://sandbox.zenodo.org/record/743636>`_ that is ready for submission.
 * Install release candidate packages in a clean environment
   (for example:
-  :code:`python -m pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple 'ptychography==0.1.0rc0'`)
+  :code:`python -m pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple 'ptychography40==0.1.0rc0'`)
 * Make sure you have test files for all supported algorithms available
 * Run all examples and applications using the test files
     * Are parameters recognized correctly, as far as implemented?

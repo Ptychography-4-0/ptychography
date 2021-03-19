@@ -28,7 +28,7 @@ sys.path.insert(
     )
 )
 
-import ptychography
+import ptychography40
 
 # -- Project information -----------------------------------------------------
 
@@ -36,12 +36,12 @@ project = 'Ptychography 4.0'
 copyright = '2019-2020, Ptychography 4.0 Authors'
 author = 'Ptychography 4.0 Authors'
 
-_version_bits = ptychography.__version__.split('.')
+_version_bits = ptychography40.__version__.split('.')
 # The short X.Y version
 version = _version_bits[0] + '.' + _version_bits[1]
 # The full version, including alpha/beta/rc tags
 
-release = ptychography.__version__
+release = ptychography40.__version__
 
 
 # -- General configuration ---------------------------------------------------

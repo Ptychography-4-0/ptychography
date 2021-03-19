@@ -264,9 +264,9 @@ def extract(html_string):
     walk(elem, True)
 
     quicklinks = [
-        ("Homepage TODO", "https://example.com/TODO"),
+        ("Homepage", "https://ptychography-4-0.github.io/ptychography/"),
         ("GitHub repository", "https://github.com/Ptychography-4-0/ptychography/"),
-        ("PyPI TODO", "https://example.com/TODO/https://pypi.org/project/ptychography/"),
+        ("PyPI", "https://pypi.org/project/ptychography40/"),
     ]
     for i, (label, url) in enumerate(quicklinks):
         e = xml.etree.ElementTree.Element('strong')
@@ -352,7 +352,7 @@ def read_version(version_file):
 
 
 def get_version_fn():
-    return os.path.join(BASE_DIR, 'src', 'ptychography', '__version__.py')
+    return os.path.join(BASE_DIR, 'src', 'ptychography40', '__version__.py')
 
 
 def make_data():
@@ -371,7 +371,7 @@ def make_data():
 
 
 @click.command()
-@click.option('--parent', default="TODO")
+@click.option('--parent', default="743635")
 @click.option('--url', default='https://sandbox.zenodo.org/api/')
 @click.option('--verbose', '-v', is_flag=True)
 @click.option('--mask-zenodo-exception', is_flag=True)

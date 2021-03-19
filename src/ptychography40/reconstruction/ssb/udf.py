@@ -3,7 +3,7 @@ import numpy as np
 from libertem.udf import UDF
 from libertem.common.container import MaskContainer
 
-from ptychography.reconstruction.ssb.trotters import generate_masks
+from ptychography40.reconstruction.ssb.trotters import generate_masks
 
 
 class SSB_UDF(UDF):
@@ -18,7 +18,7 @@ class SSB_UDF(UDF):
         ----------
 
         lamb: float
-            The illumination wavelength in m. The function :meth:`ptychography.common.wavelength`
+            The illumination wavelength in m. The function :meth:`ptychography40.common.wavelength`
             allows to calculate the electron wavelength as a function of acceleration voltage.
         dpix: float or Iterable(y, x)
             STEM pixel size in m

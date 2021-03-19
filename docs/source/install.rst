@@ -16,7 +16,7 @@ The short version
 
     $ virtualenv -p python3 ~/ptychography-venv/
     $ source ~/ptychography-venv/bin/activate
-    (ptychography) $ python -m pip install ptychography
+    (ptychography) $ python -m pip install ptychography40
 
     # optional for GPU support
     (ptychography) $ python -m pip install cupy
@@ -111,9 +111,9 @@ managing environments
 
 .. .. code-block:: shell
 
-..    (ptychography) $ python -m pip install ptychography
+..    (ptychography) $ python -m pip install ptychography40
 
-.. This should install ptychography and its dependencies in the environment. Please
+.. This should install ptychography40 and its dependencies in the environment. Please
    continue by reading about the :ref:`algorithms`.
 
 .. _`installing from a git clone`:
@@ -130,7 +130,7 @@ should install ptychography from a git clone:
 
 Activate the Python environment (conda or virtualenv) and change to the newly
 created directory with the clone of the ptychography repository. Now you can start
-the ptychography installation. Please note the dot at the end, which indicates the
+the ptychography40 installation. Please note the dot at the end, which indicates the
 current directory!
 
 .. code-block:: shell
@@ -151,7 +151,7 @@ update the source code with this command:
 
     $ git pull
     
-The installation with ``pip install -e`` has installed ptychography in `"editable"
+The installation with ``pip install -e`` has installed ptychography40 in `"editable"
 mode <https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs>`_.
 That means the changes pulled from git are active immediately. Only if the
 requirements for installed third-party packages have changed, you can re-run
@@ -230,7 +230,7 @@ the file browser. Alternatively you can execute shell commands by prefixing them
 with "!" in a Python notebook.
 
 In the terminal you can create and activate virtual environments and perform the
-ptychography installation as described above. Within the activated ptychography
+ptychography40 installation as described above. Within the activated ptychography
 environment you additionally install ipykernel:
 
 .. code-block:: shell
@@ -249,7 +249,7 @@ creating a new notebook and running
 
 .. code-block:: python
 
-    In [1]: import ptychography
+    In [1]: import ptychography40
 
 Troubleshooting
 ---------------
