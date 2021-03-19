@@ -65,7 +65,7 @@ def read_version(version_file):
 
 
 def get_version_fn():
-    return join(BASE_DIR, 'src', 'ptychography', '__version__.py')
+    return join(BASE_DIR, 'src', 'ptychography40', '__version__.py')
 
 
 def do_git_commit(old_version, new_version, version_file):
