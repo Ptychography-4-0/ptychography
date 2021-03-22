@@ -7,9 +7,9 @@ from libertem.common.container import MaskContainer
 from ptychography40.reconstruction.ssb.trotters import generate_masks
 
 
-@numba.njit(fastmath=True, cache=True, parallel=True, nogil=True)
-def rmatmul_csc_fourier(n_threads, left_dense, right_data, right_indices, right_indptr,
-                        coordinates, row_exp, col_exp, res_inout):
+@numba.njit(fastmath=True, cache=True, parallel=False, nogil=True)
+def rmatmul_csc_fourier(n_threads, used_pixels, left_dense, right_data, right_indices, right_indptr,
+                        coordinates, row_exp, col_exp, res_inout, bla=False):
     '''
     Fold :meth:`SSB_UDF.merge_dot_result` into a sparse dot product from
     :meth:`libertem.common.numba._rmatmul_csc`
@@ -24,42 +24,45 @@ def rmatmul_csc_fourier(n_threads, left_dense, right_data, right_indices, right_
     left_rows = left_dense.shape[0]
     p_size = col_exp.shape[1]
     q_size = row_exp.shape[1]
-    # We subdivide in blocks per thread so that each thread
-    # writes exclusively to its own part of an intermediate result buffer.
-    # Using prange and automated '+=' merge leads to wrong results when using threading.
-    # XXX blocksize = left_rows // n_threads + 1
-    blocksize = max(int(np.ceil(left_rows / n_threads)), 1)
-    resbuf = np.zeros((n_threads, q_size, p_size), dtype=res_inout.dtype)
-    # The blocks are processed in parallel
-    for block in numba.prange(n_threads):
+    calc_size = q_size * p_size
+    left_dense_t = np.empty_like(left_dense.T)
+    for column in range(left_dense.shape[1]):
+        if used_pixels[column]:
+            left_dense_t[column, :] = left_dense[:, column]
+    n_blocks = q_size
+    blocksize = max(int(np.ceil(calc_size / n_blocks)), 1)
+    # # The blocks are processed in parallel
+    for block in numba.prange(n_blocks):
         start = block * blocksize
-        stop = min((block + 1) * blocksize, left_rows)
-        for left_row in range(start, stop):
-            # Pixel coordinates in nav dimension
-            y, x = coordinates[left_row]
-            for q in range(q_size):
-                for p in range(p_size):
-                    # right_column is the mask index
-                    right_column = q * p_size + p
-                    # Descent into CSC data structure
-                    offset = right_indptr[right_column]
-                    items = right_indptr[right_column+1] - offset
-                    if items > 0:
-                        # We accumulate for the whole mask into acc
-                        # before applying the phase factor
-                        acc = 0
-                        # Iterate over non-zero entries in this mask
-                        for i in range(items):
-                            index = i + offset
-                            right_row = right_indices[index]
-                            right_value = right_data[index]
-                            acc += left_dense[left_row, right_row] * right_value
-                        # Phase factor for this scan point and mask
-                        factor = row_exp[y, q] * col_exp[x, p]
-                        # Applying the factor, accumulate in per-thread buffer
-                        resbuf[block, q, p] += acc * factor
-    # Finally, accumulate per-thread buffer into result
-    res_inout += np.sum(resbuf, axis=0)
+        stop = min((block + 1) * blocksize, calc_size)
+        for right_column in range(start, stop):
+            q = right_column // p_size
+            p = right_column % p_size
+            # # right_column is the mask index
+            # right_column = q * p_size + p
+            # Descent into CSC data structure
+            offset = right_indptr[right_column]
+            items = right_indptr[right_column+1] - offset
+            if items > 0:
+                # We accumulate for the whole mask into acc
+                # before applying the phase factor
+                acc = np.zeros(left_rows, dtype=res_inout.dtype)
+                # Iterate over non-zero entries in this mask
+                for i in range(items):
+                    index = i + offset
+                    right_row = right_indices[index]
+                    right_value = right_data[index]
+                    for left_row in range(left_rows):
+                        acc[left_row] += left_dense_t[right_row, left_row] * right_value
+                for left_row in range(left_rows):
+                    # Pixel coordinates in nav dimension
+                    y, x = coordinates[left_row]
+                    # Phase factor for this scan point and mask
+                    factor = row_exp[y, q] * col_exp[x, p]
+                    # Applying the factor, accumulate in per-thread buffer
+                    res_inout[q, p] += acc[left_row] * factor
+    # # Finally, accumulate per-thread buffer into result
+    # res_inout += np.sum(resbuf, axis=0)
 
 
 class SSB_UDF(UDF):
@@ -107,18 +110,22 @@ class SSB_UDF(UDF):
     def get_result_buffers(self):
         ''
         dtype = np.result_type(np.complex64, self.params.dtype)
+        component_dtype = np.result_type(np.float32, self.params.dtype)
         return {
-            'pixels': self.buffer(
+            'fourier': self.buffer(
                 kind="single", dtype=dtype, extra_shape=self.reconstruct_shape,
                 where='device'
             ),
-            # FIXME: dtypes
+            'complex': self.buffer(
+                kind="single", dtype=dtype, extra_shape=self.reconstruct_shape,
+                allocate=False
+            ),
             'amplitude': self.buffer(
-                kind="single", dtype=np.float32, extra_shape=self.reconstruct_shape,
+                kind="single", dtype=component_dtype, extra_shape=self.reconstruct_shape,
                 allocate=False,
             ),
             'phase': self.buffer(
-                kind="single", dtype=np.float32, extra_shape=self.reconstruct_shape,
+                kind="single", dtype=component_dtype, extra_shape=self.reconstruct_shape,
                 allocate=False,
             ),
         }
@@ -198,8 +205,11 @@ class SSB_UDF(UDF):
 
         steps_dtype = np.result_type(np.complex64, self.params.dtype)
 
+        used_pixels = (container.computed_masks[0].todense() != 0)
+
         return {
             "masks": container,
+            "used_pixels": used_pixels,
             "row_exp": xp.array(row_exp.astype(steps_dtype)),
             "col_exp": xp.array(col_exp.astype(steps_dtype)),
             "backend": backend
@@ -207,7 +217,7 @@ class SSB_UDF(UDF):
 
     def merge(self, dest, src):
         ''
-        dest['pixels'][:] = dest['pixels'] + src['pixels']
+        dest['fourier'][:] = dest['fourier'] + src['fourier']
 
     def merge_dot_result(self, dot_result):
         # shorthand, cupy or numpy
@@ -220,7 +230,7 @@ class SSB_UDF(UDF):
         # cut the y axis in half. The "+ 1" accounts for odd sizes
         # The mask stack is already trimmed in y direction to only contain
         # one of the trotter pairs
-        half_y = self.results.pixels.shape[0] // 2 + 1
+        half_y = self.results.fourier.shape[0] // 2 + 1
 
         # Get the real x and y indices within the dataset navigation dimension
         # for the current tile
@@ -235,7 +245,7 @@ class SSB_UDF(UDF):
         fourier_factors_col = self.task_data.col_exp[x_indices, np.newaxis, :]
 
         # The masks are in order [row, col], but flattened. Here we undo the flattening
-        dot_result = dot_result.reshape((tile_depth, half_y, self.results.pixels.shape[1]))
+        dot_result = dot_result.reshape((tile_depth, half_y, self.results.fourier.shape[1]))
 
         # Calculate the part of the Fourier transform for this tile.
         # Reconstructed shape corresponds to depth of mask stack, see above.
@@ -251,7 +261,7 @@ class SSB_UDF(UDF):
         # stack before patching the missing half for the full result.
         # Einsum is about 3x faster in this scenario, likely because of not building a large
         # intermediate array before summation
-        self.results.pixels[:half_y] += xp.einsum(
+        self.results.fourier[:half_y] += xp.einsum(
             'i...,i...,i...',
             dot_result,
             fourier_factors_row,
@@ -262,26 +272,27 @@ class SSB_UDF(UDF):
         ''
         # shorthand, cupy or numpy
         xp = self.xp
-        half_y = self.results.pixels.shape[0] // 2 + 1
+        half_y = self.results.fourier.shape[0] // 2 + 1
         # patch accounts for even and odd sizes
         # FIXME make sure this is correct using an example that transmits also
         # the high spatial frequencies
-        patch = self.results.pixels.shape[0] % 2
+        patch = self.results.fourier.shape[0] % 2
         # We skip the first row since it would be outside the FOV
-        extracted = self.results.pixels[1:self.results.pixels.shape[0] // 2 + patch]
+        extracted = self.results.fourier[1:self.results.fourier.shape[0] // 2 + patch]
         # The coordinates of the bottom half are inverted and
         # the zero column is rolled around to the front
         # The real part is inverted
-        self.results.pixels[half_y:] = -xp.conj(
+        self.results.fourier[half_y:] = -xp.conj(
             xp.roll(xp.flip(xp.flip(extracted, axis=0), axis=1), shift=1, axis=1)
         )
 
     def get_results(self):
         results = get_results(self.results)
         return {
-            'pixels': results,
-            'amplitude': np.abs(results),
-            'phase': np.angle(results),
+            'fourier': self.results['fourier'],
+            'complex': self.result('complex', results),
+            'amplitude': self.result('amplitude', np.abs(results)),
+            'phase': self.result('phase', np.angle(results)),
         }
 
     def process_tile(self, tile):
@@ -311,7 +322,7 @@ class SSB_UDF(UDF):
             # cut the y axis in half. The "+ 1" accounts for odd sizes
             # The mask stack is already trimmed in y direction to only contain
             # one of the trotter pairs
-            half_y = self.results.pixels.shape[0] // 2 + 1
+            half_y = self.results.fourier.shape[0] // 2 + 1
 
             # Load the preconditioned trotter stack from the mask container:
             # * Coutout for current tile
@@ -329,11 +340,13 @@ class SSB_UDF(UDF):
             if masks.nnz == 0:
                 return
 
+            used_pixel_slice = self.meta.slice.get(self.task_data.used_pixels, sig_only=True).reshape(-1)
             # This combines the trotter integration with merge_dot_result
             # into a Numba loop that eliminates a potentially large intermediate result
             # and allows efficient multithreading
             rmatmul_csc_fourier(
                 n_threads=self.meta.threads_per_worker,
+                used_pixels=used_pixel_slice,
                 left_dense=tile_flat,
                 right_data=masks.data,
                 right_indices=masks.indices,
@@ -341,7 +354,7 @@ class SSB_UDF(UDF):
                 coordinates=self.meta.coordinates,
                 row_exp=self.task_data.row_exp,
                 col_exp=self.task_data.col_exp,
-                res_inout=self.results.pixels[:half_y]
+                res_inout=self.results.fourier[:half_y]
             )
 
     def get_backends(self):
@@ -366,7 +379,7 @@ class SSB_UDF(UDF):
             # data
             return {
                 "depth": self.TILE_DEPTH_MAX,
-                "total_size": self.TILE_SIZE_MAX,
+                "total_size": 18e6,
             }
 
 
@@ -391,7 +404,7 @@ def get_results(udf_result):
     # but the wave front is inherently an amplitude,
     # we take the square root of the calculated amplitude and
     # combine it with the calculated phase.
-    rec = np.fft.ifft2(udf_result["pixels"].data)
+    rec = np.fft.ifft2(udf_result["fourier"].data)
     amp = np.abs(rec)
     phase = np.angle(rec)
     return np.sqrt(amp) * np.exp(1j*phase)

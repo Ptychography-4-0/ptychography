@@ -158,9 +158,9 @@ def test_ssb(dpix, lt_ctx, backend):
 
         print(np.max(np.abs(udf_masks.todense() - reference_masks)))
 
-        print(np.max(np.abs(result['pixels'].data - result_f)))
+        print(np.max(np.abs(result['fourier'].data - result_f)))
 
-        assert np.allclose(result['pixels'].data, result_f)
+        assert np.allclose(result['fourier'].data, result_f)
     finally:
         if backend == 'cupy':
             set_use_cpu(0)
@@ -243,9 +243,9 @@ def test_ssb_container(dpix, lt_ctx, backend):
 
         print(np.max(np.abs(udf_masks.todense() - reference_masks)))
 
-        print(np.max(np.abs(result['pixels'].data - result_f)))
+        print(np.max(np.abs(result['fourier'].data - result_f)))
 
-        assert np.allclose(result['pixels'].data, result_f)
+        assert np.allclose(result['fourier'].data, result_f)
     finally:
         if backend == 'cupy':
             set_use_cpu(0)
@@ -298,7 +298,7 @@ def test_ssb_rotate():
     result_f, _ = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
                              semiconv_pix=semiconv_pix, cy=cy, cx=cx)
 
-    assert np.allclose(result['pixels'].data, result_f)
+    assert np.allclose(result['fourier'].data, result_f)
 
 
 def test_ssb_roi():
@@ -344,7 +344,7 @@ def test_ssb_roi():
     result_f, _ = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
                              semiconv_pix=semiconv_pix, cy=cy, cx=cx)
 
-    assert np.allclose(result_1['pixels'].data + result_2['pixels'].data, result_f)
+    assert np.allclose(result_1['fourier'].data + result_2['fourier'].data, result_f)
 
 
 def test_masks():
@@ -374,7 +374,7 @@ def test_masks():
         cy=cy, cx=cx
     )
 
-    # print(np.max(np.abs(np.abs(result['pixels']) - np.abs(result_f))))
+    # print(np.max(np.abs(np.abs(result['fourier']) - np.abs(result_f))))
     half_y = shape[0] // 2 + 1
     # Use symmetry and reshape like generate_masks()
     reference_masks = reference_masks[:half_y].reshape((half_y*shape[1], shape[2], shape[3]))
