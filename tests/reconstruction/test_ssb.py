@@ -109,7 +109,11 @@ def test_mask_tile_pair_within():
 @pytest.mark.parametrize(
     'backend', ('numpy', 'cupy') if use_cupy else ('numpy', )
 )
-def test_ssb(dpix, lt_ctx, backend):
+@pytest.mark.parametrize(
+    'n_threads', (2, 6)
+)
+def test_ssb(dpix, backend, n_threads):
+    lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=n_threads))
     try:
         if backend == 'cupy':
             set_use_cuda(0)
@@ -174,7 +178,11 @@ def test_ssb(dpix, lt_ctx, backend):
 @pytest.mark.parametrize(
     'backend', ('numpy', 'cupy') if use_cupy else ('numpy', )
 )
-def test_ssb_container(dpix, lt_ctx, backend):
+@pytest.mark.parametrize(
+    'n_threads', (2, 6)
+)
+def test_ssb_container(dpix, backend, n_threads):
+    lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=n_threads))
     try:
         if backend == 'cupy':
             set_use_cuda(0)
@@ -250,9 +258,11 @@ def test_ssb_container(dpix, lt_ctx, backend):
         if backend == 'cupy':
             set_use_cpu(0)
 
-
-def test_ssb_rotate():
-    ctx = lt.Context(executor=InlineJobExecutor())
+@pytest.mark.parametrize(
+    'n_threads', (2, 6)
+)
+def test_ssb_rotate(n_threads):
+    lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=n_threads))
     dtype = np.float64
 
     scaling = 4
@@ -293,16 +303,18 @@ def test_ssb_rotate():
         data=data_90deg, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
     )
 
-    result = ctx.run_udf(udf=udf, dataset=dataset)
+    result = lt_ctx.run_udf(udf=udf, dataset=dataset)
 
     result_f, _ = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
                              semiconv_pix=semiconv_pix, cy=cy, cx=cx)
 
     assert np.allclose(result['fourier'].data, result_f)
 
-
-def test_ssb_roi():
-    ctx = lt.Context(executor=InlineJobExecutor())
+@pytest.mark.parametrize(
+    'n_threads', (2, 6)
+)
+def test_ssb_roi(n_threads):
+    lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=n_threads))
     dtype = np.float64
 
     scaling = 4
@@ -338,8 +350,8 @@ def test_ssb_roi():
     roi_1 = np.random.choice([True, False], shape[:2])
     roi_2 = np.invert(roi_1)
 
-    result_1 = ctx.run_udf(udf=udf, dataset=dataset, roi=roi_1)
-    result_2 = ctx.run_udf(udf=udf, dataset=dataset, roi=roi_2)
+    result_1 = lt_ctx.run_udf(udf=udf, dataset=dataset, roi=roi_1)
+    result_2 = lt_ctx.run_udf(udf=udf, dataset=dataset, roi=roi_2)
 
     result_f, _ = reference_ssb(input_data, U=U, dpix=dpix, semiconv=semiconv,
                              semiconv_pix=semiconv_pix, cy=cy, cx=cx)
