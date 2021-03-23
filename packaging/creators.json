@@ -17,7 +17,7 @@
         "displayname": "Achim Strauch",
         "authorname": "Strauch, Achim",
         "affiliation": "FZ J\u00fclich",
-        "contribution": "Application and validation for SSB"
+        "contribution": "Member of Ptychography 4.0, application and validation for SSB"
     },
     {
         "displayname": "Alexander Clausen",
@@ -31,7 +31,7 @@
         "displayname": "Arya Bangun ",
         "authorname": "Bangun, Arya",
         "affiliation": "Jülich Research Centre",
-        "contribution": "Reconstruction algorithms",
+        "contribution": "Member of Ptychography 4.0, reconstruction algorithms",
         "orcid": "0000-0001-5753-4394",
         "github": "bangunarya"
     },
@@ -39,7 +39,7 @@
         "displayname": "Oleh Melnyk",
         "authorname": "Melnyk, Oleh",
         "affiliation": "HZM, TU Munich",
-        "contribution": "Stitching, reconstruction algorithms",
+        "contribution": "Member of Ptychography 4.0, stitching, reconstruction algorithms",
         "orcid": "0000-0002-1816-7613",
         "github": "Sniper2k"
     },

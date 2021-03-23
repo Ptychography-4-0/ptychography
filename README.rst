@@ -8,7 +8,7 @@
     The Ptychography 4.0 repository and documentation are currently under construction.
 
 This repository collects implementations for ptychography that result from the work of the
-`Ptychography 4.0 project <https://www.helmholtz.de/forschung/information-data-science/information-data-science-pilot-projekte/pilotprojekte-2/>`_.
+`Ptychography 4.0 project <https://ptychography.helmholtz-muenchen.de/>`_.
 
 Installation
 ------------

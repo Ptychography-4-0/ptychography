@@ -54,10 +54,10 @@ Ptychography 4.0
     :width: 100px
     :alt: Helmholtz Gemeinschaft Deutscher Forschungszentren
 
-We gratefully acknowledge funding from the `Information & Data Science Pilot
-Project
+Project funded by the Helmholtz Association (`Pilot Project Information & Data
+Science II
 <https://www.helmholtz.de/en/research/information-data-science/information-data-science-pilot-projects/pilot-projects-2/>`_
-"Ptychography 4.0" of the Helmholtz Association.
+- `Ptychography 4.0, grant # ZT-I-0025 <https://ptychography.helmholtz-muenchen.de/>`_ ).
 
 |clearfloat|
 

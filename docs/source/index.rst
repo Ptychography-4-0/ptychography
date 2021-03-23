@@ -1,8 +1,8 @@
 .. Ptychography 4.0 documentation master file
    Adapted from https://github.com/LiberTEM/LiberTEM
 
-Ptychography 4.0
-================
+Ptychography 4.0 Software
+=========================
 
 .. include:: ../../README.rst
 ..   see also: https://muffinresearch.co.uk/selectively-including-parts-readme-rst-in-your-docs/
