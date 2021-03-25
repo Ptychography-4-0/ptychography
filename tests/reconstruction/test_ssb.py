@@ -53,7 +53,7 @@ if has_real:
         cy, cx = real_params["cy"], real_params["cx"]
         return real_complex_diffract[:, :, cy, cx]
 
-    @pytest.fixture(scope="session")
+    @pytest.fixture
     def real_intensity_ds(real_intensity, lt_ctx):
         return lt_ctx.load("memory", data=real_intensity, sig_dims=2)
 
@@ -165,6 +165,8 @@ def test_ssb(dpix, backend, n_threads):
         print(np.max(np.abs(result['fourier'].data - result_f)))
 
         assert np.allclose(result['fourier'].data, result_f)
+        backwards = result['amplitude'].data**2 * np.exp(1j*result['phase'].data)
+        assert np.allclose(result['fourier'].data, np.fft.fft2(backwards))
     finally:
         if backend == 'cupy':
             set_use_cpu(0)
@@ -547,10 +549,11 @@ def test_validate_ssb(real_params, real_intensity_ds, real_plane_wave,
     # Make sure the methods are at least reasonably comparable
     # TODO work towards 100 % correspondence with suitable test dataset
     # TODO make the amplitude of the reconstruction match
-    print("Max between: ", np.max(np.abs(ssb_res - reference_ssb_res)), np.max(np.abs(ssb_res)))
-    print("Std between: ", np.std(ssb_res - reference_ssb_res), np.std(ssb_res))
-    assert np.max(np.abs(ssb_res - reference_ssb_res)) < 0.01*np.max(np.abs(ssb_res))
-    assert np.std(ssb_res - reference_ssb_res) < 0.01*np.std(ssb_res)
+    ssb_res_complex = ssb_res['complex'].data
+    print("Max between: ", np.max(np.abs(ssb_res_complex - reference_ssb_res)), np.max(np.abs(ssb_res_complex)))
+    print("Std between: ", np.std(ssb_res_complex - reference_ssb_res), np.std(ssb_res_complex))
+    assert np.max(np.abs(ssb_res_complex - reference_ssb_res)) < 0.01*np.max(np.abs(ssb_res_complex))
+    assert np.std(ssb_res_complex - reference_ssb_res) < 0.01*np.std(ssb_res_complex)
 
 
 def reference_ssb(data, U, dpix, semiconv, semiconv_pix, cy=None, cx=None):
