@@ -12,7 +12,7 @@ from libertem.masks import circular
 from libertem.corrections.coordinates import identity, rotate_deg
 from libertem.common.container import MaskContainer
 
-from ptychography40.reconstruction.ssb import SSB_UDF, generate_masks, get_results
+from ptychography40.reconstruction.ssb import SSB_UDF, generate_masks
 from ptychography40.reconstruction.ssb.trotters import mask_tile_pair
 from ptychography40.reconstruction.common import wavelength
 
@@ -517,21 +517,20 @@ def test_validate_ssb(real_params, real_intensity_ds, real_plane_wave,
         cutoff=1,
     )
 
-    result = lt_ctx.run_udf(udf=udf, dataset=real_intensity_ds)
+    ssb_res = lt_ctx.run_udf(udf=udf, dataset=real_intensity_ds)
 
     result_f, reference_masks = real_reference_ssb
 
-    ssb_res = get_results(result)
     # We apply the amplitude scaling to the raw reference SSB result
     reference_ssb_raw = np.fft.ifft2(result_f)
     reference_ssb_amp = np.abs(reference_ssb_raw)
     reference_ssb_phase = np.angle(reference_ssb_raw)
     reference_ssb_res = np.sqrt(reference_ssb_amp) * np.exp(1j*reference_ssb_phase)
 
-    ssb_phase = np.angle(ssb_res)
+    ssb_phase = ssb_res['phase'].data
     ref_phase = np.angle(real_plane_wave)
 
-    ssb_amp = np.abs(ssb_res)
+    ssb_amp = ssb_res['amplitude'].data
     ref_amp = np.abs(real_plane_wave)
 
     # The phases are usually shifted by a constant offset
