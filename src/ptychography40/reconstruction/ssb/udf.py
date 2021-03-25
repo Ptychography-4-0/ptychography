@@ -116,15 +116,15 @@ class SSB_UDF(UDF):
             ),
             'complex': self.buffer(
                 kind="single", dtype=dtype, extra_shape=self.reconstruct_shape,
-                allocate=False
+                use='result_only',
             ),
             'amplitude': self.buffer(
                 kind="single", dtype=component_dtype, extra_shape=self.reconstruct_shape,
-                allocate=False,
+                use='result_only',
             ),
             'phase': self.buffer(
                 kind="single", dtype=component_dtype, extra_shape=self.reconstruct_shape,
-                allocate=False,
+                use='result_only',
             ),
         }
 
@@ -212,7 +212,7 @@ class SSB_UDF(UDF):
 
     def merge(self, dest, src):
         ''
-        dest['fourier'][:] = dest['fourier'] + src['fourier']
+        dest.fourier[:] += src.fourier
 
     def merge_dot_result(self, dot_result):
         # shorthand, cupy or numpy
@@ -282,12 +282,20 @@ class SSB_UDF(UDF):
         )
 
     def get_results(self):
-        results = get_results(self.results)
+        '''
+        Since we derive the wave front with a linear function from intensities,
+        but the wave front is inherently an amplitude,
+        we take the square root of the calculated amplitude and
+        combine it with the calculated phase.
+        '''
+        inverse = np.fft.ifft2(self.results.fourier)
+        amp = np.sqrt(np.abs(inverse))
+        phase = np.angle(inverse)
         return {
-            'fourier': self.results['fourier'],
-            'complex': self.result('complex', results),
-            'amplitude': self.result('amplitude', np.abs(results)),
-            'phase': self.result('phase', np.angle(results)),
+            'fourier': self.results.fourier,
+            'complex': amp * np.exp(1j*phase),
+            'amplitude': amp,
+            'phase': phase,
         }
 
     def process_tile(self, tile):
@@ -399,30 +407,3 @@ class SSB_UDF(UDF):
                     # each tile will be taken to speed up the sparse matrix product
                     "total_size": 0.5e6,
                 }
-
-
-def get_results(udf_result):
-    '''
-    Derive real space wave front from Fourier space
-
-    To be included in UDF after https://github.com/LiberTEM/LiberTEM/issues/628
-
-    Parameters
-    ----------
-
-    udf_result : Dict[str, libertem.common.buffers.BufferWrapper]
-        Result from running :class:`SSB_UDF` with a LiberTEM Context
-
-    Returns
-    -------
-    reconstruction : numpy.ndarray
-        Reconstruction result in real space as complex numbers.
-    '''
-    # Since we derive the wave front with a linear function from intensities,
-    # but the wave front is inherently an amplitude,
-    # we take the square root of the calculated amplitude and
-    # combine it with the calculated phase.
-    rec = np.fft.ifft2(udf_result["fourier"].data)
-    amp = np.abs(rec)
-    phase = np.angle(rec)
-    return np.sqrt(amp) * np.exp(1j*phase)
