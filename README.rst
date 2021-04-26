@@ -21,9 +21,9 @@ The short version:
 
     $ virtualenv -p python3.8 ~/ptychography-venv/
     $ source ~/ptychography-venv/bin/activate
-    (ptychography) $ git clone https://github.com/Ptychography-4-0/ptychography
-    (ptychography) $ cd ptychography
-    (ptychography) $ python -m pip install -e .
+    (ptychography-venv) $ git clone https://github.com/Ptychography-4-0/ptychography
+    (ptychography-venv) $ cd ptychography
+    (ptychography-venv) $ python -m pip install -e .
 
 Please see `our documentation <https://ptychography-4-0.github.io/ptychography/>`_ for details!
 
