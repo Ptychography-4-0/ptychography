@@ -13,32 +13,32 @@ import matplotlib.pyplot as plt
 import ptychography.stitching.stitching as stitch
 
 def show_object(obj):
-    
+
     if (len(obj.shape) < 3):
         obj = np.repeat(obj[:, :,np.newaxis], 1, axis=2)
-    
+
     L = obj.shape[2]
-    
+
 #    fig, ax = plt.subplots(nrows = L, ncols = 2, squeeze = False)
-#    
+#
 #    for l in range(L):
 #        img = obj[:,:,l]
-#        
+#
 #        ax[l,0].imshow(np.real(img))
 #        ax[l,0].axis('off')
-#        
+#
 #        ax[l,1].imshow(np.imag(img))
 #        ax[l,1].axis('off')
-#        
+#
 #    plt.show()
     for l in range(L):
         img = obj[:,:,l]
-        
+
         fig, ax = plt.subplots(nrows = 1, ncols = 2)
-        
+
         ax[0].imshow(np.round(np.real(img)).astype(np.uint8))
         ax[0].axis('off')
-        
+
         ax[1].imshow(np.round(np.imag(img)).astype(np.uint8))
         ax[1].axis('off')
         plt.show()
@@ -73,23 +73,23 @@ R = locations_2d.shape[0]
 parts = np.zeros( (d,d,R), dtype= complex)
 for r in range(R):
     loc = locations_2d[r,:]
-    
+
 #    cut part
     parts[loc[0]:(loc[0] + psize),loc[1]:(loc[1] + psize),r] = obj[loc[0]:(loc[0] + psize),loc[1]:(loc[1] + psize)]
-    
+
 #    add gaussian noise
     # noise= np.random.normal(size=(psize,psize)) + 1.0j*np.random.normal(size=(psize,psize))
     # noise *= np.sqrt(noise_level)
-    
+
     # parts[loc[0]:(loc[0] + psize),loc[1]:(loc[1] + psize),r] += noise
-    
+
 #    add random phase rotation
     angle = np.random.normal(1) + 1.0j*np.random.normal(1)
     angle = angle/ abs(angle)
-    if r == 0: 
+    if r == 0:
         angle = 1
     parts[loc[0]:(loc[0] + psize),loc[1]:(loc[1] + psize),r] *= angle
-    
+
 print('Resulting parts of the object')
 show_object(parts)
 

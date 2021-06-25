@@ -110,13 +110,13 @@ class CDI_Reconst():
         Preprared to use NN for Updating and also to save images before and after updating.
         It is necessary to do some pre runs before using NN.
         """
-        
+
 
         obj_in_supp_t = S_t * torch.stack((in_support_t, in_support_t), -1)
         obj_out_supp_t = (beta * S_prev_t + (1 - 2 * beta) * S_t) * \
         torch.stack((out_of_support_t, out_of_support_t), -1)
         S_filtered_t = obj_in_supp_t + obj_out_supp_t
-        
+
         return S_filtered_t
 
 
@@ -132,23 +132,23 @@ class CDI_Reconst():
 
     def reconst(self,diff_int_t, phi_rand=None):
         diff_int_t = torch.tensor(diff_int_t, dtype=self.float, device=self.device)
-        
+
         diff_int_t = torch.max(diff_int_t, self.single_zero)
         diff_int_t = torch.transpose(diff_int_t, dim0=0, dim1=1)
-        
+
         sqrInt_t = torch.max(self.single_zero, diff_int_t)
         sqrInt_t = torch.sqrt(sqrInt_t)
         sqrInt_t = torch.transpose(sqrInt_t, dim0=0, dim1=1)
-        
+
         if phi_rand is None:
             phi_rand = -pi + 2 * pi * torch.rand((diff_int_t.size()[0], diff_int_t.size()[1]))
-        
+
         phase_rand_t = torch.tensor(phi_rand, dtype=self.float, device=self.device)
-        
+
         real = torch.zeros((diff_int_t.size()[0], diff_int_t.size()[1]), dtype=self.float, device=self.device)
         sample = torch.stack((real, diff_int_t), dim=-1, out=real)
-        
-        with torch.no_grad():            
+
+        with torch.no_grad():
             fourier_error_t = torch.zeros(self.iter_total, dtype=self.float, device=self.device)
             object_error_t = torch.zeros(self.iter_total, dtype=self.float, device=self.device)
 
@@ -159,7 +159,7 @@ class CDI_Reconst():
             in_support_t, out_of_support_t, _ = self.get_support(obj_AC_t, self.AC_threshold)
             in_support_t = torch.tensor(in_support_t, dtype=self.float, device=self.device)
             out_of_support_t = torch.tensor(out_of_support_t, dtype=self.float, device=self.device)
-            
+
             P_filtered_t = torch.tensor(full_diff_field_t, dtype=self.float, device=self.device)
 
             for i in range(1, self.iter_total + 1):
@@ -167,7 +167,7 @@ class CDI_Reconst():
                 S_t = torch.tensor(S_t, dtype=self.float, device=self.device)
                 object_error_t[i - 1] = self.object_error(S_t, out_of_support_t)
 
-                
+
                 if i % self.iter_update == 0:
                     num_of_updates += 1
                     Supp_Conv_t = self.gauss_filter(S_t)
@@ -180,10 +180,10 @@ class CDI_Reconst():
                         S_filtered_t = S_t
                     else:
                         S_filtered_t = self.RAAR(S_t, S_prev_t, in_support_t, out_of_support_t, self.beta)
-                        
+
                     S_prev_t = S_filtered_t
                     S_prev_t = torch.tensor(S_prev_t, dtype=self.float, device=self.device)
-                    
+
                 P_t = self.backward(S_filtered_t) # to fourier space
                 P_filtered_t = self.fourier_constraint_I(P_t, sqrInt_t) # get new P
                 P_filtered_t = torch.tensor(P_filtered_t, dtype=self.float, device=self.device)

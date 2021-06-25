@@ -50,7 +50,7 @@ Replace :code:`~/ptychography-venv/` with any path where you would like to creat
 the venv. You can then activate the virtualenv with
 
 .. code-block:: shell
-    
+
     $ source ~/ptychography-venv/bin/activate
 
 Afterwards, your shell prompt should be prefixed with :code:`(ptychography)` to
@@ -58,7 +58,7 @@ indicate that the environment is active:
 
 .. code-block:: shell
 
-    (ptychography) $ 
+    (ptychography) $
 
 For more information about virtualenv, for example if you are using a shell
 without `source`, please `refer to the virtualenv documentation
@@ -86,7 +86,7 @@ command:
 To install or later run ptychography, activate the environment with the following
 command:
 
-.. code-block:: shell  
+.. code-block:: shell
 
     $ conda activate ptychography
 
@@ -95,10 +95,10 @@ indicate that the environment is active:
 
 .. code-block:: shell
 
-    (ptychography) $ 
+    (ptychography) $
 
 Now the environment is ready to install ptychography.
-    
+
 For more information about conda, see their `documentation about creating and
 managing environments
 <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_.
@@ -134,7 +134,7 @@ the ptychography40 installation. Please note the dot at the end, which indicates
 current directory!
 
 .. code-block:: shell
-    
+
     (ptychography) $ python -m pip install -e .
 
 This should download the dependencies and install ptychography in the environment.
@@ -150,7 +150,7 @@ update the source code with this command:
 .. code-block:: shell
 
     $ git pull
-    
+
 The installation with ``pip install -e`` has installed ptychography40 in `"editable"
 mode <https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs>`_.
 That means the changes pulled from git are active immediately. Only if the
@@ -189,7 +189,7 @@ Differences:
 .. code-block:: shell
 
     > conda activate ptychography
-    
+
 * You might have to install pip into your local ptychography conda environment to
   make sure that ``pip install`` installs packages into your local environment and
   not into the global Anaconda base environment. This helps to avoid permission

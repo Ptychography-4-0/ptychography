@@ -23,4 +23,3 @@
 - applicability to interactive measurements ("online reconstruction")?
 - data formats? HDF5?
 - zeroMQ,..?
-
