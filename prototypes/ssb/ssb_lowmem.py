@@ -116,7 +116,7 @@ def generate_skyline(reconstruct_shape, mask_shape, dtype, wavelength, dpix, sem
                     bbox_n[tile_index, row, column] = bounding_box(mask_negative).flatten()
                 else:
                     c = center_tile*center_tile
-                    # We will divide by 2 later in the skyline dot, have to 
+                    # We will divide by 2 later in the skyline dot, have to
                     # compensate for that
                     nnz_p[0, 0] += c.sum() / 2
                     nnz_n[0, 0] += c.sum() / 2  # nnz_n remains to avoid culling
@@ -190,7 +190,7 @@ def skyline_dot(tile, filter_center, skyline, debug_masks):
             mask_positive = center_tile * positive_tile * (negative_tile == 0)
             mask_negative = center_tile * negative_tile * (positive_tile == 0)
 
-            # 
+            #
             sta_y, sto_y, sta_x, sto_x = skyline["bbox_p"][tile_index, row, column]
             result[:, row, column] = (
                 tile[:, sta_y:sto_y, sta_x:sto_x]
@@ -214,11 +214,11 @@ def skyline_dot(tile, filter_center, skyline, debug_masks):
                 # axes[0].imshow(mask_positive)
                 # axes[1].imshow(mask_positive - center_tile**2)
                 assert np.allclose(mask_positive, center_tile**2)
-                
+
             result[:, row, column] /= 2
 
             # assert np.allclose(mask_positive[sta_y:sto_y, sta_x:sto_x].sum(), mask_positive.sum())
-            
+
             # result[:, row, column] = (
             #     tile * debug_masks[row, column]
             # ).sum(axis=(1, 2))
@@ -232,7 +232,7 @@ def skyline_dot(tile, filter_center, skyline, debug_masks):
                 m = center_tile**2 / skyline["nnz_p"][row, column] / 2
                 reference = (
                     tile * m
-                ).sum(axis=(1, 2)) 
+                ).sum(axis=(1, 2))
                 assert np.allclose(result[:, row, column], reference)
                 # result[:, row, column] = reference
 
@@ -407,16 +407,16 @@ class SSB_UDF_Lowmem(UDF):
             x_indices[:, np.newaxis, np.newaxis]
             * self.task_data.col_steps[np.newaxis, np.newaxis, :]
         ).astype(factors_dtype)
-        
+
         masks = self.task_data.masks.get(self.meta.slice, transpose=True, backend=self.meta.backend)
-        
+
         dot_result = skyline_dot(
             tile=tile,
             filter_center=self.task_data.filter_center,
             skyline=self.task_data.skyline,
             debug_masks=masks.T.toarray().reshape((half_y, buffer_frame.shape[1], *tile.tile_slice.shape[1:]))
         )
-        
+
         tile_flat = tile.reshape((tile.shape[0], -1))
         mask_dot_result = tile_flat * masks
         mask_dot_result = mask_dot_result.reshape((tile_depth, half_y, buffer_frame.shape[1]))

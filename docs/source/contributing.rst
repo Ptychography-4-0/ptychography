@@ -186,13 +186,13 @@ environment base folder, typically
     REM @echo off is vital so that the file doesn't clutter the output
     REM execute python.exe with the same command line
     @python.exe %*
-    
+
 To execute tests with Python 3.7, you create a new environment with Python 3.7:
 
 .. code-block:: shell
 
     > conda create -n ptychography-3.7 python=3.7
-    
+
 Now you can create :literal:`python3.7.bat` in your normal ptychography environment
 alongside :literal:`python3.6.bat` and make it execute the Python interpreter of
 your new ptychography-3.7 environment:
@@ -201,7 +201,7 @@ your new ptychography-3.7 environment:
 
     @echo off
     REM @echo off is vital so that the file doesn't clutter the output
-    REM execute python.exe in a different environment 
+    REM execute python.exe in a different environment
     REM with the same command line
     @%LOCALAPPDATA%\conda\conda\envs\ptychography-3.7\python.exe %*
 
@@ -218,7 +218,7 @@ as the surrounding code.
 You can check the code style by running:
 
 .. code-block:: bat
-   
+
    $ tox -e flake8
 
 We recommend using an editor that can check code style on the fly, such as

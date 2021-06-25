@@ -42,7 +42,7 @@ and more analysis methods for all applications of pixelated STEM and other
 large-scale detector data. If you like to influence the direction this project
 is taking, or if you'd like to `contribute
 <https://ptychography-4-0.github.io/ptychography/contributing.html>`_, please
-contact us in the `GitHub Issue tracker <https://github.com/Ptychography-4-0/ptychography/issues>`_. 
+contact us in the `GitHub Issue tracker <https://github.com/Ptychography-4-0/ptychography/issues>`_.
 
 License
 -------
