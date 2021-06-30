@@ -28,7 +28,7 @@ sys.path.insert(
     )
 )
 
-import ptychography40
+import ptychography40  # noqa:E402
 
 # -- Project information -----------------------------------------------------
 

@@ -2,8 +2,6 @@ import re
 import os
 import codecs
 import subprocess
-import distutils
-import shutil
 from setuptools.command.sdist import sdist
 from setuptools.command.build_py import build_py
 from setuptools import setup
