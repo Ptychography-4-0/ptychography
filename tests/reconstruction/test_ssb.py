@@ -23,8 +23,14 @@ try:
 except ImportError:
     use_cupy = False
 
-DATA_PATH = "/storage/holo/clausen/testdata/ER-C-1/projects/ptycho-4.0/data/RefData/slice_00002_thick_0.312293_nm_blocksz.mat"
-PARAM_PATH = "/storage/holo/clausen/testdata/ER-C-1/projects/ptycho-4.0/data/slice_00002_thick_0.312293_nm_blocksz.params.json"
+DATA_PATH = (
+    "/storage/holo/clausen/testdata/ER-C-1/projects/ptycho-4.0/data/RefData/"
+    "slice_00002_thick_0.312293_nm_blocksz.mat"
+)
+PARAM_PATH = (
+    "/storage/holo/clausen/testdata/ER-C-1/projects/ptycho-4.0/data/"
+    "slice_00002_thick_0.312293_nm_blocksz.params.json"
+)
 
 has_real = isfile(DATA_PATH) and isfile(PARAM_PATH)
 
@@ -260,6 +266,7 @@ def test_ssb_container(dpix, backend, n_threads):
         if backend == 'cupy':
             set_use_cpu(0)
 
+
 @pytest.mark.parametrize(
     'n_threads', (2, 6)
 )
@@ -311,6 +318,7 @@ def test_ssb_rotate(n_threads):
                              semiconv_pix=semiconv_pix, cy=cy, cx=cx)
 
     assert np.allclose(result['fourier'].data, result_f)
+
 
 @pytest.mark.parametrize(
     'n_threads', (2, 6)
@@ -550,9 +558,19 @@ def test_validate_ssb(real_params, real_intensity_ds, real_plane_wave,
     # TODO work towards 100 % correspondence with suitable test dataset
     # TODO make the amplitude of the reconstruction match
     ssb_res_complex = ssb_res['complex'].data
-    print("Max between: ", np.max(np.abs(ssb_res_complex - reference_ssb_res)), np.max(np.abs(ssb_res_complex)))
-    print("Std between: ", np.std(ssb_res_complex - reference_ssb_res), np.std(ssb_res_complex))
-    assert np.max(np.abs(ssb_res_complex - reference_ssb_res)) < 0.01*np.max(np.abs(ssb_res_complex))
+    print(
+        "Max between: ",
+        np.max(np.abs(ssb_res_complex - reference_ssb_res)),
+        np.max(np.abs(ssb_res_complex))
+    )
+    print(
+        "Std between: ",
+        np.std(ssb_res_complex - reference_ssb_res),
+        np.std(ssb_res_complex)
+    )
+    diffmax = np.max(np.abs(ssb_res_complex - reference_ssb_res))
+    difflimit = 0.01*np.max(np.abs(ssb_res_complex))
+    assert diffmax < difflimit
     assert np.std(ssb_res_complex - reference_ssb_res) < 0.01*np.std(ssb_res_complex)
 
 
