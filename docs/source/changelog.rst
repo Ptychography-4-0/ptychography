@@ -17,6 +17,9 @@ Changelog
 0.1.0 (2021-07-01)
 ##################
 
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.5055127.svg
+   :target: https://doi.org/10.5281/zenodo.5055127
+
 Initial release with live SSB reconstruction and stitching. The project
 structure is adapted from https://libertem.github.io/LiberTEM/.
 

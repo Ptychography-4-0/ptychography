@@ -1,7 +1,16 @@
-|github|_
+|github|_ |zenodo|_ |azure|_ |precommit|_
 
 .. |github| image:: https://img.shields.io/badge/GitHub-GPL--3.0-informational
 .. _github: https://github.com/Ptychography-4-0/ptychography/
+
+.. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.5055126.svg
+.. _zenodo: https://doi.org/10.5281/zenodo.5055126
+
+.. |azure| image:: https://dev.azure.com/ptycho40/ptycho40/_apis/build/status/Ptychography-4-0.ptychography?branchName=master
+.. _azure: https://dev.azure.com/ptycho40/ptycho40/_build/latest?definitionId=1&branchName=master
+
+.. |precommit| image:: https://results.pre-commit.ci/badge/github/Ptychography-4-0/ptychography/master.svg
+.. _precommit: https://results.pre-commit.ci/latest/github/Ptychography-4-0/ptychography/master
 
 .. note::
 
