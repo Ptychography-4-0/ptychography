@@ -3,12 +3,6 @@
 Installation
 ============
 
-.. note::
-    Ptychography 4.0 is currently not working with Python 3.9
-    because support in LiberTEM is still pending:
-    https://github.com/LiberTEM/LiberTEM/issues/914. Python 3.6, Python
-    3.7 and Python 3.8 are supported.
-
 The short version
 -----------------
 
@@ -19,6 +13,7 @@ The short version
     (ptychography) $ python -m pip install ptychography40
 
     # optional for GPU support
+    # See also https://docs.cupy.dev/en/stable/install.html
     (ptychography) $ python -m pip install cupy
 
 For details, please read on!
@@ -38,13 +33,13 @@ Using virtualenv
 
 You can use `virtualenv <https://virtualenv.pypa.io/>`_ or `venv
 <https://docs.python.org/3/tutorial/venv.html>`_ if you have a system-wide
-Python 3.6 or 3.7 installation. For Mac OS X, using conda is recommended.
+Python 3.6 or newer installation. For Mac OS X, using conda is recommended.
 
 To create a new virtualenv for ptychography, you can use the following command:
 
 .. code-block:: shell
 
-    $ virtualenv -p python3.7 ~/ptychography-venv/
+    $ virtualenv -p python3.9 ~/ptychography-venv/
 
 Replace :code:`~/ptychography-venv/` with any path where you would like to create
 the venv. You can then activate the virtualenv with
@@ -81,7 +76,7 @@ command:
 
 .. code-block:: shell
 
-    $ conda create -n ptychography python=3.7
+    $ conda create -n ptychography python=3.9
 
 To install or later run ptychography, activate the environment with the following
 command:
@@ -103,18 +98,18 @@ For more information about conda, see their `documentation about creating and
 managing environments
 <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_.
 
-.. Installing from PyPi
-.. ~~~~~~~~~~~~~~~~~~~~
+Installing from PyPi
+~~~~~~~~~~~~~~~~~~~~
 
-.. To install the latest release version, you can use pip. Activate the Python
-   environment (conda or virtualenv) and install using:
+To install the latest release version, you can use pip. Activate the Python
+environment (conda or virtualenv) and install using:
 
-.. .. code-block:: shell
+.. code-block:: shell
 
-..    (ptychography) $ python -m pip install ptychography40
+   (ptychography) $ python -m pip install ptychography40
 
-.. This should install ptychography40 and its dependencies in the environment. Please
-   continue by reading about the :ref:`algorithms`.
+This should install ptychography40 and its dependencies in the environment. Please
+continue by reading about the :ref:`algorithms`.
 
 .. _`installing from a git clone`:
 
@@ -160,7 +155,11 @@ requirements for installed third-party packages have changed, you can re-run
 CuPy
 ----
 
-GPU support is based on `CuPy <https://cupy.dev/>`_.
+GPU support is based on `CuPy <https://cupy.dev/>`_. See
+https://docs.cupy.dev/en/stable/install.html#installing-cupy for installation of
+precompiled binary packages (recommended). :code:`python -m pip install
+cupy` installs CuPy from source, which requires a build chain and
+can be time-consuming.
 
 .. code-block:: shell
 
@@ -170,7 +169,7 @@ Windows
 -------
 
 The recommended method to install ptychography on Windows is based on `Miniconda 64
-bit with Python version 3.6 or 3.7 <https://docs.conda.io/en/latest/miniconda.html>`_.
+bit <https://docs.conda.io/en/latest/miniconda.html>`_.
 This installs a Python distribution.
 
 For `installing from a git clone`_ you require a suitable git client, for
