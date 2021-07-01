@@ -2,17 +2,24 @@ Changelog
 =========
 
 .. _continuous:
-.. _latest:
 
-.. _`v0-4-0`:
-
-0.1.0.dev0 (continuous)
+0.2.0.dev0 (continuous)
 #######################
 
 .. toctree::
    :glob:
 
    changelog/*/*
+
+.. _latest:
+.. _`v0-1-0`:
+
+0.1.0 (2021-07-01)
+##################
+
+Initial release with live SSB reconstruction and stitching. The project
+structure is adapted from https://libertem.github.io/LiberTEM/.
+
 
 .. .. _latest:
 .. .. _`v0-1-0`:
