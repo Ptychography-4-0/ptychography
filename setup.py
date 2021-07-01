@@ -81,7 +81,7 @@ setup(
         "numpy",
         "scipy",
         "sparse",
-        "libertem>=0.6.0",
+        "libertem>=0.7.0",
         # Pinned due to https://github.com/pydata/sparse/issues/257
         # Ensure compatibility with numpy 1.17
         "numba>=0.46",
