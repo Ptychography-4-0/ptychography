@@ -1,0 +1,935 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Run Single Side Band (SSB) ptychography on Merlin live streams &#8212; Ptychography 4.0 0.2.0.dev0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "document", "processHtmlClass": "math|output_area"}}</script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Simple SSB implementation" href="simple-ssb.html" />
+    <link rel="prev" title="Single Side Band ptychography example" href="ssb.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt a.copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+</style>
+<div class="section" id="Run-Single-Side-Band-(SSB)-ptychography-on-Merlin-live-streams">
+<h1>Run Single Side Band (SSB) ptychography on Merlin live streams<a class="headerlink" href="#Run-Single-Side-Band-(SSB)-ptychography-on-Merlin-live-streams" title="Permalink to this headline">¶</a></h1>
+<p>This example uses <a class="reference external" href="https://github.com/LiberTEM/LiberTEM-live">https://github.com/LiberTEM/LiberTEM-live</a> for live processing. See the documentation and examples there for more information and details.</p>
+<p>If you want to use this with the simulated data source, LiberTEM-live includes a utility to emulate a Merlin detector by replaying an MIB dataset. To use it, run something like this in the background:</p>
+<p><code class="docutils literal notranslate"><span class="pre">libertem-live-mib-sim</span> <span class="pre">~/Data/default.hdr</span> <span class="pre">--cached=MEM</span> <span class="pre">--wait-trigger</span></code></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">--wait-trigger</span></code> option is important for this notebook to function correctly since that allows to drain the data socket before an acquisition like it is necessary for a real-world Merlin detector.</p>
+<ul class="simple">
+<li><p>Make sure to adjust the <code class="docutils literal notranslate"><span class="pre">SCAN_SIZE</span></code> below to match the scan of the data source!</p></li>
+<li><p>This notebook requires the <code class="docutils literal notranslate"><span class="pre">bqplot</span></code> extra of LiberTEM: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">libertem[bqplot]</span></code></p></li>
+</ul>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># set this to the host/port where the merlin data server is listening:</span>
+<span class="n">MERLIN_DATA_SOCKET</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="mi">6342</span><span class="p">)</span>
+<span class="n">MERLIN_CONTROL_SOCKET</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="mi">6341</span><span class="p">)</span>
+<span class="n">SCAN_SIZE</span> <span class="o">=</span> <span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">concurrent.futures</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">ipywidgets</span>
+<span class="kn">from</span> <span class="nn">empyre.vis.colors</span> <span class="kn">import</span> <span class="n">ColormapCubehelix</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">libertem.corrections.coordinates</span> <span class="kn">import</span> <span class="n">flip_y</span><span class="p">,</span> <span class="n">rotate_deg</span><span class="p">,</span> <span class="n">identity</span>
+<span class="kn">from</span> <span class="nn">libertem.analysis</span> <span class="kn">import</span> <span class="n">com</span> <span class="k">as</span> <span class="n">com_analysis</span>
+<span class="kn">from</span> <span class="nn">libertem.udf.masks</span> <span class="kn">import</span> <span class="n">ApplyMasksUDF</span>
+<span class="kn">from</span> <span class="nn">libertem.common.container</span> <span class="kn">import</span> <span class="n">MaskContainer</span>
+<span class="kn">from</span> <span class="nn">libertem.viz.bqp</span> <span class="kn">import</span> <span class="n">BQLive2DPlot</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">libertem_live.api</span> <span class="kn">import</span> <span class="n">LiveContext</span>
+<span class="kn">from</span> <span class="nn">libertem_live.detectors.merlin</span> <span class="kn">import</span> <span class="n">MerlinControl</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">ptychography40.reconstruction.ssb</span> <span class="kn">import</span> <span class="n">SSB_UDF</span><span class="p">,</span> <span class="n">generate_masks</span>
+<span class="kn">from</span> <span class="nn">ptychography40.reconstruction.common</span> <span class="kn">import</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">get_shifted</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">ctx</span> <span class="o">=</span> <span class="n">LiveContext</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="Camera-setup">
+<h2>Camera setup<a class="headerlink" href="#Camera-setup" title="Permalink to this headline">¶</a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="k">def</span> <span class="nf">merlin_setup</span><span class="p">(</span><span class="n">c</span><span class="p">:</span> <span class="n">MerlinControl</span><span class="p">,</span> <span class="n">dwell_time</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Setting Merlin acquisition parameters&quot;</span><span class="p">)</span>
+    <span class="c1"># Here go commands to control the camera and the rest of the setup</span>
+    <span class="c1"># to perform an acquisition.</span>
+
+    <span class="c1"># The Merlin simulator currently accepts all kinds of commands</span>
+    <span class="c1"># and doesn&#39;t respond like a real Merlin detector.</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;CONTINUOUSRW&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;ACQUISITIONTIME&#39;</span> <span class="p">,</span> <span class="n">dwell_time</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">)</span>  <span class="c1"># Time in miliseconds</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;COUNTERDEPTH&#39;</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+
+    <span class="c1"># Soft trigger for testing</span>
+    <span class="c1"># For a real STEM acquisition the trigger setup has to be adapted for the given instrument.</span>
+    <span class="c1"># See the MerlinEM User Manual for more details on trigger setup</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;TRIGGERSTART&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+
+    <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;RUNHEADLESS&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;FILEFORMAT&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># 0 binary, 2 raw binary</span>
+
+    <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;IMAGESPERFILE&#39;</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;FILEENABLE&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;USETIMESTAMPING&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># raw format with timestamping is buggy, we need to do it ourselves</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;FILEFORMAT&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># raw format, less overhead?</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;FILEDIRECTORY&#39;</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;FILEENABLE&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Finished Merlin setup.&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">microscope_setup</span><span class="p">(</span><span class="n">dwell_time</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
+    <span class="c1"># Here go instructions to set dwell time and</span>
+    <span class="c1"># other scan parameters</span>
+    <span class="c1"># microscope.set_dwell_time(dwell_time)</span>
+    <span class="k">pass</span>
+
+<span class="k">def</span> <span class="nf">arm</span><span class="p">(</span><span class="n">c</span><span class="p">:</span> <span class="n">MerlinControl</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Arming Merlin...&quot;</span><span class="p">)</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">cmd</span><span class="p">(</span><span class="s1">&#39;STARTACQUISITION&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Merlin ready for trigger.&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">set_nav</span><span class="p">(</span><span class="n">c</span><span class="p">:</span> <span class="n">MerlinControl</span><span class="p">,</span> <span class="n">aq</span><span class="p">):</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">aq</span><span class="o">.</span><span class="n">shape</span><span class="o">.</span><span class="n">nav</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Setting resolution...&quot;</span><span class="p">)</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;NUMFRAMESTOACQUIRE&#39;</span><span class="p">,</span> <span class="n">height</span> <span class="o">*</span> <span class="n">width</span><span class="p">)</span>
+    <span class="c1"># Only one trigger for the whole scan with SOFTTRIGGER</span>
+    <span class="c1"># This has to be adapted to the real trigger setup.</span>
+    <span class="c1"># Set to `width` for line trigger and to `1` for pixel trigger.</span>
+    <span class="n">c</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;NUMFRAMESPERTRIGGER&#39;</span><span class="p">,</span> <span class="n">height</span> <span class="o">*</span> <span class="n">width</span><span class="p">)</span>
+
+    <span class="c1"># microscope.configure_scan(shape=aq.shape.nav)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="Trigger-function">
+<h2>Trigger function<a class="headerlink" href="#Trigger-function" title="Permalink to this headline">¶</a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="k">class</span> <span class="nc">AcquisitionState</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trigger_result</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">set_trigger_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trigger_result</span> <span class="o">=</span> <span class="n">result</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">acquisition_state</span> <span class="o">=</span> <span class="n">AcquisitionState</span><span class="p">()</span>
+<span class="n">pool</span> <span class="o">=</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="k">def</span> <span class="nf">trigger</span><span class="p">(</span><span class="n">aq</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Triggering!&quot;</span><span class="p">)</span>
+    <span class="c1"># microscope.start_scanning()</span>
+
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">aq</span><span class="o">.</span><span class="n">shape</span><span class="o">.</span><span class="n">nav</span>
+
+    <span class="c1"># Real-world example: Function call to trigger the scan engine</span>
+    <span class="c1"># that triggers the detector with a hardware trigger to match the scan of the beam.</span>
+    <span class="c1"># This function is blocking until the scan is complete.</span>
+    <span class="c1"># do_scan = lambda: ceos.call.acquireScan(width=width, height=height+1, imageName=&quot;test&quot;)</span>
+
+    <span class="c1"># Testing: Use soft trigger</span>
+    <span class="c1"># The emulator can trigger on the &#39;SOFTTRIGGER&#39; command like the Merlin detector.</span>
+    <span class="k">def</span> <span class="nf">do_scan</span><span class="p">():</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Emulated blocking scan function using the Merlin simulator.</span>
+
+<span class="sd">        This function doesn&#39;t actually block, but it could!</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;do_scan()&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">c</span><span class="p">:</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">cmd</span><span class="p">(</span><span class="s1">&#39;SOFTTRIGGER&#39;</span><span class="p">)</span>
+
+    <span class="c1"># The real-world scan function might be blocking. We run it in a thread pool here</span>
+    <span class="c1"># so that `trigger()` returns and the acquisition can start.</span>
+    <span class="n">fut</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">do_scan</span><span class="p">)</span>
+    <span class="n">acquisition_state</span><span class="o">.</span><span class="n">set_trigger_result</span><span class="p">(</span><span class="n">fut</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">aq</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">prepare_acquisition</span><span class="p">(</span>
+    <span class="s1">&#39;merlin&#39;</span><span class="p">,</span>
+    <span class="n">trigger</span><span class="o">=</span><span class="n">trigger</span><span class="p">,</span>
+    <span class="n">scan_size</span><span class="o">=</span><span class="n">SCAN_SIZE</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">MERLIN_DATA_SOCKET</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+    <span class="n">port</span><span class="o">=</span><span class="n">MERLIN_DATA_SOCKET</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+    <span class="n">frames_per_partition</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span>
+    <span class="n">pool_size</span><span class="o">=</span><span class="mi">2</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="SSB-setup">
+<h2>SSB setup<a class="headerlink" href="#SSB-setup" title="Permalink to this headline">¶</a></h2>
+<p>See also <a class="reference external" href="https://ptychography-4-0.github.io/ptychography/algorithms/ssb.html">https://ptychography-4-0.github.io/ptychography/algorithms/ssb.html</a> for a more complete example!</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">ds_shape_sig</span><span class="p">,</span> <span class="n">ds_shape_nav</span> <span class="o">=</span> <span class="n">aq</span><span class="o">.</span><span class="n">shape</span><span class="o">.</span><span class="n">sig</span><span class="p">,</span> <span class="n">aq</span><span class="o">.</span><span class="n">shape</span><span class="o">.</span><span class="n">nav</span>
+
+<span class="c1"># Acceleration voltage in keV</span>
+<span class="n">U</span> <span class="o">=</span> <span class="mi">300</span>
+<span class="n">rec_params</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+    <span class="s2">&quot;lamb&quot;</span><span class="p">:</span> <span class="n">wavelength</span><span class="p">(</span><span class="n">U</span><span class="p">),</span>
+    <span class="s2">&quot;dpix&quot;</span><span class="p">:</span> <span class="mf">12.7e-12</span><span class="p">,</span>
+    <span class="s2">&quot;semiconv&quot;</span><span class="p">:</span> <span class="mf">22.1346e-3</span><span class="p">,</span>  <span class="c1"># 2020-05-18</span>
+    <span class="s2">&quot;semiconv_pix&quot;</span><span class="p">:</span> <span class="mi">31</span><span class="p">,</span>  <span class="c1"># 2020-05-18</span>
+    <span class="c1"># applied right to left</span>
+    <span class="s2">&quot;transformation&quot;</span><span class="p">:</span> <span class="n">rotate_deg</span><span class="p">(</span><span class="mi">88</span><span class="p">)</span> <span class="o">@</span> <span class="n">flip_y</span><span class="p">(),</span>
+    <span class="s2">&quot;cx&quot;</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+    <span class="s2">&quot;cy&quot;</span><span class="p">:</span> <span class="mi">126</span><span class="p">,</span>
+    <span class="s2">&quot;cutoff&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>  <span class="c1"># number of pixels: trotters smaller than this will be removed</span>
+<span class="p">}</span>
+<span class="n">cutoff_freq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)</span>
+
+<span class="n">mask_params</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="c1"># Shape of the reconstructed area</span>
+    <span class="s1">&#39;reconstruct_shape&#39;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">aq</span><span class="o">.</span><span class="n">shape</span><span class="o">.</span><span class="n">nav</span><span class="p">),</span>
+    <span class="c1"># Shape of a detector frame</span>
+    <span class="s1">&#39;mask_shape&#39;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">aq</span><span class="o">.</span><span class="n">shape</span><span class="o">.</span><span class="n">sig</span><span class="p">),</span>
+    <span class="c1"># Use the faster shifting method to generate trotters</span>
+    <span class="s1">&#39;method&#39;</span><span class="p">:</span> <span class="s1">&#39;shift&#39;</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">%%time</span>
+<span class="n">trotters</span> <span class="o">=</span> <span class="n">generate_masks</span><span class="p">(</span><span class="o">**</span><span class="n">rec_params</span><span class="p">,</span> <span class="o">**</span><span class="n">mask_params</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Wall time: 9.63 s
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">mask_container</span> <span class="o">=</span> <span class="n">MaskContainer</span><span class="p">(</span>
+    <span class="n">mask_factories</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">trotters</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">trotters</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="n">trotters</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+WARNING:libertem.common.container:Mask factory size 72596502 larger than warning limit 1048576, may be inefficient
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">ssb_udf</span> <span class="o">=</span> <span class="n">SSB_UDF</span><span class="p">(</span><span class="o">**</span><span class="n">rec_params</span><span class="p">,</span> <span class="n">mask_container</span><span class="o">=</span><span class="n">mask_container</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># Create the plots for the SSB result</span>
+<span class="n">p0</span> <span class="o">=</span> <span class="n">BQLive2DPlot</span><span class="p">(</span><span class="n">aq</span><span class="p">,</span> <span class="n">ssb_udf</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="s2">&quot;phase&quot;</span><span class="p">)</span>
+<span class="n">p1</span> <span class="o">=</span> <span class="n">BQLive2DPlot</span><span class="p">(</span><span class="n">aq</span><span class="p">,</span> <span class="n">ssb_udf</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="s2">&quot;amplitude&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="COM-setup">
+<h2>COM setup<a class="headerlink" href="#COM-setup" title="Permalink to this headline">¶</a></h2>
+<p>This example uses <a class="reference external" href="https://libertem.github.io/LiberTEM/udf/basic.html#live-plotting">advanced live plotting features of LiberTEM</a> to create a live plot of the data analysis that the <a class="reference external" href="https://libertem.github.io/LiberTEM/reference/api.html#libertem.api.Context.create_com_analysis">COM Analysis</a> performs.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># Masks are sum, y gradient, x gradient</span>
+<span class="n">masks</span> <span class="o">=</span> <span class="n">com_analysis</span><span class="o">.</span><span class="n">com_masks_factory</span><span class="p">(</span>
+    <span class="n">detector_y</span><span class="o">=</span><span class="n">aq</span><span class="o">.</span><span class="n">shape</span><span class="o">.</span><span class="n">sig</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+    <span class="n">detector_x</span><span class="o">=</span><span class="n">aq</span><span class="o">.</span><span class="n">shape</span><span class="o">.</span><span class="n">sig</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+    <span class="n">cx</span><span class="o">=</span><span class="n">rec_params</span><span class="p">[</span><span class="s2">&quot;cx&quot;</span><span class="p">],</span>
+    <span class="n">cy</span><span class="o">=</span><span class="n">rec_params</span><span class="p">[</span><span class="s2">&quot;cy&quot;</span><span class="p">],</span>
+    <span class="n">r</span><span class="o">=</span><span class="n">rec_params</span><span class="p">[</span><span class="s2">&quot;semiconv_pix&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">30</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">com_udf</span> <span class="o">=</span> <span class="n">ApplyMasksUDF</span><span class="p">(</span><span class="n">masks</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">center_shifts</span><span class="p">(</span><span class="n">udf_result</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Derive center of mass results from the UDF results</span>
+<span class="sd">    and apply coordinate correction.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">y_centers_raw</span><span class="p">,</span> <span class="n">x_centers_raw</span> <span class="o">=</span> <span class="n">com_analysis</span><span class="o">.</span><span class="n">center_shifts</span><span class="p">(</span>
+        <span class="n">img_sum</span><span class="o">=</span><span class="n">udf_result</span><span class="p">[</span><span class="s1">&#39;intensity&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+        <span class="n">img_y</span><span class="o">=</span><span class="n">udf_result</span><span class="p">[</span><span class="s1">&#39;intensity&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+        <span class="n">img_x</span><span class="o">=</span><span class="n">udf_result</span><span class="p">[</span><span class="s1">&#39;intensity&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+        <span class="n">ref_y</span><span class="o">=</span><span class="n">rec_params</span><span class="p">[</span><span class="s2">&quot;cy&quot;</span><span class="p">],</span>
+        <span class="n">ref_x</span><span class="o">=</span><span class="n">rec_params</span><span class="p">[</span><span class="s2">&quot;cx&quot;</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">y_centers_raw</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">y_centers</span><span class="p">,</span> <span class="n">x_centers</span> <span class="o">=</span> <span class="n">rec_params</span><span class="p">[</span><span class="s1">&#39;transformation&#39;</span><span class="p">]</span> <span class="o">@</span> <span class="p">(</span><span class="n">y_centers_raw</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">x_centers_raw</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+
+    <span class="n">y_centers</span> <span class="o">=</span> <span class="n">y_centers</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">x_centers</span> <span class="o">=</span> <span class="n">x_centers</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">y_centers</span><span class="p">,</span> <span class="n">x_centers</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">field</span><span class="p">(</span><span class="n">udf_result</span><span class="p">,</span> <span class="n">damage</span><span class="p">):</span>
+    <span class="n">ch</span> <span class="o">=</span> <span class="n">ColormapCubehelix</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">rot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">minLight</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">maxLight</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">sat</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">shifts</span> <span class="o">=</span> <span class="n">center_shifts</span><span class="p">(</span><span class="n">udf_result</span><span class="p">)</span>
+    <span class="c1"># damage = True because of https://github.com/LiberTEM/LiberTEM/issues/1052</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">ch</span><span class="o">.</span><span class="n">rgb_from_vector</span><span class="p">((</span><span class="n">shifts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">shifts</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)),</span> <span class="kc">True</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">magnitude</span><span class="p">(</span><span class="n">udf_result</span><span class="p">,</span> <span class="n">damage</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">com_analysis</span><span class="o">.</span><span class="n">magnitude</span><span class="p">(</span><span class="o">*</span><span class="n">center_shifts</span><span class="p">(</span><span class="n">udf_result</span><span class="p">)),</span> <span class="n">damage</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">divergence</span><span class="p">(</span><span class="n">udf_result</span><span class="p">,</span> <span class="n">damage</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">com_analysis</span><span class="o">.</span><span class="n">divergence</span><span class="p">(</span><span class="o">*</span><span class="n">center_shifts</span><span class="p">(</span><span class="n">udf_result</span><span class="p">)),</span> <span class="n">damage</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">curl</span><span class="p">(</span><span class="n">udf_result</span><span class="p">,</span> <span class="n">damage</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">com_analysis</span><span class="o">.</span><span class="n">curl_2d</span><span class="p">(</span><span class="o">*</span><span class="n">center_shifts</span><span class="p">(</span><span class="n">udf_result</span><span class="p">)),</span> <span class="n">damage</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">y</span><span class="p">(</span><span class="n">udf_result</span><span class="p">,</span> <span class="n">damage</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">center_shifts</span><span class="p">(</span><span class="n">udf_result</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">damage</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">x</span><span class="p">(</span><span class="n">udf_result</span><span class="p">,</span> <span class="n">damage</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">center_shifts</span><span class="p">(</span><span class="n">udf_result</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span> <span class="n">damage</span><span class="p">)</span>
+
+<span class="n">com_plots</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">field</span><span class="p">,</span> <span class="n">magnitude</span><span class="p">,</span> <span class="n">divergence</span><span class="p">,</span> <span class="n">curl</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">BQLive2DPlot</span><span class="p">(</span>
+        <span class="n">dataset</span><span class="o">=</span><span class="n">aq</span><span class="p">,</span>
+        <span class="n">udf</span><span class="o">=</span><span class="n">com_udf</span><span class="p">,</span>
+        <span class="n">channel</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">com_plots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="Plot-setup-for-gridded-display">
+<h2>Plot setup for gridded display<a class="headerlink" href="#Plot-setup-for-gridded-display" title="Permalink to this headline">¶</a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">plots</span> <span class="o">=</span> <span class="p">[</span><span class="n">p0</span><span class="p">,</span> <span class="n">p1</span><span class="p">]</span> <span class="o">+</span> <span class="n">com_plots</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># NBVAL_IGNORE_OUTPUT</span>
+<span class="c1"># (output is ignored in nbval run because it somehow doesn&#39;t play nice with bqplot)</span>
+
+<span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">plots</span><span class="p">:</span>
+    <span class="c1"># Capture the plots to display them in a grid later</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">ipywidgets</span><span class="o">.</span><span class="n">Output</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">output</span><span class="p">:</span>
+        <span class="n">p</span><span class="o">.</span><span class="n">display</span><span class="p">()</span>
+        <span class="c1"># Some plot-specific tweaks for grid display</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">BQLive2DPlot</span><span class="p">):</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">fig_margin</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;top&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span> <span class="s1">&#39;bottom&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">:</span> <span class="mi">25</span><span class="p">}</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="s1">&#39;400px&#39;</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="s1">&#39;400px&#39;</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">MPLLive2DPlot</span><span class="p">):</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">set_size_inches</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">toolbar_position</span> <span class="o">=</span> <span class="s1">&#39;bottom&#39;</span>
+    <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">ipywidgets</span><span class="o">.</span><span class="n">VBox</span><span class="p">([</span>
+    <span class="n">ipywidgets</span><span class="o">.</span><span class="n">HBox</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]),</span>
+    <span class="n">ipywidgets</span><span class="o">.</span><span class="n">HBox</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">]),</span>
+    <span class="n">ipywidgets</span><span class="o">.</span><span class="n">HBox</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">]),</span>
+    <span class="n">ipywidgets</span><span class="o">.</span><span class="n">HBox</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">8</span><span class="p">]),</span>
+<span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "5c8bddb4fed3453eb99649c4ab5f7948", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+</div>
+<div class="section" id="Sample-output">
+<h2>Sample output<a class="headerlink" href="#Sample-output" title="Permalink to this headline">¶</a></h2>
+<p>The plots are not preserved when saving the notebook. They look like this:</p>
+<p><img alt="sample plot" src="../_images/ssb-live.png" /></p>
+</div>
+<div class="section" id="Run-SSB-and-centre-of-mass-on-live-data">
+<h2>Run SSB and centre of mass on live data<a class="headerlink" href="#Run-SSB-and-centre-of-mass-on-live-data" title="Permalink to this headline">¶</a></h2>
+<p>This updates the plots above.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">c</span> <span class="o">=</span> <span class="n">MerlinControl</span><span class="p">(</span><span class="o">*</span><span class="n">MERLIN_CONTROL_SOCKET</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Connecting Merlin control...&quot;</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">c</span><span class="p">:</span>
+    <span class="n">merlin_setup</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+    <span class="n">microscope_setup</span><span class="p">()</span>
+
+    <span class="n">set_nav</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">aq</span><span class="p">)</span>
+    <span class="n">arm</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">ctx</span><span class="o">.</span><span class="n">run_udf</span><span class="p">(</span><span class="n">dataset</span><span class="o">=</span><span class="n">aq</span><span class="p">,</span> <span class="n">udf</span><span class="o">=</span><span class="p">[</span><span class="n">ssb_udf</span><span class="p">,</span> <span class="n">com_udf</span><span class="p">],</span> <span class="n">plots</span><span class="o">=</span><span class="n">plots</span><span class="p">)</span>
+<span class="k">finally</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">acquisition_state</span><span class="o">.</span><span class="n">trigger_result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Waiting for blocking scan function...&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;result = </span><span class="si">{</span><span class="n">acquisition_state</span><span class="o">.</span><span class="n">trigger_result</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">pass</span> <span class="c1">#microscope.stop_scanning()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Finished.&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Connecting Merlin control...
+Setting Merlin acquisition parameters
+Finished Merlin setup.
+Setting resolution...
+Arming Merlin...
+Merlin ready for trigger.
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+INFO:libertem_live.detectors.merlin.acquisition:drained 21504 bytes of garbage
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Triggering!
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+INFO:libertem_live.detectors.merlin.data:got headers; frame offset = 0
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+do_scan()
+Waiting for blocking scan function...
+result = None
+Finished.
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../index.html">
+    <img class="logo" src="../_static/logo.png" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../algorithms.html">Algorithms</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../algorithms.html#single-side-band">Single side band</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/index.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../releasing.html">Releasing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../algorithms.html">Algorithms</a><ul>
+      <li>Previous: <a href="ssb.html" title="previous chapter">Single Side Band ptychography example</a></li>
+      <li>Next: <a href="simple-ssb.html" title="next chapter">Simple SSB implementation</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019-2020, Ptychography 4.0 Authors.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.1.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/algorithms/live-ssb.nblink.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
