@@ -2,5 +2,3 @@
 # keep next line commented if the file is empty otherwise - breaks tox env creation in some cases!
 # --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
 # libertem-blobfinder
-
--e git+https://github.com/LiberTEM/LiberTEM-live.git#egg=libertem-live
