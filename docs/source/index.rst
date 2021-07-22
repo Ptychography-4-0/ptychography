@@ -19,6 +19,7 @@ Documentation
 
    install
    algorithms
+   datasets
    reference/index
    changelog
    contributing
