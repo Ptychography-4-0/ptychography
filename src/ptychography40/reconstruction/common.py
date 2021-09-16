@@ -3,6 +3,9 @@ import math
 import numpy as np
 import numba
 import scipy.constants as const
+import scipy.sparse
+
+from libertem.corrections import coordinates
 
 
 # Calculation of the relativistic electron wavelength in meters
@@ -126,3 +129,306 @@ def bounding_box(array):
         return np.array(((y_min, y_max+1), (x_min, x_max+1)))
     else:
         return np.array([(0, 0), (0, 0)])
+
+
+def diffraction_to_detector(
+        coords, lamb, diffraction_shape, pixel_size_real, pixel_size_detector,
+        cy, cx, flip_y=False, scan_rotation=0.):
+    '''
+    Transform pixel coordinates from diffraction of real space to detector coordinates
+
+    When performing a forward calculation where a wave front is passed through an object
+    function and projected in the far field, the projection is a Fourier transform.
+    Each pixel in the fourier-transformed slice of real space corresponds to a diffraction
+    angle in radian. This angle is a function of real space dimensions and wavelength.
+
+    For ptychography, this forward-projected beam is put in relation with detector data.
+    The projection and detector, however, are usually not calibrated in such a way that each
+    pixel corresponds exactly to one diffracted pixel/beam from the object and illumination
+    function. This function applies the correct scale, rotation and handedness to match
+    the forward-projected beam with the detector data, given the necessary input parameters.
+
+    cy, cx, flip_y and scan_rotation are chosen to correspond to the parameters in
+    :meth:libertem.api.Context.create_com_analysis`.
+
+    Parameters
+    ----------
+
+    coords : numpy.ndarray
+        Array of shape (n, 2) with (y, x) pixel coordinates in diffracted space, upper left
+        corner is (0, 0)
+    lamb : float
+        Wavelength in m
+    diffraction_shape : tuple
+        Shape of the diffracted area
+    pixel_size_real : float or tuple or ndarray
+        Pixel size in m for the diffracted shape. Can be a tuple or array with two values for
+        y and x
+    pixel_size_detector : float or tuple or ndarray
+        Pixel size in radian of the detector. Can be a tuple or array with two values for y and x
+    cy : float
+        Y position of the central beam on the detector.
+    cx : float
+        X position of the central beam on the detector
+    flip_y : bool
+        Flip the y axis of the detector coordinates
+    scan_rotation : float
+        Scan rotation in degrees
+
+    Returns
+    -------
+    numpy.ndarray
+        Pixel coordinates on the detector
+    '''
+    # Make sure broadcasting works as expected
+    diffraction_shape = np.array(diffraction_shape)
+    pixel_size_real = np.array(pixel_size_real)
+    pixel_size_detector = np.array(pixel_size_detector)
+    # Size of one pixel in radian of the diffracted shape.
+    # Twice the diffraction_shape and half the pixel_size_real, i.e. the same physical
+    # area at a finer pixel resolution, can capture higher diffraction orders and
+    # therefore the FFT extends twice as far.
+    # That means the pixel_size_diffracted should stay the same.
+    # Longer wavelength means higher diffraction angles to get the same relative
+    # path difference.
+    pixel_size_diffracted = 1/pixel_size_real/diffraction_shape*lamb
+
+    transformation = coordinates.identity()
+
+    if flip_y:
+        transformation = coordinates.flip_y() @ transformation
+
+    transformation = coordinates.rotate_deg(scan_rotation) @ transformation
+
+    transformation *= pixel_size_diffracted / pixel_size_detector
+
+    # Shift the coordinates relative to the center of the
+    # diffraction pattern
+    relative_to_center = (coords - diffraction_shape / 2 + 0.5)
+
+    return (relative_to_center @ transformation) + (cy, cx) - 0.5
+
+
+def fftshift_coords(coords, reconstruct_shape):
+    '''
+    Perform an fftshift of coordinates
+
+    On the detector, the central beam is near the center, while for native FFT
+    the center is at the (0, 0) position of the result array. Instead of
+    fft-shifting the result of a projection calculation to match the detector,
+    one can instead calculate a transformation that picks the data fft-shifted
+    from the diffraction pattern. This can be performed together with scaling
+    and rotation with zero overhead.
+    '''
+    coords = np.array(coords)
+    reconstruct_shape = np.array(reconstruct_shape)
+    return (coords + (reconstruct_shape + 1) // 2) % reconstruct_shape
+
+
+def ifftshift_coords(coords, reconstruct_shape):
+    '''
+    Perform an inverse fftshift of coordinates
+
+    On the detector, the central beam is near the center, while for native FFT
+    the center is at the (0, 0) position of the result array. Instead of
+    fft-shifting the result of a projection calculation to match the detector,
+    one can instead calculate a transformation that picks the data fft-shifted
+    from the diffraction pattern. This can be performed together with scaling
+    and rotation with zero overhead.
+    '''
+    coords = np.array(coords)
+    reconstruct_shape = np.array(reconstruct_shape)
+    return (coords + reconstruct_shape // 2) % reconstruct_shape
+
+
+@numba.njit(fastmath=True)
+def _binning_elements(
+        multi_target, multi_y_steps, multi_x_steps, multi_upleft,
+        multi_y_vectors, multi_x_vectors):
+    n_entries = int(np.sum(multi_y_steps*multi_x_steps))
+    source_array = np.empty((n_entries, 2), dtype=np.float32)
+    target_array = np.empty((n_entries, 2), dtype=np.int32)
+    index = 0
+    for i in range(len(multi_target)):
+        for y in range(multi_y_steps[i]):
+            for x in range(multi_x_steps[i]):
+                source_coord = (
+                    multi_upleft[i]
+                    + y / multi_y_steps[i] * multi_y_vectors[i]
+                    + x / multi_x_steps[i] * multi_x_vectors[i]
+                )
+                source_array[index] = source_coord
+                target_array[index] = multi_target[i]
+                index += 1
+    return source_array, target_array
+
+
+@numba.njit(fastmath=True)
+def _weights(targets, target_shape):
+    counts = np.zeros(target_shape, dtype=np.int32)
+    result = np.empty(len(targets), dtype=np.float32)
+    for t in targets:
+        counts[t[0], t[1]] += 1
+    for i, t in enumerate(targets):
+        result[i] = 1/counts[t[0], t[1]]
+    return result
+
+
+def image_transformation_matrix(
+        source_shape, target_shape, affine_transformation, pre_transform=None,
+        post_transform=None):
+    '''
+    Construct a sparse matrix that transforms a flattened source image stack to
+    a flattened target image stack.
+
+    A sparse matrix prodct can be a highly efficient method to apply a set of
+    transformations to an image in one pass. This function constructs a sparse
+    matrix that picks values from a source image to fill each pixel of the
+    target image by first applying :code:`pre_transform()` to the target image
+    indices to map them into a 2D vector space, then projecting the pixel
+    outline in this vector space using :code:`affine_transformation()` to
+    calculate the source pixel coordinates, and then using
+    :code:`post_transform()` to map the source coordinates to indices in the
+    source image. If the projected pixel is of size 1.5 or smaller in the source
+    coordinates, the closest integer is chosen. If it is larger, the average of
+    pixels within the projected pixel outline is chosen. This corresponds to
+    scaling with order=0.
+
+    :code:`pre_transform() and :code:`posttransform()` can also be used for
+    shifting the center of :code:`affine_transformation()`.
+
+    Parameters
+    ----------
+    source_shape, target_shape : tuple
+        Shape of source and target image for bounds checking and index raveling
+    affine_transformation : callable(coords -> coords)
+        Transformation that maps intermediate coordinates to float source coordinates.
+        It should be continuous, strictly monotone and approximately affine for the size
+        of one pixel.
+    pre_transform : callable(coords) -> coords
+        Map target image indices to coordinates, typically euclidean. :code:`pre_transform()`
+        should not change the scale of the coordinates. It is designed to be something like
+        :meth:`ifftshift_coords` to un-scramble target coordinates so that coordinates that
+        are close in the source image are also close in the
+        un-scrambled intermediate coordinates generated by this function.
+        This is identity by default.
+    post_transform : callable(coords) -> coords(int)
+        Map source image coordinates, typically euclidean, to source image indices.
+        :code:`posttransform()` should not change the scale of the coordinates. By default it
+        is :code:`np.round(...).astype(int)`.
+    '''
+    source_shape = tuple(source_shape)
+    target_shape = tuple(target_shape)
+    if pre_transform is None:
+        def pre_transform(x):
+            return x
+    if post_transform is None:
+        def post_transform(x):
+            return np.round(x).astype(int)
+    # Array with all coordinates in the target image
+    target_coords = np.stack(
+        np.mgrid[:target_shape[0], :target_shape[1]],
+        axis=2
+        ).reshape((np.prod(target_shape, dtype=np.int64), 2))
+    # Obtain coordinates in a proper euclidean space
+    intermediate_coords = pre_transform(target_coords)
+    # Pixel corners
+    upright = intermediate_coords + (0, 1)
+    downleft = intermediate_coords + (1, 0)
+
+    # Transform to euclidean source coordinates
+    source_upleft = affine_transformation(intermediate_coords)
+    source_upright = affine_transformation(upright)
+    source_downleft = affine_transformation(downleft)
+    # Calculate edge vectors and their lengths
+    source_y_vectors = source_downleft - source_upleft
+    source_y_vector_lengths = np.linalg.norm(source_y_vectors, axis=-1)
+    source_x_vectors = source_upright - source_upleft
+    source_x_vector_lengths = np.linalg.norm(source_x_vectors, axis=-1)
+
+    # Determine which source pixels are so small that they only cover one pixel
+    single_pixel = (source_y_vector_lengths < 1.5) & (source_x_vector_lengths < 1.5)
+
+    # Extract and calculate source indices for single pixels
+    single_target = target_coords[single_pixel]
+    single_centers = source_upleft[single_pixel]
+    single_source = post_transform(single_centers)
+
+    # Crop source indices to the source image
+    single_within_limits = np.all((single_source >= 0) & (single_source < source_shape), axis=-1)
+    all_target = single_target[single_within_limits]
+    all_source = single_source[single_within_limits]
+    # They all have weight 1, being a single pixel
+    all_data = np.ones(len(all_source), dtype=np.float32)
+
+    # Prepare for multi-pixel / binning entries
+    multi_y_vectors = source_y_vectors[~single_pixel]
+    multi_y_vector_lengths = source_y_vector_lengths[~single_pixel]
+    multi_x_vectors = source_x_vectors[~single_pixel]
+    multi_x_vector_lengths = source_x_vector_lengths[~single_pixel]
+
+    # Size of the bin for each target pixel
+    multi_y_steps = np.round(multi_y_vector_lengths).astype(int)
+    multi_x_steps = np.round(multi_x_vector_lengths).astype(int)
+
+    if not np.all(single_pixel):
+        # Numba workhorse to calculate all source coordinates
+        # for the bins
+        multi_intermediate_source, multi_target = _binning_elements(
+            multi_target=target_coords[~single_pixel],
+            multi_y_steps=multi_y_steps,
+            multi_x_steps=multi_x_steps,
+            multi_upleft=source_upleft[~single_pixel],
+            multi_y_vectors=multi_y_vectors,
+            multi_x_vectors=multi_x_vectors,
+        )
+
+        # Transform to source indices
+        multi_source = post_transform(multi_intermediate_source)
+
+        # Crop to source image
+        multi_within_limits = np.all((multi_source >= 0) & (multi_source < source_shape), axis=-1)
+        multi_source = multi_source[multi_within_limits]
+        multi_target = multi_target[multi_within_limits]
+
+        # Count how many entries per bin and use the inverse.
+        # They have to be counted individually since they might be cropped
+        multi_data = _weights(multi_target, target_shape)
+
+        # Extend the arrays with multi-pixel portion
+        all_target = np.concatenate((all_target, multi_target))
+        all_source = np.concatenate((all_source, multi_source))
+        all_data = np.concatenate((all_data, multi_data))
+
+    # Convert to flat indices for matrix product
+    flat_target = np.ravel_multi_index(all_target.T, target_shape)
+    flat_source = np.ravel_multi_index(all_source.T, source_shape)
+
+    # Construct the matrix
+    result = scipy.sparse.csc_matrix(
+        (all_data, (flat_source, flat_target)),
+        dtype=np.float32,
+        shape=(np.prod(source_shape), np.prod(target_shape))
+    )
+    return result
+
+
+def apply_matrix(sources, matrix, target_shape):
+    '''
+    Apply a transformation matrix generated by :meth:`image_transformation_matrix` to
+    a stack of images.
+
+    Parameters
+    ----------
+    sources : array-like
+        Array of shape (n, sy, sx) where (sy, sx) is the :code:`source_shape` parameter
+        of :meth:`image_transformation_matrix`.
+    matrix : array-like
+        Matrix generated by :meth:`image_transformation_matrix` or equivalent
+    target_shape : tuple
+        :code:`source_shape` parameter of :meth:`image_transformation_matrix`.
+        The result will be reshaped to :code:`(n, ) + source_shape`
+    '''
+    flat_sources = sources.reshape((-1, np.prod(sources.shape[-2:], dtype=int)))
+    flat_result = flat_sources @ matrix
+    return flat_result.reshape(sources.shape[:-2] + tuple(target_shape))
