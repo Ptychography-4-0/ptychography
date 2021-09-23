@@ -1,15 +1,20 @@
 import functools
 
 import numpy as np
+import scipy.ndimage
 
 import pytest
 from libertem.corrections.coordinates import rotate_deg
 import libertem.api as lt
 from libertem.executor.inline import InlineJobExecutor
+from libertem.utils.devices import detect, has_cupy
 
 from ptychography40.reconstruction.common import (
     diffraction_to_detector, wavelength, get_shifted, to_slices,
-    bounding_box, ifftshift_coords, fftshift_coords, image_transformation_matrix, apply_matrix
+    bounding_box, ifftshift_coords, fftshift_coords, image_transformation_matrix, apply_matrix,
+    shifted_probes,
+    rolled_object_probe_product_cpu, rolled_object_aggregation_cpu,
+    rolled_object_probe_product_cuda, rolled_object_aggregation_cuda
 )
 
 
@@ -404,7 +409,7 @@ def test_difftodect_flip():
         diffraction_shape=target_shape,
         pixel_size_real=1,
         pixel_size_detector=1/(np.array(target_shape)),
-        cy=source_shape[0] / 2,
+        cy=source_shape[0] / 2 - 1,
         cx=source_shape[1] / 2,
         flip_y=True,
         scan_rotation=0.
@@ -417,14 +422,17 @@ def test_difftodect_flip():
     assert np.allclose(np.flip(data, axis=1), apply_matrix(data, m, target_shape))
 
 
-def test_difftodect_com_flip():
+@pytest.mark.parametrize(
+    'dim', (16, 17)
+)
+def test_difftodect_com_flip(dim):
     lt_ctx = lt.Context(InlineJobExecutor())
-    data_shape = (2, 2, 16, 16)
+    data_shape = (2, 2, dim, dim)
     data = np.zeros(data_shape)
-    data[0, 0, 0, 0] = 1
-    data[0, 1, 0, -1] = 1
-    data[1, 1, -1, -1] = 1
-    data[1, 0, -1, 0] = 1
+    data[0, 0, 7, 7] = 1
+    data[0, 1, 7, 8] = 1
+    data[1, 1, 8, 8] = 1
+    data[1, 0, 8, 7] = 1
     source_shape = data_shape[2:]
     target_shape = data_shape[2:]
 
@@ -449,30 +457,33 @@ def test_difftodect_com_flip():
     transformed_ds = lt_ctx.load('memory', data=transformed_data, sig_dims=2)
     com_a = lt_ctx.create_com_analysis(
         dataset=ds, mask_radius=np.inf, flip_y=True, scan_rotation=0.,
-        cy=target_shape[0] / 2 - 0.5,
-        cx=target_shape[1] / 2 - 0.5
+        cy=target_shape[0] / 2,
+        cx=target_shape[1] / 2
     )
 
     com_res = lt_ctx.run(com_a)
 
     trans_com_a = lt_ctx.create_com_analysis(
         dataset=transformed_ds, mask_radius=np.inf, flip_y=False, scan_rotation=0.,
-        cy=target_shape[0] / 2 - 0.5,
-        cx=target_shape[1] / 2 - 0.5
+        cy=target_shape[0] / 2,
+        cx=target_shape[1] / 2
     )
     trans_com_res = lt_ctx.run(trans_com_a)
 
     assert np.allclose(com_res.field.raw_data, trans_com_res.field.raw_data)
 
 
-def test_difftodect_com_rot():
+@pytest.mark.parametrize(
+    'dim', (16, 17)
+)
+def test_difftodect_com_rot(dim):
     lt_ctx = lt.Context(InlineJobExecutor())
-    data_shape = (2, 2, 16, 16)
+    data_shape = (2, 2, dim, dim)
     data = np.zeros(data_shape)
-    data[0, 0, 0, 0] = 1
-    data[0, 1, 0, -1] = 1
-    data[1, 1, -1, -1] = 1
-    data[1, 0, -1, 0] = 1
+    data[0, 0, 7, 7] = 1
+    data[0, 1, 7, 8] = 1
+    data[1, 1, 8, 8] = 1
+    data[1, 0, 8, 7] = 1
     source_shape = data_shape[2:]
     target_shape = data_shape[2:]
 
@@ -497,17 +508,255 @@ def test_difftodect_com_rot():
     transformed_ds = lt_ctx.load('memory', data=transformed_data, sig_dims=2)
     com_a = lt_ctx.create_com_analysis(
         dataset=ds, mask_radius=np.inf, flip_y=False, scan_rotation=90.,
-        cy=target_shape[0] / 2 - 0.5,
-        cx=target_shape[1] / 2 - 0.5
+        cy=target_shape[0] / 2,
+        cx=target_shape[1] / 2
     )
 
     com_res = lt_ctx.run(com_a)
 
     trans_com_a = lt_ctx.create_com_analysis(
         dataset=transformed_ds, mask_radius=np.inf, flip_y=False, scan_rotation=0.,
-        cy=target_shape[0] / 2 - 0.5,
-        cx=target_shape[1] / 2 - 0.5
+        cy=target_shape[0] / 2,
+        cx=target_shape[1] / 2
     )
     trans_com_res = lt_ctx.run(trans_com_a)
 
     assert np.allclose(com_res.field.raw_data, trans_com_res.field.raw_data)
+
+
+@pytest.mark.parametrize(
+    'dim', (16, 17)
+)
+def test_difftodect_com_scale(dim):
+    lt_ctx = lt.Context(InlineJobExecutor())
+    data_shape = (2, 2, dim, dim)
+    data = np.zeros(data_shape)
+    data[0, 0, 7, 7] = 1
+    data[0, 1, 7, 8] = 1
+    data[1, 1, 8, 8] = 1
+    data[1, 0, 8, 7] = 1
+    source_shape = data_shape[2:]
+    target_shape = data_shape[2:]
+
+    f = functools.partial(
+        diffraction_to_detector,
+        lamb=1,
+        diffraction_shape=target_shape,
+        pixel_size_real=1,
+        pixel_size_detector=1/(np.array(target_shape))*4,
+        cy=source_shape[0] / 2,
+        cx=source_shape[1] / 2,
+        flip_y=False,
+        scan_rotation=0.
+    )
+    m = image_transformation_matrix(
+        source_shape=source_shape,
+        target_shape=target_shape,
+        affine_transformation=f,
+    )
+    transformed_data = apply_matrix(data, m, target_shape)
+    ds = lt_ctx.load('memory', data=data, sig_dims=2)
+    transformed_ds = lt_ctx.load('memory', data=transformed_data, sig_dims=2)
+    com_a = lt_ctx.create_com_analysis(
+        dataset=ds, mask_radius=np.inf, flip_y=False, scan_rotation=0.,
+        cy=target_shape[0] / 2,
+        cx=target_shape[1] / 2
+    )
+
+    com_res = lt_ctx.run(com_a)
+
+    trans_com_a = lt_ctx.create_com_analysis(
+        dataset=transformed_ds, mask_radius=np.inf, flip_y=False, scan_rotation=0.,
+        cy=target_shape[0] / 2,
+        cx=target_shape[1] / 2
+    )
+    trans_com_res = lt_ctx.run(trans_com_a)
+    print(com_res.field.raw_data)
+    print(trans_com_res.field.raw_data)
+
+    assert np.allclose(com_res.field.raw_data, np.array(trans_com_res.field.raw_data)/4)
+
+
+@pytest.mark.parametrize(
+    'dim', (16, 17)
+)
+def test_difftodect_com_flip_rot_scale(dim):
+    lt_ctx = lt.Context(InlineJobExecutor())
+    data_shape = (2, 2, dim, dim)
+    data = np.zeros(data_shape)
+    data[0, 0, 7, 7] = 1
+    data[0, 1, 7, 8] = 1
+    data[1, 1, 8, 8] = 1
+    data[1, 0, 8, 7] = 1
+    source_shape = data_shape[2:]
+    target_shape = data_shape[2:]
+
+    f = functools.partial(
+        diffraction_to_detector,
+        lamb=1,
+        diffraction_shape=target_shape,
+        pixel_size_real=1,
+        pixel_size_detector=1/(np.array(target_shape))*4,
+        cy=source_shape[0] / 2,
+        cx=source_shape[1] / 2,
+        flip_y=True,
+        scan_rotation=-90.
+    )
+    m = image_transformation_matrix(
+        source_shape=source_shape,
+        target_shape=target_shape,
+        affine_transformation=f,
+    )
+    transformed_data = apply_matrix(data, m, target_shape)
+    ds = lt_ctx.load('memory', data=data, sig_dims=2)
+    transformed_ds = lt_ctx.load('memory', data=transformed_data, sig_dims=2)
+    com_a = lt_ctx.create_com_analysis(
+        dataset=ds, mask_radius=np.inf, flip_y=True, scan_rotation=-90.,
+        cy=target_shape[0] / 2,
+        cx=target_shape[1] / 2
+    )
+
+    com_res = lt_ctx.run(com_a)
+
+    trans_com_a = lt_ctx.create_com_analysis(
+        dataset=transformed_ds, mask_radius=np.inf, flip_y=False, scan_rotation=0.,
+        cy=target_shape[0] / 2,
+        cx=target_shape[1] / 2
+    )
+    trans_com_res = lt_ctx.run(trans_com_a)
+    print(com_res.field.raw_data)
+    print(trans_com_res.field.raw_data)
+
+    assert np.allclose(com_res.field.raw_data, np.array(trans_com_res.field.raw_data)/4)
+
+
+def test_shifted_probe():
+    probe_shape = np.random.randint(1, 10, 2)
+    y_subpixels, x_subpixels = np.random.randint(1, 11, 2)
+
+    probe = np.random.random(tuple(probe_shape))
+    probes = shifted_probes(probe, (y_subpixels, x_subpixels))
+    for y in range(y_subpixels):
+        for x in range(x_subpixels):
+            assert np.allclose(
+                probes[y, x],
+                scipy.ndimage.shift(probe, ((y/y_subpixels, x/x_subpixels)))
+            )
+
+
+@pytest.mark.parametrize(
+    'ifftshift', (False, True)
+)
+def test_rolled_object_probe_product_cpu(ifftshift):
+    obj_shape = np.random.randint(1, 23, 2)
+    probe_shape = np.array([np.random.randint(1, obj_axis+1, 1)[0] for obj_axis in obj_shape])
+    print(probe_shape)
+
+    obj = np.linspace(0, 1, np.prod(obj_shape)).reshape(obj_shape)
+    y_subpixels, x_subpixels = np.random.randint(1, 11, 2)
+    probe = np.random.random(tuple(probe_shape))
+    probes = shifted_probes(probe, (y_subpixels, x_subpixels))
+    count = 23
+    result = np.zeros((count, ) + probes.shape[2:], dtype=np.result_type(obj, probes))
+    shifts = np.random.randint(
+        -np.max(obj_shape)*y_subpixels, np.max(obj_shape)*x_subpixels,
+        (count, 2)
+    ) / (y_subpixels, x_subpixels)
+    subpixel_indices = rolled_object_probe_product_cpu(
+        obj, probes, shifts, result, ifftshift=ifftshift
+    )
+    for i in range(count):
+        subpixel_y = (shifts[i, 0] * y_subpixels).astype(int) % y_subpixels
+        subpixel_x = (shifts[i, 1] * x_subpixels).astype(int) % x_subpixels
+        shift_y = int(shifts[i, 0])
+        shift_x = int(shifts[i, 1])
+        ref = np.roll(
+            obj, (-shift_y, -shift_x), axis=(0, 1)
+        )[:probe_shape[-2], :probe_shape[-1]]*probes[subpixel_y, subpixel_x]
+        if ifftshift:
+            ref = np.fft.ifftshift(ref)
+        assert np.allclose(result[i], ref)
+        assert np.all(subpixel_indices[i] == (subpixel_y, subpixel_x))
+
+
+@pytest.mark.parametrize(
+    'fftshift', (False, True)
+)
+def test_rolled_object_aggregation_cpu(fftshift):
+    obj_shape = np.random.randint(1, 23, 2)
+    probe_shape = np.array([np.random.randint(1, obj_axis+1, 1)[0] for obj_axis in obj_shape])
+    obj = np.zeros(obj_shape)
+    count = 23
+    updates = np.random.random((count, ) + tuple(probe_shape))
+    shifts = np.random.randint(-np.max(obj_shape), np.max(obj_shape), (count, 2))
+    rolled_object_aggregation_cpu(obj, updates, shifts, fftshift=fftshift)
+    obj_ref = np.zeros_like(obj)
+    if fftshift:
+        updates_ref = np.fft.fftshift(updates, axes=(1, 2))
+    else:
+        updates_ref = updates
+    for i in range(count):
+        rolled_obj = np.roll(obj_ref, (-shifts[i, 0], -shifts[i, 1]), axis=(0, 1))
+        rolled_obj[:probe_shape[0], :probe_shape[1]] += updates_ref[i]
+        obj_ref = np.roll(rolled_obj, (shifts[i, 0], shifts[i, 1]), axis=(0, 1))
+    assert np.allclose(obj, obj_ref)
+
+
+@pytest.mark.skipif(not detect()['cudas'], reason="No CUDA devices")
+@pytest.mark.skipif(not has_cupy(), reason="No functional CuPy")
+@pytest.mark.parametrize(
+    'ifftshift', (False, True)
+)
+def test_rolled_object_probe_product_cuda(ifftshift):
+    import cupy
+    obj_shape = np.random.randint(1, 500, 2)
+    probe_shape = np.array([np.random.randint(1, obj_axis+1, 1)[0] for obj_axis in obj_shape])
+    print(probe_shape)
+
+    obj = np.linspace(0, 1, np.prod(obj_shape)).reshape(obj_shape)
+    y_subpixels, x_subpixels = np.random.randint(1, 11, 2)
+    probe = np.random.random((y_subpixels, x_subpixels) + tuple(probe_shape))
+    count = np.random.randint(1, 1000)
+    result_ref = np.zeros((count, ) + probe.shape[2:], dtype=np.result_type(obj, probe))
+    result = cupy.array(result_ref)
+    shifts = np.random.randint(
+        -np.max(obj_shape)*y_subpixels, np.max(obj_shape)*x_subpixels, (count, 2)
+    ) / (y_subpixels, x_subpixels)
+    subpixel_indices_cpu = rolled_object_probe_product_cpu(
+        obj, probe, shifts, result_ref, ifftshift
+    )
+    subpixel_indices_cuda = rolled_object_probe_product_cuda(
+        cupy.array(obj),
+        cupy.array(probe),
+        cupy.array(shifts),
+        result,
+        ifftshift
+    )
+    assert np.allclose(result.get(), result_ref)
+    assert np.all(subpixel_indices_cpu == subpixel_indices_cuda.get())
+
+
+@pytest.mark.skipif(not detect()['cudas'], reason="No CUDA devices")
+@pytest.mark.skipif(not has_cupy(), reason="No functional CuPy")
+@pytest.mark.parametrize(
+    'fftshift', (False, True)
+)
+def test_rolled_object_aggregation_cuda(fftshift):
+    import cupy
+    obj_shape = np.random.randint(1, 500, 2)
+    probe_shape = np.array([np.random.randint(1, obj_axis+1, 1)[0] for obj_axis in obj_shape])
+
+    obj_ref = np.zeros(obj_shape)
+    obj = cupy.zeros(obj_shape)
+    count = np.random.randint(1, 1000)
+    updates = np.random.random((count, ) + tuple(probe_shape))
+    shifts = np.random.randint(0, np.max(obj_shape), (count, 2))
+    rolled_object_aggregation_cpu(obj_ref, updates, shifts, fftshift)
+    rolled_object_aggregation_cuda(
+        obj,
+        cupy.array(updates),
+        cupy.array(shifts),
+        fftshift
+    )
+    print(np.max(np.abs(obj.get() - obj_ref)))
+    assert np.allclose(obj.get(), obj_ref)
