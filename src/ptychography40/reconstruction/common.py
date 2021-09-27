@@ -484,7 +484,7 @@ def shifted_probes(probe, bins):
     Returns
     -------
     probes : numpy.ndarray
-        4D, dhape bins + probe.shape or (bins, bins) + probe.shape
+        4D, shape bins + probe.shape or (bins, bins) + probe.shape
     '''
     if isinstance(bins, int):
         bins = (bins, bins)
