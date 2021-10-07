@@ -690,9 +690,9 @@ def test_rolled_object_probe_product_cpu(ifftshift):
 def test_rolled_object_aggregation_cpu(fftshift):
     obj_shape = np.random.randint(1, 23, 2)
     probe_shape = np.array([np.random.randint(1, obj_axis+1, 1)[0] for obj_axis in obj_shape])
-    obj = np.zeros(obj_shape)
+    obj = np.zeros(obj_shape, dtype=np.complex64)
     count = 23
-    updates = np.random.random((count, ) + tuple(probe_shape))
+    updates = np.random.random((count, ) + tuple(probe_shape)) + 1j
     shifts = np.random.randint(-np.max(obj_shape), np.max(obj_shape), (count, 2))
     rolled_object_aggregation_cpu(obj, updates, shifts, fftshift=fftshift)
     obj_ref = np.zeros_like(obj)
@@ -746,15 +746,20 @@ def test_rolled_object_probe_product_cuda(ifftshift):
 @pytest.mark.parametrize(
     'fftshift', (False, True)
 )
-def test_rolled_object_aggregation_cuda(fftshift):
+@pytest.mark.parametrize(
+    'obj_dtype, update_dtype', [
+        (np.complex64, np.complex64), (np.complex64, np.float32), (np.float32, np.float32)
+    ]
+)
+def test_rolled_object_aggregation_cuda(fftshift, obj_dtype, update_dtype):
     import cupy
     obj_shape = np.random.randint(1, 500, 2)
     probe_shape = np.array([np.random.randint(1, obj_axis+1, 1)[0] for obj_axis in obj_shape])
 
-    obj_ref = np.zeros(obj_shape)
-    obj = cupy.zeros(obj_shape)
+    obj_ref = np.zeros(obj_shape, dtype=obj_dtype)
+    obj = cupy.zeros(obj_shape, dtype=obj_dtype)
     count = np.random.randint(1, 1000)
-    updates = np.random.random((count, ) + tuple(probe_shape))
+    updates = np.random.random((count, ) + tuple(probe_shape)).astype(update_dtype)
     shifts = np.random.randint(0, np.max(obj_shape), (count, 2))
     rolled_object_aggregation_cpu(obj_ref, updates, shifts, fftshift)
     rolled_object_aggregation_cuda(
