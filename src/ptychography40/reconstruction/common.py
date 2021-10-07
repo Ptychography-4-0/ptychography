@@ -495,11 +495,17 @@ def shifted_probes(probe, bins):
         for x in range(bins[1]):
             dy = y / bins[0]
             dx = x / bins[1]
-            scipy.ndimage.shift(
-               probe,
-               shift=(dy, dx),
-               output=probes[y, x],
+            real = scipy.ndimage.shift(
+                probe.real,
+                shift=(dy, dx),
             )
+            probes[y, x] = real
+            if np.iscomplexobj(probe):
+                imag = scipy.ndimage.shift(
+                    probe.imag,
+                    shift=(dy, dx),
+                )
+                probes[y, x] += 1j*imag
     return probes
 
 
@@ -649,26 +655,26 @@ def rolled_object_probe_product_cuda(obj, probe, shifts, result_out, ifftshift=F
 @numba.cuda.jit
 def _rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift):
     obj_y, obj_x = obj_out.shape
-    target_y, target_x = numba.cuda.grid(2)
-    if target_y < obj_y and target_x < obj_x:
+    y, x = numba.cuda.grid(2)
+    if y < updates.shape[1] and x < updates.shape[2]:
         for i in range(updates.shape[0]):
-            source_y = (target_y - shifts[i, 0]) % obj_y
-            source_x = (target_x - shifts[i, 1]) % obj_x
-            if (source_y >= 0 and source_y < updates.shape[1]
-                    and source_x >= 0 and source_x < updates.shape[2]):
-                if fftshift:
-                    source_y = (source_y + (updates.shape[1] + 1) // 2) % updates.shape[1]
-                    source_x = (source_x + (updates.shape[2] + 1) // 2) % updates.shape[2]
-                obj_out[target_y, target_x] += updates[i, source_y, source_x]
+            target_y = (y + shifts[i, 0]) % obj_y
+            target_x = (x + shifts[i, 1]) % obj_x
+            if fftshift:  # From target to source
+                source_y = (y + (updates.shape[1] + 1) // 2) % updates.shape[1]
+                source_x = (x + (updates.shape[2] + 1) // 2) % updates.shape[2]
+            else:
+                source_y, source_x = y, x
+            numba.cuda.atomic.add(obj_out, (target_y, target_x), updates[i, source_y, source_x])
 
 
 def rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift=False):
     '''
     Numba CUDA version of :meth:`rolled_object_aggregation_cpu`
     '''
-    count = obj_out.shape[0]
+    count = updates.shape[1]
     threadsperblock = 32
     blockspergrid = (count + (threadsperblock - 1)) // threadsperblock
     _rolled_object_aggregation_cuda[
-        (blockspergrid, obj_out.shape[1]), (32, 1)
+        (blockspergrid, updates.shape[2]), (32, 1)
     ](obj_out, updates, shifts, fftshift)
