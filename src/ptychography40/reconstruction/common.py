@@ -652,20 +652,51 @@ def rolled_object_probe_product_cuda(obj, probe, shifts, result_out, ifftshift=F
     return subpixel_indices
 
 
-@numba.cuda.jit
-def _rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift):
-    obj_y, obj_x = obj_out.shape
-    y, x = numba.cuda.grid(2)
-    if y < updates.shape[1] and x < updates.shape[2]:
-        for i in range(updates.shape[0]):
-            target_y = (y + shifts[i, 0]) % obj_y
-            target_x = (x + shifts[i, 1]) % obj_x
-            if fftshift:  # From target to source
-                source_y = (y + (updates.shape[1] + 1) // 2) % updates.shape[1]
-                source_x = (x + (updates.shape[2] + 1) // 2) % updates.shape[2]
-            else:
-                source_y, source_x = y, x
-            numba.cuda.atomic.add(obj_out, (target_y, target_x), updates[i, source_y, source_x])
+@numba.cuda.jit(device=True)
+def add_complex_complex(a, coords, b):
+    numba.cuda.atomic.add(
+            a.imag, coords, b.imag
+        )
+    numba.cuda.atomic.add(
+        a.real, coords, b.real
+    )
+
+
+@numba.cuda.jit(device=True)
+def add_real_real(a, coords, b):
+    numba.cuda.atomic.add(
+        a, coords, b
+    )
+
+
+@numba.cuda.jit(device=True)
+def add_complex_real(a, coords, b):
+    numba.cuda.atomic.add(
+        a.real, coords, b
+    )
+
+
+def _make_rolled_object_aggregation_cuda(add):
+    @numba.cuda.jit
+    def _rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift):
+        obj_y, obj_x = obj_out.shape
+        y, x = numba.cuda.grid(2)
+        if y < updates.shape[1] and x < updates.shape[2]:
+            for i in range(updates.shape[0]):
+                target_y = (y + shifts[i, 0]) % obj_y
+                target_x = (x + shifts[i, 1]) % obj_x
+                if fftshift:  # From target to source
+                    source_y = (y + (updates.shape[1] + 1) // 2) % updates.shape[1]
+                    source_x = (x + (updates.shape[2] + 1) // 2) % updates.shape[2]
+                else:
+                    source_y, source_x = y, x
+                add(obj_out, (target_y, target_x), updates[i, source_y, source_x])
+    return _rolled_object_aggregation_cuda
+
+
+_roac_complex_complex = _make_rolled_object_aggregation_cuda(add_complex_complex)
+_roac_complex_real = _make_rolled_object_aggregation_cuda(add_complex_real)
+_roac_real_real = _make_rolled_object_aggregation_cuda(add_real_real)
 
 
 def rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift=False):
@@ -675,6 +706,14 @@ def rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift=False):
     count = updates.shape[1]
     threadsperblock = 32
     blockspergrid = (count + (threadsperblock - 1)) // threadsperblock
-    _rolled_object_aggregation_cuda[
+
+    if obj_out.dtype.kind == 'c':
+        if updates.dtype.kind == 'c':
+            f = _roac_complex_complex
+        else:
+            f = _roac_complex_real
+    else:
+        f = _roac_real_real
+    f[
         (blockspergrid, updates.shape[2]), (32, 1)
     ](obj_out, updates, shifts, fftshift)
