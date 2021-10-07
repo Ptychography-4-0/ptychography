@@ -634,14 +634,19 @@ def test_shifted_probe():
     probe_shape = np.random.randint(1, 10, 2)
     y_subpixels, x_subpixels = np.random.randint(1, 11, 2)
 
-    probe = np.random.random(tuple(probe_shape))
+    probe = np.random.random(tuple(probe_shape)) + 1j*np.random.random(tuple(probe_shape))
     probes = shifted_probes(probe, (y_subpixels, x_subpixels))
     for y in range(y_subpixels):
         for x in range(x_subpixels):
             assert np.allclose(
-                probes[y, x],
-                scipy.ndimage.shift(probe, ((y/y_subpixels, x/x_subpixels)))
+                probes[y, x].real,
+                scipy.ndimage.shift(probe.real, ((y/y_subpixels, x/x_subpixels)))
             )
+            if np.iscomplexobj(probe):
+                assert np.allclose(
+                    probes[y, x].imag,
+                    scipy.ndimage.shift(probe.imag, ((y/y_subpixels, x/x_subpixels)))
+                )
 
 
 @pytest.mark.parametrize(
