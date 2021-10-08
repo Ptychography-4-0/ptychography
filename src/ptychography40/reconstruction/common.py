@@ -680,17 +680,16 @@ def _make_rolled_object_aggregation_cuda(add):
     @numba.cuda.jit
     def _rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift):
         obj_y, obj_x = obj_out.shape
-        y, x = numba.cuda.grid(2)
-        if y < updates.shape[1] and x < updates.shape[2]:
-            for i in range(updates.shape[0]):
-                target_y = (y + shifts[i, 0]) % obj_y
-                target_x = (x + shifts[i, 1]) % obj_x
-                if fftshift:  # From target to source
-                    source_y = (y + (updates.shape[1] + 1) // 2) % updates.shape[1]
-                    source_x = (x + (updates.shape[2] + 1) // 2) % updates.shape[2]
-                else:
-                    source_y, source_x = y, x
-                add(obj_out, (target_y, target_x), updates[i, source_y, source_x])
+        i, y, x = numba.cuda.grid(3)
+        if i < updates.shape[0] and y < updates.shape[1] and x < updates.shape[2]:
+            target_y = (y + shifts[i, 0]) % obj_y
+            target_x = (x + shifts[i, 1]) % obj_x
+            if fftshift:  # From target to source
+                source_y = (y + (updates.shape[1] + 1) // 2) % updates.shape[1]
+                source_x = (x + (updates.shape[2] + 1) // 2) % updates.shape[2]
+            else:
+                source_y, source_x = y, x
+            add(obj_out, (target_y, target_x), updates[i, source_y, source_x])
     return _rolled_object_aggregation_cuda
 
 
@@ -703,7 +702,7 @@ def rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift=False):
     '''
     Numba CUDA version of :meth:`rolled_object_aggregation_cpu`
     '''
-    count = updates.shape[1]
+    count = updates.shape[0]
     threadsperblock = 32
     blockspergrid = (count + (threadsperblock - 1)) // threadsperblock
 
@@ -715,5 +714,5 @@ def rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift=False):
     else:
         f = _roac_real_real
     f[
-        (blockspergrid, updates.shape[2]), (32, 1)
+        (blockspergrid, updates.shape[1], updates.shape[2]), (32, 1, 1)
     ](obj_out, updates, shifts, fftshift)
