@@ -93,7 +93,7 @@ Applying a transformation with this method repeatedly on stacks of images can
 achieve excellent performance compared with working on image data using
 :mod:`scipy.ndimage` since the matrix has to be calculated only once and can
 then be applied with fast implementations for sparse matrix products from
-:mod:`scipy.sparse` and :mod:`cupx.scipy.sparse`.
+:mod:`scipy.sparse` and :mod:`cupyx.scipy.sparse`.
 
 .. testsetup:: transform
 
