@@ -323,7 +323,7 @@ def image_transformation_matrix(
     pixels within the projected pixel outline is chosen. This corresponds to
     scaling with order=0.
 
-    :code:`pre_transform() and :code:`posttransform()` can also be used for
+    :code:`pre_transform() and :code:`post_transform()` can also be used for
     shifting the center of :code:`affine_transformation()`.
 
     Parameters
