@@ -343,7 +343,7 @@ def image_transformation_matrix(
         This is identity by default.
     post_transform : callable(coords) -> coords(int)
         Map source image coordinates, typically euclidean, to source image indices.
-        :code:`posttransform()` should not change the scale of the coordinates. By default it
+        :code:`post_transform()` should not change the scale of the coordinates. By default it
         is :code:`np.round(...).astype(int)`.
 
     Returns
