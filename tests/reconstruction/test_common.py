@@ -1,5 +1,3 @@
-import functools
-
 import numpy as np
 import scipy.ndimage
 
@@ -378,8 +376,7 @@ def test_difftodect_identity():
     source_shape = data_shape[1:]
     target_shape = data_shape[1:]
 
-    f = functools.partial(
-        diffraction_to_detector,
+    f = diffraction_to_detector(
         lamb=1,
         diffraction_shape=target_shape,
         pixel_size_real=1,
@@ -403,8 +400,7 @@ def test_difftodect_flip():
     source_shape = data_shape[1:]
     target_shape = data_shape[1:]
 
-    f = functools.partial(
-        diffraction_to_detector,
+    f = diffraction_to_detector(
         lamb=1,
         diffraction_shape=target_shape,
         pixel_size_real=1,
@@ -436,8 +432,7 @@ def test_difftodect_com_flip(dim):
     source_shape = data_shape[2:]
     target_shape = data_shape[2:]
 
-    f = functools.partial(
-        diffraction_to_detector,
+    f = diffraction_to_detector(
         lamb=1,
         diffraction_shape=target_shape,
         pixel_size_real=1,
@@ -487,8 +482,7 @@ def test_difftodect_com_rot(dim):
     source_shape = data_shape[2:]
     target_shape = data_shape[2:]
 
-    f = functools.partial(
-        diffraction_to_detector,
+    f = diffraction_to_detector(
         lamb=1,
         diffraction_shape=target_shape,
         pixel_size_real=1,
@@ -538,8 +532,7 @@ def test_difftodect_com_scale(dim):
     source_shape = data_shape[2:]
     target_shape = data_shape[2:]
 
-    f = functools.partial(
-        diffraction_to_detector,
+    f = diffraction_to_detector(
         lamb=1,
         diffraction_shape=target_shape,
         pixel_size_real=1,
@@ -591,8 +584,7 @@ def test_difftodect_com_flip_rot_scale(dim):
     source_shape = data_shape[2:]
     target_shape = data_shape[2:]
 
-    f = functools.partial(
-        diffraction_to_detector,
+    f = diffraction_to_detector(
         lamb=1,
         diffraction_shape=target_shape,
         pixel_size_real=1,

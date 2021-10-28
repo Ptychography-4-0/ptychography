@@ -97,8 +97,6 @@ then be applied with fast implementations for sparse matrix products from
 
 .. testsetup:: transform
 
-    import functools
-
     import numpy as np
 
 .. testcode:: transform
@@ -113,8 +111,7 @@ then be applied with fast implementations for sparse matrix products from
     source_shape = (8, 8)
     target_shape = (4, 4)
 
-    f = functools.partial(
-        diffraction_to_detector,
+    f = diffraction_to_detector(
         lamb=1,
         diffraction_shape=target_shape,
         pixel_size_real=1,
@@ -274,3 +271,10 @@ This is equivalent to the following NumPy implementation:
        # Roll back to the original position
        acc_ref = np.roll(acc_ref, (int_shifts[i, 0], int_shifts[i, 1]), axis=(0, 1))
    assert np.allclose(acc, acc_ref)
+
+Example on simulated diffraction data:
+
+.. toctree::
+   :maxdepth: 2
+
+   algorithms/transform-example
