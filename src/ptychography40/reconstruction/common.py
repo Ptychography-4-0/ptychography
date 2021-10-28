@@ -135,10 +135,11 @@ def bounding_box(array):
 
 
 def diffraction_to_detector(
-        coords, lamb, diffraction_shape, pixel_size_real, pixel_size_detector,
+        lamb, diffraction_shape, pixel_size_real, pixel_size_detector,
         cy, cx, flip_y=False, scan_rotation=0.):
     '''
-    Transform pixel coordinates from diffraction of real space to detector coordinates
+    Generate a function that transforms pixel coordinates from diffraction of
+    real space to detector coordinates.
 
     When performing a forward calculation where a wave front is passed through an object
     function and projected in the far field, the projection is a Fourier transform.
@@ -154,12 +155,12 @@ def diffraction_to_detector(
     cy, cx, flip_y and scan_rotation are chosen to correspond to the parameters in
     :meth:libertem.api.Context.create_com_analysis`.
 
+    This function is designed to create a :code:`affine_transformation` parameter
+    for :meth:`image_transformation_matrix`.
+
     Parameters
     ----------
 
-    coords : numpy.ndarray
-        Array of shape (n, 2) with (y, x) pixel coordinates in diffracted space, upper left
-        corner is (0, 0).
     lamb : float
         Wavelength in m
     diffraction_shape : tuple
@@ -172,9 +173,9 @@ def diffraction_to_detector(
         For free propagation into the far-field, this is the detector pixel size in m divided by the
         camera length for small angles.
     cy : float
-        Y position of the central beam on the detector.
+        Y position of the central beam on the detector in pixel.
     cx : float
-        X position of the central beam on the detector
+        X position of the central beam on the detector in pixel.
     flip_y : bool
         Flip the y axis of the detector coordinates
     scan_rotation : float
@@ -182,8 +183,10 @@ def diffraction_to_detector(
 
     Returns
     -------
-    numpy.ndarray
-        Pixel coordinates on the detector
+    transform : callable(coords : numpy.ndarray) -> numpy.ndarray
+        A function that accepts pixel coordinates in diffracted space as an
+        array of shape (n, 2) with (y, x). Upper left
+        corner is (0, 0). It returns pixel coordinates on the detector as floats.
     '''
     # Make sure broadcasting works as expected
     diffraction_shape = np.array(diffraction_shape)
@@ -207,11 +210,14 @@ def diffraction_to_detector(
 
     transformation *= pixel_size_diffracted / pixel_size_detector
 
-    # Shift the coordinates relative to the center of the
-    # diffraction pattern
-    relative_to_center = (coords - diffraction_shape / 2)
+    def transform(coords: np.ndarray):
+        # Shift the coordinates relative to the center of the
+        # diffraction pattern
+        relative_to_center = (coords - diffraction_shape / 2)
 
-    return (relative_to_center @ transformation) + (cy, cx)
+        return (relative_to_center @ transformation) + (cy, cx)
+
+    return transform
 
 
 def fftshift_coords(coords, reconstruct_shape):
@@ -331,9 +337,11 @@ def image_transformation_matrix(
     source_shape, target_shape : tuple
         Shape of source and target image for bounds checking and index raveling
     affine_transformation : callable(coords -> coords)
-        Transformation that maps intermediate coordinates to float source coordinates.
+        Transformation that maps intermediate coordinates, i.e. the result of
+        applying :code:`pre_transform()`, to float source coordinates.
         It should be continuous, strictly monotone and approximately affine for the size
-        of one pixel.
+        of one pixel. :meth:`diffraction_to_detector` can be used to generate a coordinate
+        transformation function.
     pre_transform : callable(coords) -> coords
         Map target image indices to coordinates, typically euclidean. :code:`pre_transform()`
         should not change the scale of the coordinates. It is designed to be something like
