@@ -163,15 +163,15 @@ def diffraction_to_detector(
 
     lamb : float
         Wavelength in m
-    diffraction_shape : tuple
+    diffraction_shape : Tuple[int, int]
         Shape of the diffracted area
     pixel_size_real : float or tuple or ndarray
-        Pixel size in m for the diffracted shape. Can be a tuple or array with two values for
-        y and x
+        Pixel size in m for the diffracted shape. Can be a Tuple[float, float] or array with
+        two values for y and x
     pixel_size_detector : float or tuple or ndarray
-        Pixel size in radian of the detector. Can be a tuple or array with two values for y and x.
-        For free propagation into the far-field, this is the detector pixel size in m divided by the
-        camera length for small angles.
+        Pixel size in radian of the detector. Can be a Tuple[float, float] or array with two values
+        for y and x. For free propagation into the far-field, this is the detector pixel size in
+        m divided by the camera length for small angles.
     cy : float
         Y position of the central beam on the detector in pixel.
     cx : float
@@ -186,7 +186,7 @@ def diffraction_to_detector(
     transform : callable(coords : numpy.ndarray) -> numpy.ndarray
         A function that accepts pixel coordinates in diffracted space as an
         array of shape (n, 2) with (y, x). Upper left
-        corner is (0, 0). It returns pixel coordinates on the detector as floats.
+        corner is (0, 0). It returns pixel coordinates on the detector as floats of shape (n, 2).
     '''
     # Make sure broadcasting works as expected
     diffraction_shape = np.array(diffraction_shape)
@@ -220,60 +220,74 @@ def diffraction_to_detector(
     return transform
 
 
-def fftshift_coords(coords, reconstruct_shape):
+def fftshift_coords(reconstruct_shape):
     '''
-    Perform an fftshift of coordinates
+    Generate a function that performs an FFT shift of coordinates.
 
     On the detector, the central beam is near the center, while for native FFT
     the center is at the (0, 0) position of the result array. Instead of
-    fft-shifting the result of a projection calculation to match the detector,
-    one can instead calculate a transformation that picks the data fft-shifted
-    from the diffraction pattern. This can be performed together with scaling
-    and rotation with zero overhead.
+    fft-shifting the result of a projection calculation to match the detector directly,
+    one can instead calculate a transformation that picks from an unshifted FFT result
+    in such a way that it matches a diffraction pattern in its native layout. This allows
+    to combine the FFT shift with additional transformation steps. See also
+    :meth:`image_transformation_matrix`.
 
     Parameters
     ----------
-    coords : numpy.ndarray
-        Target coordinates with shape (n, 2), kind int
-    reconstruct_shape : tuple
+
+    reconstruct_shape : Tuple[int, int]
         Taget shape
 
     Returns
     -------
-    numpy.ndarray
-        Source coordinates with shape (n, 2), kind int
+    Callable(coords:  numpy.ndarray)
+        Function that accepts target coordinates with shape (n, 2), kind int
+        and calculates the source coordinates with shape (n, 2), kind int
+        so that taking from the source coordinates and placing into the target
+        coordinates performs an FFT shift.
     '''
-    coords = np.array(coords)
     reconstruct_shape = np.array(reconstruct_shape)
-    return (coords + (reconstruct_shape + 1) // 2) % reconstruct_shape
+
+    def fftshift(coords):
+        coords = np.array(coords)
+        return (coords + (reconstruct_shape + 1) // 2) % reconstruct_shape
+
+    return fftshift
 
 
-def ifftshift_coords(coords, reconstruct_shape):
+def ifftshift_coords(reconstruct_shape):
     '''
-    Perform an inverse fftshift of coordinates
+    Generate a function that performs an inverse FFT shift of coordinates.
 
     On the detector, the central beam is near the center, while for native FFT
     the center is at the (0, 0) position of the result array. Instead of
     fft-shifting the result of a projection calculation to match the detector,
-    one can instead calculate a transformation that picks the data fft-shifted
-    from the diffraction pattern. This can be performed together with scaling
-    and rotation with zero overhead.
+    one can instead calculate a transformation that picks from the detector data
+    in such a way that an inverse FFT shift is performed. This allows to combine the
+    inverse FFT shift with additional transformations. See also
+    :meth:`image_transformation_matrix`.
 
     Parameters
     ----------
-    coords : numpy.ndarray
-        Target coordinates with shape (n, 2), kind int
-    reconstruct_shape : tuple
+
+    reconstruct_shape : Tuple[int, int]
         Taget shape
 
     Returns
     -------
-    numpy.ndarray
-        Source coordinates with shape (n, 2), kind int
+    Callable(coords:  numpy.ndarray)
+        Function that accepts target coordinates with shape (n, 2), kind int
+        and calculates the source coordinates with shape (n, 2), kind int
+        so that taking from the source coordinates and placing into the target
+        coordinates performs an inverse FFT shift.
     '''
-    coords = np.array(coords)
     reconstruct_shape = np.array(reconstruct_shape)
-    return (coords + reconstruct_shape // 2) % reconstruct_shape
+
+    def ifftshift(coords):
+        coords = np.array(coords)
+        return (coords + reconstruct_shape // 2) % reconstruct_shape
+
+    return ifftshift
 
 
 @numba.njit(fastmath=True)
@@ -327,21 +341,21 @@ def image_transformation_matrix(
     source image. If the projected pixel is of size 1.5 or smaller in the source
     coordinates, the closest integer is chosen. If it is larger, the average of
     pixels within the projected pixel outline is chosen. This corresponds to
-    scaling with order=0.
+    scaling with order=0 in :meth:`scipy.ndimage.zoom`.
 
     :code:`pre_transform() and :code:`post_transform()` can also be used for
     shifting the center of :code:`affine_transformation()`.
 
     Parameters
     ----------
-    source_shape, target_shape : tuple
+    source_shape, target_shape : Tuple[int, int]
         Shape of source and target image for bounds checking and index raveling
     affine_transformation : callable(coords -> coords)
         Transformation that maps intermediate coordinates, i.e. the result of
         applying :code:`pre_transform()`, to float source coordinates.
         It should be continuous, strictly monotone and approximately affine for the size
-        of one pixel. :meth:`diffraction_to_detector` can be used to generate a coordinate
-        transformation function.
+        of one pixel. :meth:`diffraction_to_detector` can be used to generate a suitable
+        coordinate transformation function.
     pre_transform : callable(coords) -> coords
         Map target image indices to coordinates, typically euclidean. :code:`pre_transform()`
         should not change the scale of the coordinates. It is designed to be something like
@@ -467,7 +481,7 @@ def apply_matrix(sources, matrix, target_shape):
         of :meth:`image_transformation_matrix`.
     matrix : array-like
         Matrix generated by :meth:`image_transformation_matrix` or equivalent
-    target_shape : tuple
+    target_shape : Tuple[int, int]
         :code:`source_shape` parameter of :meth:`image_transformation_matrix`.
         The result will be reshaped to :code:`(n, ) + target_shape`
     '''
@@ -486,13 +500,13 @@ def shifted_probes(probe, bins):
     Parameters
     ----------
     probe : numpy.ndarray
-    bins : int or tuple(int)
+    bins : int or Tuple[int, int]
         Number of antialiasing steps in y and x axis. Can be int as well
 
     Returns
     -------
     probes : numpy.ndarray
-        4D, shape bins + probe.shape or (bins, bins) + probe.shape
+        4D, shape bins + probe.shape or (bins, bins) + probe.shape if bins is an int
     '''
     if isinstance(bins, int):
         bins = (bins, bins)

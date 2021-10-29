@@ -342,7 +342,7 @@ def test_ifftshift():
     shifted_data = np.fft.ifftshift(data)
     for y in range(data_shape[0]):
         for x in range(data_shape[1]):
-            shifted_coords = ifftshift_coords((y, x), data_shape)
+            shifted_coords = ifftshift_coords(data_shape)((y, x))
             assert data[shifted_coords[0], shifted_coords[1]] == shifted_data[y, x]
 
 
@@ -352,7 +352,7 @@ def test_fftshift():
     shifted_data = np.fft.fftshift(data)
     for y in range(data_shape[0]):
         for x in range(data_shape[1]):
-            shifted_coords = fftshift_coords((y, x), data_shape)
+            shifted_coords = fftshift_coords(data_shape)((y, x))
             assert data[shifted_coords[0], shifted_coords[1]] == shifted_data[y, x]
 
 
@@ -365,7 +365,7 @@ def test_fftshift_matrix():
         source_shape=source_shape,
         target_shape=target_shape,
         affine_transformation=lambda x: x,
-        pre_transform=lambda x: fftshift_coords(x, target_shape)
+        pre_transform=fftshift_coords(target_shape)
     )
     assert np.allclose(np.fft.fftshift(data, axes=(1, 2)), apply_matrix(data, m, target_shape))
 
