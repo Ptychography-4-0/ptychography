@@ -48,6 +48,14 @@ basic operations. Ptychography 4.0 offers fast implementations for CPU and GPU
 for some of these operations that handle coordinate systems and parameters in a
 consistent way.
 
+Example on simulated diffraction data
+.....................................
+
+.. toctree::
+   :maxdepth: 2
+
+   algorithms/transform-example
+
 Transform to reconstruction coordinates
 .......................................
 
@@ -71,9 +79,10 @@ is filled with the average from the corresponding source area.
 
 The transformation infrastructure consists of three components:
 
-* :meth:`ptychography40.reconstruction.common.diffraction_to_detector` transforms
-  coordinates in the reconstruction coordinate system to detector coordinates.
-  The parameters of this function correspond to the parameters of
+* :meth:`ptychography40.reconstruction.common.diffraction_to_detector`
+  generates a function that transforms coordinates in the reconstruction
+  coordinate system to detector coordinates. The parameters of this function
+  correspond to the parameters of
   :class:`ptychography40.reconstruction.ssb.SSB_UDF` and
   :meth:`libertem.api.Context.create_com_analysis`.
 * :meth:`ptychography40.reconstruction.common.image_transformation_matrix`
@@ -82,9 +91,11 @@ The transformation infrastructure consists of three components:
   transforms the pixel outlines of the target image to the source coordinates.
   Additionally, it can apply pre- and post-transforms in case the target or
   source coordinates are not euclidean. Most notably, a pre-transform of the
-  reconstruction coordinates can apply an inverse FFT shift with zero overhead.
-  A post-transform allows flexible mapping of detector positions to detector
-  channels, for example to support detectors with nonstandard geometries.
+  reconstruction coordinates using
+  :meth:`ptychography40.reconstruction.common.ifftshift_coords` can apply an
+  inverse FFT shift with zero overhead. A post-transform allows flexible mapping
+  of detector positions to detector channels, for example to support detectors
+  with nonstandard geometries.
 * :meth:`ptychography40.reconstruction.common.apply_matrix` is a convenience
   function that applies a transformation matrix to a stack of detector images,
   taking care of properly reshaping the input and output.
@@ -129,7 +140,7 @@ then be applied with fast implementations for sparse matrix products from
         # swap y and x (transpose) and scale up
         # Transformation goes backwards, from target to source
         affine_transformation=f,
-        pre_transform=lambda x: ifftshift_coords(x, target_shape)
+        pre_transform=ifftshift_coords(target_shape)
     )
 
     res = apply_matrix(data, m, target_shape)
@@ -271,10 +282,3 @@ This is equivalent to the following NumPy implementation:
        # Roll back to the original position
        acc_ref = np.roll(acc_ref, (int_shifts[i, 0], int_shifts[i, 1]), axis=(0, 1))
    assert np.allclose(acc, acc_ref)
-
-Example on simulated diffraction data:
-
-.. toctree::
-   :maxdepth: 2
-
-   algorithms/transform-example
