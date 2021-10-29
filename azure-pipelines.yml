@@ -187,8 +187,6 @@ stages:
           reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
 
     - job: macos_tests
-      pool:
-        vmImage: 'macOS-latest'
       strategy:
         matrix:
           Python36:
@@ -198,9 +196,13 @@ stages:
           Python37:
             python.version: '3.7'
             TOXENV: 'py37'
+            imageName: 'macos-latest'
           Python38:
             python.version: '3.8'
             TOXENV: 'py38'
+            imageName: 'macos-latest'
+      pool:
+        vmImage: '$(imageName)'
       variables:
         TOXENV: '$(TOXENV)'
       steps:
