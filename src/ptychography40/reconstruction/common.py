@@ -993,7 +993,7 @@ def trunc_divide_cpu(numerator, denominator, out, threshold=1e-6, fill=0):
     for i in range(numerator.shape[0]):
         for y in range(numerator.shape[1]):
             for x in range(numerator.shape[2]):
-                if np.abs(denominator[i, y, x]) < threshold:
+                if np.abs(denominator[i, y, x]) <= threshold:
                     out[i, y, x] = fill
                 else:
                     out[i, y, x] = numerator[i, y, x] / denominator[i, y, x]

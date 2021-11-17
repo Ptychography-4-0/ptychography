@@ -14,7 +14,8 @@ from ptychography40.reconstruction.common import (
     rolled_object_probe_product_cpu, rolled_object_aggregation_cpu,
     rolled_object_probe_product_cuda, rolled_object_aggregation_cuda,
     rolled_object_probe_select_cpu, rolled_object_probe_select_cuda,
-    subpixel_probe_aggregation_cpu, subpixel_probe_aggregation_cuda
+    subpixel_probe_aggregation_cpu, subpixel_probe_aggregation_cuda,
+    trunc_divide_cpu, trunc_divide_cuda,
 )
 
 
@@ -884,3 +885,38 @@ def test_subpixel_probe_aggregation_cuda(fftshift, dtype):
     )
 
     assert np.allclose(probes.get(), probes_ref)
+
+
+def test_trunc_divide_cpu():
+    numerator = np.random.random((23, 42, 13)) + 1j*np.random.random((23, 42, 13))
+    denominator = np.random.random((23, 42, 13)) + 1j*np.random.random((23, 42, 13))
+    threshold = 0.4
+    fill = 7
+    result = np.zeros_like(numerator)
+    result_ref = np.full_like(numerator, fill)
+
+    np.divide(numerator, denominator, out=result_ref, where=np.abs(denominator) > threshold)
+    trunc_divide_cpu(numerator, denominator, out=result, threshold=threshold, fill=fill)
+    assert np.allclose(result, result_ref)
+
+
+@pytest.mark.skipif(not detect()['cudas'], reason="No CUDA devices")
+@pytest.mark.skipif(not has_cupy(), reason="No functional CuPy")
+def test_trunc_divide_cuda():
+    import cupy
+    numerator = np.random.random((23, 42, 13)) + 1j*np.random.random((23, 42, 13))
+    denominator = np.random.random((23, 42, 13)) + 1j*np.random.random((23, 42, 13))
+    threshold = 0.4
+    fill = 7
+    result = cupy.array(np.zeros_like(numerator))
+    result_ref = np.full_like(numerator, fill)
+
+    np.divide(numerator, denominator, out=result_ref, where=np.abs(denominator) > threshold)
+    trunc_divide_cuda(
+        cupy.array(numerator),
+        cupy.array(denominator),
+        out=result,
+        threshold=threshold,
+        fill=fill
+    )
+    assert np.allclose(cupy.asnumpy(result), result_ref)
