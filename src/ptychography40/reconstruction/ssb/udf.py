@@ -61,50 +61,7 @@ def rmatmul_csc_fourier(n_threads, left_dense, right_data, right_indices, right_
     res_inout += np.sum(resbuf, axis=0)
 
 
-class SSB_UDF(UDF):
-    '''
-    UDF to perform ptychography using the single side band (SSB) method :cite:`Pennycook2015`.
-    '''
-    def __init__(self, lamb, dpix, semiconv, semiconv_pix,
-                 dtype=np.float32, cy=None, cx=None, transformation=None,
-                 cutoff=1, method='subpix', mask_container=None,):
-        '''
-        Parameters
-        ----------
-
-        lamb: float
-            The illumination wavelength in m. The function :meth:`ptychography40.common.wavelength`
-            allows to calculate the electron wavelength as a function of acceleration voltage.
-        dpix: float or Iterable(y, x)
-            STEM pixel size in m
-        semiconv: float
-            STEM semiconvergence angle in radians
-        dtype: np.dtype
-            dtype to perform the calculation in
-        semiconv_pix: float
-            Diameter of the primary beam in the diffraction pattern in pixels
-        cy, cx : float, optional
-            Position of the optical axis on the detector in px, center of illumination.
-            Default: Center of the detector
-        transformation: numpy.ndarray() of shape (2, 2) or None
-            Transformation matrix to apply to shift vectors. This allows to adjust for scan rotation
-            and mismatch of detector coordinate system handedness, such as flipped y axis for MIB.
-        cutoff : int
-            Minimum number of pixels in a trotter
-        method : 'subpix' or 'shift'
-            Method to use for generating the mask stack
-        mask_container: MaskContainer
-            Allows to pass in a precomputed mask stack when using with single thread live data
-            or with an inline executor as a work-around. The number of masks is sanity-checked
-            to match the other parameters.
-            The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
-        '''
-        super().__init__(lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
-                         dtype=dtype, cy=cy, cx=cx, mask_container=mask_container,
-                         transformation=transformation, cutoff=cutoff, method=method)
-
-    EFFICIENT_THREADS = 4
-
+class SSB_Base(UDF):
     def get_result_buffers(self):
         ''
         dtype = np.result_type(np.complex64, self.params.dtype)
@@ -128,58 +85,10 @@ class SSB_UDF(UDF):
             ),
         }
 
-    @property
-    def reconstruct_shape(self):
-        return tuple(self.meta.dataset_shape.nav)
-
     def get_task_data(self):
         ''
         # shorthand, cupy or numpy
         xp = self.xp
-
-        if self.meta.device_class == 'cpu':
-            backend = 'numpy'
-        elif self.meta.device_class == 'cuda':
-            backend = 'cupy'
-        else:
-            raise ValueError("Unknown device class")
-
-        # Hack to pass a fixed external container
-        # In particular useful for single-process live processing
-        # or inline executor
-        if self.params.mask_container is None:
-            masks = generate_masks(
-                reconstruct_shape=self.reconstruct_shape,
-                mask_shape=tuple(self.meta.dataset_shape.sig),
-                dtype=self.params.dtype,
-                lamb=self.params.lamb,
-                dpix=self.params.dpix,
-                semiconv=self.params.semiconv,
-                semiconv_pix=self.params.semiconv_pix,
-                cy=self.params.cy,
-                cx=self.params.cx,
-                transformation=self.params.transformation,
-                cutoff=self.params.cutoff,
-                method=self.params.method,
-            )
-            container = MaskContainer(
-                mask_factories=lambda: masks, dtype=masks.dtype,
-                use_sparse='scipy.sparse.csr', count=masks.shape[0], backend=backend
-            )
-        else:
-            container = self.params.mask_container
-            target_size = (self.reconstruct_shape[0] // 2 + 1)*self.reconstruct_shape[1]
-            container_shape = container.computed_masks.shape
-            expected_shape = (target_size, ) + tuple(self.meta.dataset_shape.sig)
-            if container_shape != expected_shape:
-                raise ValueError(
-                    f"External mask container doesn't have the expected shape. "
-                    f"Got {container_shape}, expected {expected_shape}. "
-                    "Mask count (self.meta.dataset_shape.nav[0] // 2 + 1) "
-                    "* self.meta.dataset_shape.nav[1], "
-                    "Mask shape self.meta.dataset_shape.sig. "
-                    "The methods generate_masks_*() help to generate a suitable mask stack."
-                )
 
         # Precalculated LUT for Fourier transform
         # The y axis is trimmed in half since the full trotter stack is symmetric,
@@ -204,11 +113,13 @@ class SSB_UDF(UDF):
         steps_dtype = np.result_type(np.complex64, self.params.dtype)
 
         return {
-            "masks": container,
             "row_exp": xp.array(row_exp.astype(steps_dtype)),
             "col_exp": xp.array(col_exp.astype(steps_dtype)),
-            "backend": backend
         }
+
+    @property
+    def reconstruct_shape(self):
+        return tuple(self.meta.dataset_shape.nav)
 
     def merge(self, dest, src):
         ''
@@ -297,6 +208,103 @@ class SSB_UDF(UDF):
             'amplitude': amp,
             'phase': phase,
         }
+
+
+class SSB_UDF(SSB_Base):
+    '''
+    UDF to perform ptychography using the single side band (SSB) method :cite:`Pennycook2015`.
+    '''
+    def __init__(self, lamb, dpix, semiconv, semiconv_pix,
+                 dtype=np.float32, cy=None, cx=None, transformation=None,
+                 cutoff=1, method='subpix', mask_container=None,):
+        '''
+        Parameters
+        ----------
+
+        lamb: float
+            The illumination wavelength in m. The function :meth:`ptychography40.common.wavelength`
+            allows to calculate the electron wavelength as a function of acceleration voltage.
+        dpix: float or Iterable(y, x)
+            STEM pixel size in m
+        semiconv: float
+            STEM semiconvergence angle in radians
+        dtype: np.dtype
+            dtype to perform the calculation in
+        semiconv_pix: float
+            Diameter of the primary beam in the diffraction pattern in pixels
+        cy, cx : float, optional
+            Position of the optical axis on the detector in px, center of illumination.
+            Default: Center of the detector
+        transformation: numpy.ndarray() of shape (2, 2) or None
+            Transformation matrix to apply to shift vectors. This allows to adjust for scan rotation
+            and mismatch of detector coordinate system handedness, such as flipped y axis for MIB.
+        cutoff : int
+            Minimum number of pixels in a trotter
+        method : 'subpix' or 'shift'
+            Method to use for generating the mask stack
+        mask_container: MaskContainer
+            Allows to pass in a precomputed mask stack when using with single thread live data
+            or with an inline executor as a work-around. The number of masks is sanity-checked
+            to match the other parameters.
+            The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
+        '''
+        super().__init__(lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                         dtype=dtype, cy=cy, cx=cx, mask_container=mask_container,
+                         transformation=transformation, cutoff=cutoff, method=method)
+
+    EFFICIENT_THREADS = 4
+
+    def get_task_data(self):
+        ''
+        result = super().get_task_data()
+
+        if self.meta.device_class == 'cpu':
+            backend = 'numpy'
+        elif self.meta.device_class == 'cuda':
+            backend = 'cupy'
+        else:
+            raise ValueError("Unknown device class")
+
+        # Hack to pass a fixed external container
+        # In particular useful for single-process live processing
+        # or inline executor
+        if self.params.mask_container is None:
+            masks = generate_masks(
+                reconstruct_shape=self.reconstruct_shape,
+                mask_shape=tuple(self.meta.dataset_shape.sig),
+                dtype=self.params.dtype,
+                lamb=self.params.lamb,
+                dpix=self.params.dpix,
+                semiconv=self.params.semiconv,
+                semiconv_pix=self.params.semiconv_pix,
+                cy=self.params.cy,
+                cx=self.params.cx,
+                transformation=self.params.transformation,
+                cutoff=self.params.cutoff,
+                method=self.params.method,
+            )
+            container = MaskContainer(
+                mask_factories=lambda: masks, dtype=masks.dtype,
+                use_sparse='scipy.sparse.csr', count=masks.shape[0], backend=backend
+            )
+        else:
+            container = self.params.mask_container
+            target_size = (self.reconstruct_shape[0] // 2 + 1)*self.reconstruct_shape[1]
+            container_shape = container.computed_masks.shape
+            expected_shape = (target_size, ) + tuple(self.meta.dataset_shape.sig)
+            if container_shape != expected_shape:
+                raise ValueError(
+                    f"External mask container doesn't have the expected shape. "
+                    f"Got {container_shape}, expected {expected_shape}. "
+                    "Mask count (self.meta.dataset_shape.nav[0] // 2 + 1) "
+                    "* self.meta.dataset_shape.nav[1], "
+                    "Mask shape self.meta.dataset_shape.sig. "
+                    "The methods generate_masks_*() help to generate a suitable mask stack."
+                )
+
+        result['masks'] = container
+        result['backend'] = backend
+        return result
 
     def process_tile(self, tile):
         ''
