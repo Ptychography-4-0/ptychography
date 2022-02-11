@@ -1,8 +1,13 @@
+import functools
+
 import numpy as np
 import numba
+import scipy.sparse
+import threadpoolctl
 
 from libertem.udf import UDF
 from libertem.common.container import MaskContainer
+from libertem.utils.threading import set_num_threads
 
 from ptychography40.reconstruction.ssb.trotters import generate_masks
 
@@ -213,41 +218,40 @@ class SSB_Base(UDF):
 class SSB_UDF(SSB_Base):
     '''
     UDF to perform ptychography using the single side band (SSB) method :cite:`Pennycook2015`.
+
+    Parameters
+    ----------
+
+    lamb: float
+        The illumination wavelength in m. The function :meth:`ptychography40.common.wavelength`
+        allows to calculate the electron wavelength as a function of acceleration voltage.
+    dpix: float or Iterable(y, x)
+        STEM pixel size in m
+    semiconv: float
+        STEM semiconvergence angle in radians
+    dtype: np.dtype
+        dtype to perform the calculation in
+    semiconv_pix: float
+        Diameter of the primary beam in the diffraction pattern in pixels
+    cy, cx : float, optional
+        Position of the optical axis on the detector in px, center of illumination.
+        Default: Center of the detector
+    transformation: numpy.ndarray() of shape (2, 2) or None
+        Transformation matrix to apply to shift vectors. This allows to adjust for scan rotation
+        and mismatch of detector coordinate system handedness, such as flipped y axis for MIB.
+    cutoff : int
+        Minimum number of pixels in a trotter
+    method : 'subpix' or 'shift'
+        Method to use for generating the mask stack
+    mask_container: MaskContainer
+        Allows to pass in a precomputed mask stack when using with single thread live data
+        or with an inline executor as a work-around. The number of masks is sanity-checked
+        to match the other parameters.
+        The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
     '''
     def __init__(self, lamb, dpix, semiconv, semiconv_pix,
                  dtype=np.float32, cy=None, cx=None, transformation=None,
                  cutoff=1, method='subpix', mask_container=None,):
-        '''
-        Parameters
-        ----------
-
-        lamb: float
-            The illumination wavelength in m. The function :meth:`ptychography40.common.wavelength`
-            allows to calculate the electron wavelength as a function of acceleration voltage.
-        dpix: float or Iterable(y, x)
-            STEM pixel size in m
-        semiconv: float
-            STEM semiconvergence angle in radians
-        dtype: np.dtype
-            dtype to perform the calculation in
-        semiconv_pix: float
-            Diameter of the primary beam in the diffraction pattern in pixels
-        cy, cx : float, optional
-            Position of the optical axis on the detector in px, center of illumination.
-            Default: Center of the detector
-        transformation: numpy.ndarray() of shape (2, 2) or None
-            Transformation matrix to apply to shift vectors. This allows to adjust for scan rotation
-            and mismatch of detector coordinate system handedness, such as flipped y axis for MIB.
-        cutoff : int
-            Minimum number of pixels in a trotter
-        method : 'subpix' or 'shift'
-            Method to use for generating the mask stack
-        mask_container: MaskContainer
-            Allows to pass in a precomputed mask stack when using with single thread live data
-            or with an inline executor as a work-around. The number of masks is sanity-checked
-            to match the other parameters.
-            The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335
-        '''
         super().__init__(lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
                          dtype=dtype, cy=cy, cx=cx, mask_container=mask_container,
                          transformation=transformation, cutoff=cutoff, method=method)
@@ -415,3 +419,150 @@ class SSB_UDF(SSB_Base):
                     # each tile will be taken to speed up the sparse matrix product
                     "total_size": 0.5e6,
                 }
+
+
+def crop_bin_params(rec_params, mask_params, binning_factor: int):
+    '''
+    Calculate parameters and vectors for binned SSB
+
+    Parameters
+    ----------
+
+    rec_params, mask_params : dict
+        Parameters for unbinned reconstruction and mask generation
+    binning_factor : int
+
+    Returns
+    -------
+    (new_rec_params, new_mask_params, y_binner, x_binner)
+        :code:`y_binner` and :code:`x_binner` are NumPy arrays that perform binning
+        via :code:`y_binner @ frame @ x_binner`.
+
+    '''
+    center = int(np.ceil(rec_params["semiconv_pix"] / binning_factor))
+    size = 2 * center
+
+    def crop_bin_vector(length, origin):
+        bins = np.zeros((length, size), dtype=np.float32)
+        for i in range(size):
+            start = origin + i*binning_factor
+            stop = start + binning_factor
+            bins[start:stop, i] = 1/binning_factor
+        return bins
+
+    new_rec_params = rec_params.copy()
+    new_rec_params['cy'] = center
+    new_rec_params['cx'] = center
+    new_rec_params['semiconv_pix'] = rec_params['semiconv_pix'] / binning_factor
+    new_rec_params['cutoff'] = int(np.ceil(rec_params['cutoff'] / binning_factor**2))
+    new_mask_params = mask_params.copy()
+    new_mask_params['mask_shape'] = (size, size)
+    new_mask_params['method'] = 'subpix'
+
+    y_binner = crop_bin_vector(
+        length=mask_params['mask_shape'][0],
+        origin=int(rec_params['cy']) - binning_factor * center,
+    ).T
+
+    x_binner = crop_bin_vector(
+        length=mask_params['mask_shape'][1],
+        origin=int(rec_params['cx']) - binning_factor * center,
+    )
+
+    return (new_rec_params, new_mask_params, y_binner, x_binner)
+
+
+def _get_binner(constructor, y_binner, x_binner):
+    '''
+    Generate a function that returns the right subset of the binners
+    for a given sig slice.
+
+    Parameters
+    ----------
+
+    constructor : function
+        This function is applied to the subset in order to allow construction
+        of different array types, such as CuPy arrays or sparse matrices.
+    y_binner, x_binner:
+        Binning matrices for the full frame, as returned by :func:`crop_bin_params`.
+
+    Returns
+    -------
+
+    function
+        A cached function that accepts the signal slice and returns suitable
+        binning info (y_binner, x_binner, noop) so that noop is :code:`True`
+        if any of the binners is all zero and that :code:`y_binner @ tile @ x_binner`
+        calculates the contribution of a tile to the binned result.
+
+    '''
+    @functools.lru_cache(maxsize=512)
+    def get(sig_slice):
+        y_origin, x_origin = sig_slice.origin
+        y_shape, x_shape = sig_slice.shape
+        y_res = y_binner[:, y_origin:y_origin+y_shape]
+        x_res = x_binner[x_origin:x_origin+x_shape]
+        return (
+            constructor(y_res),
+            constructor(x_res),
+            np.allclose(y_res, 0) or np.allclose(x_res, 0)
+        )
+
+    return get
+
+
+class BinnedSSB_UDF(SSB_Base):
+    '''
+    Variant of the :class:`SSB_UDF` that crops and bins the data
+    before applying the trotters. TODO insert reference for this.
+
+    Different from :class:`SSB_UDF`, this UDF accepts the trotters directly as
+    :class:`scipy.sparse.csr_matrix` since no mask container is used.
+
+    It benefits greatly from the improvements in LiberTEM 0.9 that allow
+    efficient sharing of large parameters.
+
+    Parameters
+    ----------
+    y_binner, x_binner : np.ndarray
+        As generated by :func:`crop_bin_params`
+    csr_trotters : scipy.sparse.csr_matrix
+        Result of :func:`ptychography40.reconstruction.ssb.trotters.generate_masks` with parameters
+        modified by :func:`crop_bin_params` and converted to CSR.
+    dtype
+        dtype for the calculation
+    '''
+    def __init__(self, y_binner, x_binner, csr_trotters: scipy.sparse.csr_matrix, dtype=np.float32):
+        # make sure the cropped and binned region has a size divisible by two
+        binned_size = np.sqrt(csr_trotters.shape[1])
+        assert np.allclose(binned_size % 2, 0)
+        super().__init__(
+            y_binner=y_binner,
+            x_binner=x_binner,
+            csr_trotters=csr_trotters,
+            dtype=dtype
+        )
+
+    def get_task_data(self):
+        result = super().get_task_data()
+        result['binner'] = _get_binner(self.xp.array, self.params.y_binner, self.params.x_binner)
+        if self.meta.device_class == 'cpu':
+            result['trotters'] = self.params.csr_trotters
+        elif self.meta.device_class == 'cuda':
+            import cupy.sparse
+            result['trotters'] = cupy.sparse.csr_matrix(self.params.csr_trotters)
+        result['controller'] = threadpoolctl.ThreadpoolController()
+        return result
+
+    def process_tile(self, tile):
+        y_binner, x_binner, noop = self.task_data.binner(self.meta.sig_slice)
+        if not noop:
+            binned = y_binner @ tile @ x_binner
+            binned_flat = binned.reshape((binned.shape[0], binned.shape[1]*binned.shape[2]))
+            masks = self.task_data.trotters
+            dot_result = masks.dot(binned_flat.T).T
+            self.merge_dot_result(dot_result)
+
+    def get_backends(self):
+        ''
+        return ('numpy', 'cupy')
