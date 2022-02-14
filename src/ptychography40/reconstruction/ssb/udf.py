@@ -7,7 +7,6 @@ import threadpoolctl
 
 from libertem.udf import UDF
 from libertem.common.container import MaskContainer
-from libertem.utils.threading import set_num_threads
 
 from ptychography40.reconstruction.ssb.trotters import generate_masks
 
@@ -557,7 +556,8 @@ class BinnedSSB_UDF(SSB_Base):
     def process_tile(self, tile):
         y_binner, x_binner, noop = self.task_data.binner(self.meta.sig_slice)
         if not noop:
-            binned = y_binner @ tile @ x_binner
+            # A bit faster in that order, for some reason
+            binned = y_binner @ (tile @ x_binner)
             binned_flat = binned.reshape((binned.shape[0], binned.shape[1]*binned.shape[2]))
             masks = self.task_data.trotters
             dot_result = masks.dot(binned_flat.T).T
