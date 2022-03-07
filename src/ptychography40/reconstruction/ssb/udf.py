@@ -554,7 +554,11 @@ class BinnedSSB_UDF(SSB_Base):
         return result
 
     def process_tile(self, tile):
-        y_binner, x_binner, noop = self.task_data.binner(self.meta.sig_slice)
+        try:
+            sig_slice = self.meta.sig_slice
+        except AttributeError:
+            sig_slice = self.meta.slice.sig
+        y_binner, x_binner, noop = self.task_data.binner(sig_slice)
         if not noop:
             # A bit faster in that order, for some reason
             binned = y_binner @ (tile @ x_binner)
