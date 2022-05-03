@@ -3,7 +3,6 @@ import functools
 import numpy as np
 import numba
 import scipy.sparse
-import threadpoolctl
 
 from libertem.udf import UDF
 from libertem.common.container import MaskContainer
@@ -550,10 +549,14 @@ class BinnedSSB_UDF(SSB_Base):
         elif self.meta.device_class == 'cuda':
             import cupy.sparse
             result['trotters'] = cupy.sparse.csr_matrix(self.params.csr_trotters)
-        result['controller'] = threadpoolctl.ThreadpoolController()
         return result
 
-    def process_tile(self, tile):
+    def process_partition(self, tile):
+        '''
+        Processing a partition reduces amplification
+        from processing many signal slices per frame
+        on higher-resolution detectors.
+        '''
         try:
             sig_slice = self.meta.sig_slice
         except AttributeError:
@@ -564,6 +567,22 @@ class BinnedSSB_UDF(SSB_Base):
             binned = y_binner @ (tile @ x_binner)
             binned_flat = binned.reshape((binned.shape[0], binned.shape[1]*binned.shape[2]))
             masks = self.task_data.trotters
+            # Alternative: Use rmatmul_csc_fourier
+            # Since the matrix is much smaller, this doesn't bring
+            # so much benefit here.
+            # half_y = self.results.fourier.shape[0] // 2 + 1
+            # csr left hand mask is same as csc right hand mask
+            # rmatmul_csc_fourier(
+            #     n_threads=self.meta.threads_per_worker,
+            #     left_dense=binned_flat,
+            #     right_data=masks.data,
+            #     right_indices=masks.indices,
+            #     right_indptr=masks.indptr,
+            #     coordinates=self.meta.coordinates,
+            #     row_exp=self.task_data.row_exp,
+            #     col_exp=self.task_data.col_exp,
+            #     res_inout=self.results.fourier[:half_y]
+            # )
             dot_result = masks.dot(binned_flat.T).T
             self.merge_dot_result(dot_result)
 
