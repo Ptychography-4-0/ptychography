@@ -5,7 +5,8 @@ from libertem.utils.devices import detect, has_cupy
 
 from ptychography40.reconstruction.common import (
     image_transformation_matrix, rolled_object_probe_product_cpu, rolled_object_probe_product_cuda,
-    rolled_object_aggregation_cpu, rolled_object_aggregation_cuda, shifted_probes
+    rolled_object_aggregation_cpu, rolled_object_aggregation_cuda, shifted_probes,
+    trunc_divide_cpu, trunc_divide_cuda
 )
 
 
@@ -145,3 +146,80 @@ def test_rolled_object_aggregation_cuda(benchmark, fftshift, obj_shape):
         return obj[0, 0]
 
     benchmark(my_bench)
+
+
+@pytest.mark.benchmark(
+    group='truncated divide'
+)
+@pytest.mark.parametrize(
+    'which', ('baseline', 'test', 'cuda_compatible')
+)
+def test_divide_cpu(benchmark, which):
+    numerator = np.random.random((128, 256, 256)) + 1j*np.random.random((128, 256, 256))
+    denominator = np.random.random((128, 256, 256)) + 1j*np.random.random((128, 256, 256))
+    denominator[:, :256, :3] = 0
+    out = np.zeros_like(numerator)
+    if which == 'test':
+        benchmark(
+            trunc_divide_cpu,
+            numerator=numerator,
+            denominator=denominator,
+            out=out
+        )
+    elif which == 'baseline':
+        def _do_test():
+            return np.divide(
+                numerator,
+                denominator,
+                out=out,
+                where=np.abs(denominator) > 1e-6
+            )
+        benchmark(_do_test)
+    elif which == 'cuda_compatible':
+        def _do_test():
+            np.divide(
+                numerator,
+                denominator,
+                out=out,
+                where=np.abs(denominator) > 1e-6
+            )
+            out[np.abs(denominator) <= 1e-6] = 0
+        benchmark(_do_test)
+    else:
+        raise ValueError()
+
+
+@pytest.mark.skipif(not detect()['cudas'], reason="No CUDA devices")
+@pytest.mark.skipif(not has_cupy(), reason="No functional CuPy")
+@pytest.mark.benchmark(
+    group='truncated divide'
+)
+@pytest.mark.parametrize(
+    'which', ('baseline', 'test')
+)
+def test_divide_cuda(benchmark, which):
+    import cupy
+    numerator = cupy.random.random((128, 256, 256)) + 1j*cupy.random.random((128, 256, 256))
+    denominator = cupy.random.random((128, 256, 256)) + 1j*cupy.random.random((128, 256, 256))
+    denominator[:, :256, :3] = 0
+    out = cupy.zeros_like(numerator)
+    if which == 'test':
+        def do_test():
+            trunc_divide_cuda(
+                numerator=numerator,
+                denominator=denominator,
+                out=out
+            )
+            return out.sum().get()
+    elif which == 'baseline':
+        def do_test():
+            cupy.divide(
+                numerator,
+                denominator,
+                out=out,
+            )
+            out[cupy.abs(denominator) <= 1e-6] = 0
+            return out.sum().get()
+    else:
+        raise ValueError()
+    benchmark(do_test)

@@ -10,9 +10,12 @@ from libertem.utils.devices import detect, has_cupy
 from ptychography40.reconstruction.common import (
     diffraction_to_detector, wavelength, get_shifted, to_slices,
     bounding_box, ifftshift_coords, fftshift_coords, image_transformation_matrix, apply_matrix,
-    shifted_probes,
+    shifted_probes, aggregate_shifted_probes,
     rolled_object_probe_product_cpu, rolled_object_aggregation_cpu,
-    rolled_object_probe_product_cuda, rolled_object_aggregation_cuda
+    rolled_object_probe_product_cuda, rolled_object_aggregation_cuda,
+    rolled_object_probe_select_cpu, rolled_object_probe_select_cuda,
+    subpixel_probe_aggregation_cpu, subpixel_probe_aggregation_cuda,
+    trunc_divide_cpu, trunc_divide_cuda,
 )
 
 
@@ -641,6 +644,16 @@ def test_shifted_probe():
                 )
 
 
+def test_aggregate_shifted_probes():
+    probe = np.zeros((23, 42))
+    probe[4:16, 15:35] = 1
+    probes = shifted_probes(probe, (4, 5))
+    res = aggregate_shifted_probes(probes)
+    # The subpixel shift is quite lossy
+    # and accumulates errors
+    assert np.allclose(res, probe*4*5, rtol=0.5, atol=4*5/10)
+
+
 @pytest.mark.parametrize(
     'ifftshift', (False, True)
 )
@@ -674,6 +687,36 @@ def test_rolled_object_probe_product_cpu(ifftshift):
             ref = np.fft.ifftshift(ref)
         assert np.allclose(result[i], ref)
         assert np.all(subpixel_indices[i] == (subpixel_y, subpixel_x))
+
+
+@pytest.mark.parametrize(
+    'ifftshift', (False, True)
+)
+def test_rolled_object_probe_select_cpu(ifftshift):
+    obj_shape = np.random.randint(1, 23, 2)
+    probe_shape = np.array([np.random.randint(1, obj_axis+1, 1)[0] for obj_axis in obj_shape])
+    print(probe_shape)
+
+    obj = np.linspace(0, 1, np.prod(obj_shape)).reshape(obj_shape)
+    y_subpixels, x_subpixels = np.random.randint(1, 11, 2)
+    probe = np.random.random(tuple(probe_shape))
+    probes = shifted_probes(probe, (y_subpixels, x_subpixels))
+    count = 23
+    obj_result = np.zeros((count, ) + probes.shape[2:], dtype=np.result_type(obj, probes))
+    probe_result = obj_result.copy()
+    product_result = obj_result.copy()
+    shifts = np.random.randint(
+        -np.max(obj_shape)*y_subpixels, np.max(obj_shape)*x_subpixels,
+        (count, 2)
+    ) / (y_subpixels, x_subpixels)
+    subpixel_indices = rolled_object_probe_select_cpu(
+        obj, probes, shifts, obj_result, probe_result, ifftshift=ifftshift
+    )
+    subpixel_ref = rolled_object_probe_product_cpu(
+        obj, probes, shifts, product_result, ifftshift=ifftshift
+    )
+    assert np.allclose(subpixel_indices, subpixel_ref)
+    assert np.allclose(product_result, obj_result*probe_result)
 
 
 @pytest.mark.parametrize(
@@ -736,6 +779,44 @@ def test_rolled_object_probe_product_cuda(ifftshift):
 @pytest.mark.skipif(not detect()['cudas'], reason="No CUDA devices")
 @pytest.mark.skipif(not has_cupy(), reason="No functional CuPy")
 @pytest.mark.parametrize(
+    'ifftshift', (False, True)
+)
+def test_rolled_object_probe_select_cuda(ifftshift):
+    import cupy
+    obj_shape = np.random.randint(1, 500, 2)
+    probe_shape = np.array([np.random.randint(1, obj_axis+1, 1)[0] for obj_axis in obj_shape])
+    print(probe_shape)
+
+    obj = np.linspace(0, 1, np.prod(obj_shape)).reshape(obj_shape)
+    y_subpixels, x_subpixels = np.random.randint(1, 11, 2)
+    probe = np.random.random((y_subpixels, x_subpixels) + tuple(probe_shape))
+    count = np.random.randint(1, 1000)
+    obj_ref = np.zeros((count, ) + probe.shape[2:], dtype=np.result_type(obj, probe))
+    probe_ref = np.zeros((count, ) + probe.shape[2:], dtype=np.result_type(obj, probe))
+    obj_res = cupy.array(obj_ref)
+    probe_res = cupy.array(probe_ref)
+    shifts = np.random.randint(
+        -np.max(obj_shape)*y_subpixels, np.max(obj_shape)*x_subpixels, (count, 2)
+    ) / (y_subpixels, x_subpixels)
+    subpixel_indices_cpu = rolled_object_probe_select_cpu(
+        obj, probe, shifts, obj_ref, probe_ref, ifftshift
+    )
+    subpixel_indices_cuda = rolled_object_probe_select_cuda(
+        cupy.array(obj),
+        cupy.array(probe),
+        cupy.array(shifts),
+        obj_res,
+        probe_res,
+        ifftshift,
+    )
+    assert np.allclose(obj_res.get(), obj_ref)
+    assert np.allclose(probe_res.get(), probe_ref)
+    assert np.all(subpixel_indices_cpu == subpixel_indices_cuda.get())
+
+
+@pytest.mark.skipif(not detect()['cudas'], reason="No CUDA devices")
+@pytest.mark.skipif(not has_cupy(), reason="No functional CuPy")
+@pytest.mark.parametrize(
     'fftshift', (False, True)
 )
 @pytest.mark.parametrize(
@@ -762,3 +843,80 @@ def test_rolled_object_aggregation_cuda(fftshift, obj_dtype, update_dtype):
     )
     print(np.max(np.abs(obj.get() - obj_ref)))
     assert np.allclose(obj.get(), obj_ref)
+
+
+@pytest.mark.parametrize(
+    'fftshift', (False, True)
+)
+def test_subpixel_probe_aggregation_cpu(fftshift):
+    probes = np.zeros((4, 4, 32, 32), dtype=np.complex64)
+    probe_updates = np.random.random((17, 32, 32)) + 1j*np.random.random((17, 32, 32))
+    subpixel_indices = np.random.randint(0, 4, (17, 2))
+    ref = np.copy(probes)
+    for i, (y, x) in enumerate(subpixel_indices):
+        ref[y, x] + probe_updates[i]
+    if fftshift:
+        ref = np.fft.fftshift(ref, axes=(-1, -2))
+
+    subpixel_probe_aggregation_cpu(probes, probe_updates, subpixel_indices, fftshift)
+    assert np.allclose(probes, ref)
+
+
+@pytest.mark.skipif(not detect()['cudas'], reason="No CUDA devices")
+@pytest.mark.skipif(not has_cupy(), reason="No functional CuPy")
+@pytest.mark.parametrize(
+    'fftshift', (False, True)
+)
+@pytest.mark.parametrize(
+    'dtype', (np.complex64, np.float32)
+)
+def test_subpixel_probe_aggregation_cuda(fftshift, dtype):
+    import cupy
+    probes_ref = np.zeros((4, 4, 32, 32), dtype=np.complex64)
+    probe_updates = np.random.random((17, 32, 32)) + 1j*np.random.random((17, 32, 32))
+    subpixel_indices = np.random.randint(0, 4, (17, 2))
+    probes = cupy.array(probes_ref)
+    subpixel_probe_aggregation_cpu(probes_ref, probe_updates, subpixel_indices, fftshift)
+    subpixel_probe_aggregation_cuda(
+        probes,
+        cupy.array(probe_updates),
+        cupy.array(subpixel_indices),
+        fftshift
+    )
+
+    assert np.allclose(probes.get(), probes_ref)
+
+
+def test_trunc_divide_cpu():
+    numerator = np.random.random((23, 42, 13)) + 1j*np.random.random((23, 42, 13))
+    denominator = np.random.random((23, 42, 13)) + 1j*np.random.random((23, 42, 13))
+    threshold = 0.4
+    fill = 7
+    result = np.zeros_like(numerator)
+    result_ref = np.full_like(numerator, fill)
+
+    np.divide(numerator, denominator, out=result_ref, where=np.abs(denominator) > threshold)
+    trunc_divide_cpu(numerator, denominator, out=result, threshold=threshold, fill=fill)
+    assert np.allclose(result, result_ref)
+
+
+@pytest.mark.skipif(not detect()['cudas'], reason="No CUDA devices")
+@pytest.mark.skipif(not has_cupy(), reason="No functional CuPy")
+def test_trunc_divide_cuda():
+    import cupy
+    numerator = np.random.random((23, 42, 13)) + 1j*np.random.random((23, 42, 13))
+    denominator = np.random.random((23, 42, 13)) + 1j*np.random.random((23, 42, 13))
+    threshold = 0.4
+    fill = 7
+    result = cupy.array(np.zeros_like(numerator))
+    result_ref = np.full_like(numerator, fill)
+
+    np.divide(numerator, denominator, out=result_ref, where=np.abs(denominator) > threshold)
+    trunc_divide_cuda(
+        cupy.array(numerator),
+        cupy.array(denominator),
+        out=result,
+        threshold=threshold,
+        fill=fill
+    )
+    assert np.allclose(cupy.asnumpy(result), result_ref)

@@ -493,7 +493,7 @@ def apply_matrix(sources, matrix, target_shape):
     return flat_result.reshape(sources.shape[:-2] + tuple(target_shape))
 
 
-def shifted_probes(probe, bins):
+def shifted_probes(probe, bins, xp=np, scipy=scipy):
     '''
     Calculated subpixel-shifted versions of the probe
 
@@ -512,7 +512,7 @@ def shifted_probes(probe, bins):
         bins = (bins, bins)
     assert isinstance(bins, (list, tuple))
     assert len(bins) == 2
-    probes = np.zeros(bins + probe.shape, dtype=probe.dtype)
+    probes = xp.zeros(bins + probe.shape, dtype=probe.dtype)
     for y in range(bins[0]):
         for x in range(bins[1]):
             dy = y / bins[0]
@@ -522,7 +522,7 @@ def shifted_probes(probe, bins):
                 shift=(dy, dx),
             )
             probes[y, x] = real
-            if np.iscomplexobj(probe):
+            if xp.iscomplexobj(probe):
                 imag = scipy.ndimage.shift(
                     probe.imag,
                     shift=(dy, dx),
@@ -531,7 +531,40 @@ def shifted_probes(probe, bins):
     return probes
 
 
-@numba.njit(fastmath=True)
+def aggregate_shifted_probes(probes, xp=np, scipy=scipy):
+    '''
+    Aggregate subpixel-shifted versions of the probe, undoing the shift
+
+    Parameters
+    ----------
+    probes : numpy.ndarray
+        4D, shape (y_bins, x_bins) + probe.shape
+
+    Returns
+    -------
+    probe : numpy.ndarray
+        2D, shape probe.shape
+    '''
+    probe = xp.zeros(probes.shape[2:], dtype=probes.dtype)
+    for y in range(probes.shape[0]):
+        for x in range(probes.shape[1]):
+            dy = y / probes.shape[0]
+            dx = x / probes.shape[1]
+            real = scipy.ndimage.shift(
+                probes[y, x].real,
+                shift=(-dy, -dx),
+            )
+            probe += real
+            if xp.iscomplexobj(probe):
+                imag = scipy.ndimage.shift(
+                    probes[y, x].imag,
+                    shift=(-dy, -dx),
+                )
+                probe += 1j*imag
+    return probe
+
+
+@numba.njit(fastmath=True, nogil=True)
 def rolled_object_probe_product_cpu(obj, probe, shifts, result_out, ifftshift=False):
     '''
     Multiply object and shifted illumination
@@ -593,7 +626,7 @@ def rolled_object_probe_product_cpu(obj, probe, shifts, result_out, ifftshift=Fa
     return subpixel_indices
 
 
-@numba.njit(fastmath=True)
+@numba.njit(fastmath=True, nogil=True)
 def rolled_object_aggregation_cpu(obj_out, updates, shifts, fftshift=False):
     '''
     Aggregate shifted updates to an object function
@@ -664,6 +697,8 @@ def rolled_object_probe_product_cuda(obj, probe, shifts, result_out, ifftshift=F
     assert len(shifts) == result_out.shape[0]
     assert probe.shape[2:] == result_out.shape[1:]
     assert len(probe.shape) == 4
+    # Calculate subpixel indices here since calculating
+    # on the GPU is impractical
     y_subpixels, x_subpixels = probe.shape[:2]
     subpixel_indices = (
         shifts * cupy.array((y_subpixels, x_subpixels))
@@ -738,3 +773,240 @@ def rolled_object_aggregation_cuda(obj_out, updates, shifts, fftshift=False):
     f[
         (blockspergrid, updates.shape[1], updates.shape[2]), (32, 1, 1)
     ](obj_out, updates, shifts, fftshift)
+
+
+@numba.njit(fastmath=True, nogil=True)
+def subpixel_probe_aggregation_cpu(probe_out, updates, subpixel_indices, fftshift=False):
+    '''
+    Aggregate subpixel_shifted updates to a probe function
+
+    This function accumulates subpixel-shifted probe updates in separte bins
+    selected by code:`subpixel_indices`.
+    The subpixel aggregates can then be consolidated into a single probe update
+    by undoing the subpixel shifts. Since subpixel shifting is expensive, it is advantageous to
+    aggregate first.
+    Optionally, it can fftshift the updates while integrating. Doing this in one loop allows to
+    reduce the number of calls for each shift and reduces overall memory transfer.
+
+    Parameters
+    ----------
+
+    probe_out : numpy.ndarray
+        2D array with the object, modified in-place by this function
+    updates : numpy.ndarray
+        Array with updates, shape (n, ...)
+    subpixel_indices : numpy.ndarray
+        Array with subpixel indices, shape (n, 2), kind int
+    fftshift : bool
+        Read the updates fft-shifted from :code:`updates`
+    '''
+    assert len(subpixel_indices) == updates.shape[0]
+    assert updates.shape[1:] == probe_out.shape[2:]
+    assert np.min(subpixel_indices) >= 0
+    # See https://github.com/numba/numba/issues/1269
+    # assert np.all(np.amax(subpixel_indices, axis=0) < np.array(probe_out.shape[:2]))
+    for i in range(updates.shape[0]):
+        subpixel_y, subpixel_x = subpixel_indices[i]
+        # Do it here because of https://github.com/numba/numba/issues/1269
+        assert subpixel_y < probe_out.shape[0]
+        assert subpixel_x < probe_out.shape[1]
+        for y in range(updates.shape[1]):
+            for x in range(updates.shape[2]):
+                if fftshift:  # From target to source
+                    source_y = (y + (updates.shape[1] + 1) // 2) % updates.shape[1]
+                    source_x = (x + (updates.shape[2] + 1) // 2) % updates.shape[2]
+                else:
+                    source_y, source_x = y, x
+                probe_out[subpixel_y, subpixel_x, y, x] += updates[i, source_y, source_x]
+
+
+def _make_subpixel_probe_aggregation_cuda(add):
+    @numba.cuda.jit
+    def _subpixel_probe_aggregation_cuda(probe_out, updates, subpixel_indices, fftshift=False):
+        pass
+        i, y, x = numba.cuda.grid(3)
+        if i < updates.shape[0] and y < updates.shape[1] and x < updates.shape[2]:
+            subpixel_y, subpixel_x = subpixel_indices[i]
+            # Do it here because of https://github.com/numba/numba/issues/1269
+            assert subpixel_y < probe_out.shape[0]
+            assert subpixel_x < probe_out.shape[1]
+            if fftshift:  # From target to source
+                source_y = (y + (updates.shape[1] + 1) // 2) % updates.shape[1]
+                source_x = (x + (updates.shape[2] + 1) // 2) % updates.shape[2]
+            else:
+                source_y, source_x = y, x
+            add(probe_out, (subpixel_y, subpixel_x, y, x), updates[i, source_y, source_x])
+
+    return _subpixel_probe_aggregation_cuda
+
+
+_spa_complex = _make_subpixel_probe_aggregation_cuda(add_complex_complex)
+_spa_real = _make_subpixel_probe_aggregation_cuda(add_real_real)
+
+
+def subpixel_probe_aggregation_cuda(probe_out, updates, subpixel_indices, fftshift=False):
+    '''
+    Numba CUDA version of :meth:`subpixel_probe_aggregation_cpu`
+    '''
+    assert len(subpixel_indices) == updates.shape[0]
+    assert updates.shape[1:] == probe_out.shape[2:]
+    assert np.min(subpixel_indices) >= 0
+    assert probe_out.dtype.kind == updates.dtype.kind
+    # See https://github.com/numba/numba/issues/1269
+    # assert np.all(np.amax(subpixel_indices, axis=0) < np.array(probe_out.shape[:2]))
+    count = updates.shape[0]
+    threadsperblock = 32
+    blockspergrid = (count + (threadsperblock - 1)) // threadsperblock
+
+    if probe_out.dtype.kind == 'c':
+        f = _spa_complex
+    else:
+        f = _spa_real
+
+    f[
+        (blockspergrid, updates.shape[1], updates.shape[2]), (32, 1, 1)
+    ](probe_out, updates, subpixel_indices, fftshift)
+
+
+@numba.njit(fastmath=True, nogil=True)
+def rolled_object_probe_select_cpu(obj, probe, shifts, obj_out, probe_out, ifftshift=False):
+    '''
+    Select object and shifted illumination
+
+    This function combines several steps that are relevant for ptychographic reconstruction:
+
+    * Overlay an object function with a shifted illumination
+    * Roll the object function indices around the edges
+    * Optionally, perform an ifftshift to prepare the data for subsequent FFT
+
+    It leaves the multiplication from :meth:`rolled_object_probe_product_cpu` to the user
+    since some algorithms require both sides of the product to calculate the update function.
+
+    These steps are combined in a single loop since each requires significant memory
+    transfer if they are performed step-by-step. For performance reasons it doesn't perform a
+    free subpixel shift, but picks the best option from a set of pre-calculated shifted versions.
+
+    See :meth:`shifted_probes` for a function to calculate the shifted versions.
+
+    Parameters
+    ----------
+    obj : numpy.ndarray
+        2D array with the object
+    probe : numpy.ndarray
+        4D array with subpixel shifts of the probe, last two dimensions same size or
+        smaller than obj.
+    shifts : numpy.ndarray
+        Array with shift vectors, shape (n, 2), kind float
+    obj_out : numpy.ndarray
+        Array where the selection from obj is placed. Shape (n, ) + probe.shape
+    probe_out : numpy.ndarray
+        Array where the selection from probe is placed. Shape (n, ) + probe.shape
+    ifftshift : bool
+        place the product ifft-shifted into :code:`obj_out` and :code:`probe_out`
+
+    Returns
+    -------
+    subpixel_indices : np.ndarray
+        The first two indices for :code:`probe`
+    '''
+    obj_y, obj_x = obj.shape
+    assert len(shifts) == obj_out.shape[0]
+    assert len(shifts) == probe_out.shape[0]
+    assert probe.shape[2:] == obj_out.shape[1:]
+    assert probe.shape[2:] == probe_out.shape[1:]
+    assert len(probe.shape) == 4
+    y_subpixels, x_subpixels = probe.shape[:2]
+    int_shifts = shifts.astype(np.int32)
+    subpixel_indices = (
+        shifts * np.array((y_subpixels, x_subpixels))
+    ).astype(np.int32) % np.array((y_subpixels, x_subpixels))
+    for i in range(len(obj_out)):
+        for y in range(probe.shape[-2]):
+            for x in range(probe.shape[-1]):
+                source_y = (y + int_shifts[i, 0]) % obj_y
+                source_x = (x + int_shifts[i, 1]) % obj_x
+                y_subpixel = subpixel_indices[i, 0]
+                x_subpixel = subpixel_indices[i, 1]
+                if ifftshift:  # From source to target
+                    target_y = (y + (probe.shape[-2] + 1) // 2) % probe.shape[-2]
+                    target_x = (x + (probe.shape[-1] + 1) // 2) % probe.shape[-1]
+                else:
+                    target_y, target_x = y, x
+                obj_out[i, target_y, target_x] = obj[source_y, source_x]
+                probe_out[i, target_y, target_x] = probe[y_subpixel, x_subpixel, y, x]
+    return subpixel_indices
+
+
+@numba.cuda.jit
+def _rolled_object_probe_select_cuda(obj, probe, shifts, obj_out, probe_out, ifftshift):
+    obj_y, obj_x = obj.shape
+    y_subpixels, x_subpixels = probe.shape[:2]
+
+    i, y, x = numba.cuda.grid(3)
+
+    source_y = (y + int(shifts[i, 0])) % obj_y
+    source_x = (x + int(shifts[i, 1])) % obj_x
+
+    y_subpixel = int(shifts[i, 0] * y_subpixels) % y_subpixels
+    x_subpixel = int(shifts[i, 1] * x_subpixels) % x_subpixels
+
+    if i < obj_out.shape[0] and y < obj_out.shape[1] and x < obj_out.shape[2]:
+        if ifftshift:
+            target_y = (y + (probe.shape[-2] + 1) // 2) % probe.shape[-2]
+            target_x = (x + (probe.shape[-1] + 1) // 2) % probe.shape[-1]
+        else:
+            target_y, target_x = y, x
+        obj_out[i, target_y, target_x] = obj[source_y, source_x]
+        probe_out[i, target_y, target_x] = probe[y_subpixel, x_subpixel, y, x]
+
+
+def rolled_object_probe_select_cuda(obj, probe, shifts, obj_out, probe_out, ifftshift=False):
+    '''
+    Numba CUDA version of :meth:`rolled_object_probe_select_cpu`
+    '''
+    import cupy
+    count = obj_out.shape[0]
+    threadsperblock = 32
+    blockspergrid = (count + (threadsperblock - 1)) // threadsperblock
+    assert len(shifts) == obj_out.shape[0]
+    assert len(shifts) == probe_out.shape[0]
+    assert probe.shape[2:] == obj_out.shape[1:]
+    assert probe.shape[2:] == probe_out.shape[1:]
+    assert len(probe.shape) == 4
+    # Calculate subpixel indices here since calculating
+    # on the GPU is impractical
+    y_subpixels, x_subpixels = probe.shape[:2]
+    subpixel_indices = (
+        shifts * cupy.array((y_subpixels, x_subpixels))
+    ).astype(np.int32) % cupy.array((y_subpixels, x_subpixels))
+    _rolled_object_probe_select_cuda[
+        (blockspergrid, obj_out.shape[1], obj_out.shape[2]), (32, 1, 1)
+    ](obj, probe, shifts, obj_out, probe_out, ifftshift)
+    return subpixel_indices
+
+
+@numba.njit(fastmath=True, nogil=True)
+def trunc_divide_cpu(numerator, denominator, out, threshold=1e-6, fill=0):
+    assert numerator.shape == denominator.shape
+    assert numerator.shape == out.shape
+    assert len(numerator.shape) == 3
+    for i in range(numerator.shape[0]):
+        for y in range(numerator.shape[1]):
+            for x in range(numerator.shape[2]):
+                if np.abs(denominator[i, y, x]) <= threshold:
+                    out[i, y, x] = fill
+                else:
+                    out[i, y, x] = numerator[i, y, x] / denominator[i, y, x]
+
+
+def trunc_divide_cuda(numerator, denominator, out, threshold=1e-6, fill=0):
+    assert numerator.shape == denominator.shape
+    assert numerator.shape == out.shape
+    assert len(numerator.shape) == 3
+    import cupy
+    cupy.divide(
+        numerator,
+        denominator,
+        out=out,
+    )
+    out[cupy.abs(denominator) <= threshold] = fill
