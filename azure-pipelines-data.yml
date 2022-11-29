@@ -35,7 +35,7 @@ stages:
       - bash: ./venv/bin/tox
         displayName: 'Run tox tests'
 
-      - bash: ./scripts/codecov.sh -f ./coverage.xml
+      - bash: python ./scripts/codecov.py -f ./coverage.xml
         displayName: 'Submit coverage to codecov.io'
 
       - task: PublishTestResults@2
