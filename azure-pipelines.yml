@@ -162,7 +162,7 @@ stages:
       - bash: tox
         displayName: 'Run tox tests'
 
-      - bash: bash <(curl -s https://codecov.io/bash) -f coverage.xml
+      - bash: ./scripts/codecov.sh -f ./coverage.xml
         displayName: 'Submit coverage to codecov.io'
 
       - task: PublishTestResults@2
