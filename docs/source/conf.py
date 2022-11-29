@@ -107,6 +107,8 @@ pygments_style = 'sphinx'
 #
 html_theme = 'sphinx_rtd_theme'
 
+html_logo = '_static/logo.png'
+
 html_favicon = '../../corporatedesign/logo/favicon.ico'
 
 # Theme options are theme-specific and customize the look and feel of a theme
@@ -114,7 +116,6 @@ html_favicon = '../../corporatedesign/logo/favicon.ico'
 # documentation.
 #
 html_theme_options = {
-    'logo': 'logo.png'
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
