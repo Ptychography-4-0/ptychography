@@ -17,15 +17,15 @@ stages:
         vmImage: 'ubuntu-latest'
       strategy:
         matrix:
-          Python36:
-            python.version: '3.6'
-            TOXENV: 'py36'
-          Python37:
-            python.version: '3.7'
-            TOXENV: 'py37'
           Python38:
             python.version: '3.8'
             TOXENV: 'py38'
+          Python39:
+            python.version: '3.9'
+            TOXENV: 'py39'
+          Python310:
+            python.version: '3.10'
+            TOXENV: 'py310'
       variables:
         TOXENV: '$(TOXENV)'
       steps:
@@ -104,9 +104,9 @@ stages:
         TOXENV: '$(TOXENV)'
       steps:
       - task: UsePythonVersion@0
-        displayName: 'Use Python 3.8'
+        displayName: 'Use Python 3.10'
         inputs:
-          versionSpec: '3.8'
+          versionSpec: '3.10'
       - task: Cache@2
         inputs:
           key: 'python | "$(Agent.OS)" | test_requirements.txt'
@@ -130,12 +130,15 @@ stages:
           Python36:
             python.version: '3.6'
             TOXENV: 'py36'
-          Python37:
-            python.version: '3.7'
-            TOXENV: 'py37'
           Python38:
             python.version: '3.8'
             TOXENV: 'py38'
+          Python39:
+            python.version: '3.8'
+            TOXENV: 'py39'
+          Python310:
+            python.version: '3.10'
+            TOXENV: 'py310'
       variables:
         TOXENV: '$(TOXENV)'
       steps:
@@ -171,17 +174,17 @@ stages:
     - job: macos_tests
       strategy:
         matrix:
-          Python36:
-            python.version: '3.6'
-            TOXENV: 'py36'
-            imageName: 'macos-10.14'
-          Python37:
-            python.version: '3.7'
-            TOXENV: 'py37'
-            imageName: 'macos-latest'
           Python38:
             python.version: '3.8'
             TOXENV: 'py38'
+            imageName: 'macos-latest'
+          Python39:
+            python.version: '3.9'
+            TOXENV: 'py39'
+            imageName: 'macos-latest'
+          Python310:
+            python.version: '3.10'
+            TOXENV: 'py310'
             imageName: 'macos-latest'
       pool:
         vmImage: '$(imageName)'
@@ -224,9 +227,9 @@ stages:
         vmImage: 'ubuntu-latest'
       steps:
       - task: UsePythonVersion@0
-        displayName: 'Use Python 3.8'
+        displayName: 'Use Python 3.10'
         inputs:
-          versionSpec: '3.8'
+          versionSpec: '3.10'
       - bash: sudo apt install -y pandoc
         displayName: 'install required debian packages'
 
@@ -265,9 +268,9 @@ stages:
         vmImage: 'ubuntu-latest'
       steps:
       - task: UsePythonVersion@0
-        displayName: 'Use Python 3.8'
+        displayName: 'Use Python 3.10'
         inputs:
-          versionSpec: '3.8'
+          versionSpec: '3.10'
       - task: Cache@2
         inputs:
           key: 'python | "$(Agent.OS)" | test_requirements.txt'
