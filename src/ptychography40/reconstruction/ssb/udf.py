@@ -512,13 +512,16 @@ def _get_binner(constructor, y_binner, x_binner):
 class BinnedSSB_UDF(SSB_Base):
     '''
     Variant of the :class:`SSB_UDF` that crops and bins the data
-    before applying the trotters. TODO insert reference for this.
+    before applying the trotters. See also :cite: `Yang2015a`.
 
     Different from :class:`SSB_UDF`, this UDF accepts the trotters directly as
     :class:`scipy.sparse.csr_matrix` since no mask container is used.
 
     It benefits greatly from the improvements in LiberTEM 0.9 that allow
     efficient sharing of large parameters.
+
+    :func:`crop_bin_params` can calculate the parameters for the trotters and the
+    :code:`y_binner, x_binner` parameters.
 
     Parameters
     ----------
@@ -529,6 +532,41 @@ class BinnedSSB_UDF(SSB_Base):
         modified by :func:`crop_bin_params` and converted to CSR.
     dtype
         dtype for the calculation
+
+    Examples
+    --------
+
+    >>> from libertem.corrections.coordinates import flip_y, rotate_deg
+    >>> rec_params = {
+    ...     "dtype": np.float32,
+    ...     "lamb": 2e-12,
+    ...     "dpix": 12.7e-12,
+    ...     "semiconv": 22.1346e-3,
+    ...     "semiconv_pix": 31,
+    ...     "transformation": rotate_deg(88) @ flip_y(),
+    ...     "cx": 123,
+    ...     "cy": 126,
+    ...     "cutoff": 16,
+    ... }
+    >>> mask_params = {
+    ...     'reconstruct_shape': (128, 128),
+    ...     'mask_shape': (256, 256),
+    ...     'method': 'shift',
+    ... }
+    >>> binned_rec_params, binned_mask_params, y_binner, x_binner = crop_bin_params(
+    ...     rec_params=rec_params,
+    ...     mask_params=mask_params,
+    ...     binning_factor=5,
+    ... )
+    >>> binned_trotters = generate_masks(**binned_rec_params, **binned_mask_params)
+    >>> flat_shape = (binned_trotters.shape[0], np.prod(binned_trotters.shape[1:]))
+    >>> csr_trotters = binned_trotters.reshape(flat_shape).tocsr()
+    >>> binned_ssb_udf = BinnedSSB_UDF(
+    ...     y_binner=y_binner,
+    ...     x_binner=x_binner,
+    ...     csr_trotters=csr_trotters,
+    ... )
+
     '''
     def __init__(self, y_binner, x_binner, csr_trotters: scipy.sparse.csr_matrix, dtype=np.float32):
         # make sure the cropped and binned region has a size divisible by two

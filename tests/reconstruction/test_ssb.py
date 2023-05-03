@@ -363,6 +363,66 @@ def test_ssb_rotate(n_threads):
 
 
 @pytest.mark.parametrize(
+    'bin_factor', (1, 3)
+)
+@pytest.mark.parametrize(
+    'backend', ('numpy', 'cupy')
+)
+def test_ssb_bin(lt_ctx, bin_factor, backend):
+    if backend == 'cupy':
+        d = detect()
+        if not d['cudas'] or not d['has_cupy']:
+            pytest.skip("No CUDA device or no CuPy, skipping CuPy test")
+    try:
+        if backend == 'cupy':
+            set_use_cuda(d['cudas'])
+        det = 45
+        cy = det // 2
+        cx = det // 2
+        shape = (29, 30, det, det)
+        rec_params = {
+            "dtype": np.float32,
+            "lamb": 2e-12,
+            "dpix": 12.7e-12,
+            "semiconv": 22.1346e-3,
+            "semiconv_pix": 31,
+            "transformation": rotate_deg(-90.),
+            "cx": cx,
+            "cy": cy,
+        }
+        mask_params = {
+            'reconstruct_shape': shape[:2],
+            'mask_shape': shape[2:],
+            'method': 'shift',
+        }
+
+        input_data = (
+            np.random.uniform(0, 1, np.prod(shape))
+            * np.linspace(1.0, 1000.0, num=np.prod(shape))
+        )
+        input_data = input_data.astype(np.float64).reshape(shape)
+
+        data_90deg = np.zeros_like(input_data)
+
+        # Rotate 90 degrees clockwise
+        for y in range(det):
+            for x in range(det):
+                data_90deg[:, :, x, det-1-y] = input_data[:, :, y, x]
+
+        dataset = MemoryDataSet(
+            data=data_90deg, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
+        )
+
+        result = lt_ctx.run_udf(udf=udf, dataset=dataset)
+
+        result_f, _ = reference_ssb(input_data, U=U, dpix=rec_params['dpix'], semiconv=semiconv,
+                                semiconv_pix=semiconv_pix, cy=cy, cx=cx)
+
+        assert np.allclose(result['fourier'].data, result_f)
+    finally:
+        set_use_cpu(0)
+
+@pytest.mark.parametrize(
     'n_threads', (2, 6)
 )
 def test_ssb_roi(n_threads):
