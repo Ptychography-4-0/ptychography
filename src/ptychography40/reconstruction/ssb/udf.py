@@ -3,6 +3,7 @@ import functools
 import numpy as np
 import numba
 import scipy.sparse
+import sparseconverter
 
 from libertem.udf import UDF
 from libertem.common.container import MaskContainer
@@ -260,9 +261,9 @@ class SSB_UDF(SSB_Base):
         ''
         result = super().get_task_data()
 
-        if self.meta.device_class == 'cpu':
+        if self.meta.array_backend in sparseconverter.CPU_BACKENDS:
             backend = 'numpy'
-        elif self.meta.device_class == 'cuda':
+        elif self.meta.array_backend in sparseconverter.CUDA_BACKENDS:
             backend = 'cupy'
         else:
             raise ValueError("Unknown device class")
@@ -311,8 +312,15 @@ class SSB_UDF(SSB_Base):
     def process_tile(self, tile):
         ''
         # We flatten the signal dimension of the tile in preparation of the dot product
-        tile_flat = tile.reshape(tile.shape[0], -1)
-        if self.task_data.backend == 'cupy':
+        tile_flat = tile.reshape((tile.shape[0], -1))
+        # We calculate only half of the Fourier transform due to the
+        # inherent symmetry of the mask stack. In this case we
+        # cut the y axis in half. The "+ 1" accounts for odd sizes
+        # The mask stack is already trimmed in y direction to only contain
+        # one of the trotter pairs
+        half_y = self.results.fourier.shape[0] // 2 + 1
+        tpw = self.meta.threads_per_worker
+        if self.meta.array_backend == self.BACKEND_CUPY:
             # Load the preconditioned trotter stack from the mask container:
             # * Coutout for current tile
             # * Flattened signal dimension
@@ -329,61 +337,75 @@ class SSB_UDF(SSB_Base):
             # As of now, cupy doesn't seem to support __rmatmul__ with sparse matrices
             dot_result = masks.dot(tile_flat.T).T
             self.merge_dot_result(dot_result)
-        else:
-            # We calculate only half of the Fourier transform due to the
-            # inherent symmetry of the mask stack. In this case we
-            # cut the y axis in half. The "+ 1" accounts for odd sizes
-            # The mask stack is already trimmed in y direction to only contain
-            # one of the trotter pairs
-            half_y = self.results.fourier.shape[0] // 2 + 1
-            tpw = self.meta.threads_per_worker
-            if (tpw is None) or (tpw >= self.EFFICIENT_THREADS):
-                # Load the preconditioned trotter stack from the mask container:
-                # * Coutout for current tile
-                # * Flattened signal dimension
-                # * Transposed for right hand side of dot product
-                #   (rmatmul_csc_fourier() takes care of putting things where they belong
-                #    in the result)
-                # * Clean CSC matrix
-                # * On correct device (CPU)
-                masks = self.task_data.masks.get(
-                    self.meta.slice, transpose=True, backend=self.task_data.backend,
-                    sparse_backend='scipy.sparse.csc'
-                )
-                # Skip an empty tile since the contribution is 0
-                if masks.nnz == 0:
-                    return
+        elif ((tpw is None) or (tpw >= self.EFFICIENT_THREADS)
+                and self.meta.array_backend == self.BACKEND_NUMPY):
+            # Load the preconditioned trotter stack from the mask container:
+            # * Coutout for current tile
+            # * Flattened signal dimension
+            # * Transposed for right hand side of dot product
+            #   (rmatmul_csc_fourier() takes care of putting things where they belong
+            #    in the result)
+            # * Clean CSC matrix
+            # * On correct device (CPU)
+            masks = self.task_data.masks.get(
+                self.meta.slice, transpose=True, backend=self.task_data.backend,
+                sparse_backend='scipy.sparse.csc'
+            )
+            # Skip an empty tile since the contribution is 0
+            if masks.nnz == 0:
+                return
 
-                # This combines the trotter integration with merge_dot_result
-                # into a Numba loop that eliminates a potentially large intermediate result
-                # and allows efficient multithreading on a large tile
-                rmatmul_csc_fourier(
-                    n_threads=self.meta.threads_per_worker,
-                    left_dense=tile_flat,
-                    right_data=masks.data,
-                    right_indices=masks.indices,
-                    right_indptr=masks.indptr,
-                    coordinates=self.meta.coordinates,
-                    row_exp=self.task_data.row_exp,
-                    col_exp=self.task_data.col_exp,
-                    res_inout=self.results.fourier[:half_y]
-                )
-            else:
-                masks = self.task_data.masks.get(
-                    self.meta.slice, transpose=False, backend=self.task_data.backend,
-                    sparse_backend='scipy.sparse.csr'
-                )
-                # Skip an empty tile since the contribution is 0
-                if masks.nnz == 0:
-                    return
-                # This performs the trotter integration
-                # Transposed copy of the input data for fast scipy.sparse __matmul__()
-                dot_result = masks.dot(tile_flat.T.copy()).T
-                self.merge_dot_result(dot_result)
+            # This combines the trotter integration with merge_dot_result
+            # into a Numba loop that eliminates a potentially large intermediate result
+            # and allows efficient multithreading on a large tile
+            rmatmul_csc_fourier(
+                n_threads=self.meta.threads_per_worker,
+                left_dense=tile_flat,
+                right_data=masks.data,
+                right_indices=masks.indices,
+                right_indptr=masks.indptr,
+                coordinates=self.meta.coordinates,
+                row_exp=self.task_data.row_exp,
+                col_exp=self.task_data.col_exp,
+                res_inout=self.results.fourier[:half_y]
+            )
+        elif self.meta.array_backend == self.BACKEND_NUMPY:
+            masks = self.task_data.masks.get(
+                self.meta.slice, transpose=False, backend=self.task_data.backend,
+                sparse_backend='scipy.sparse.csr'
+            )
+            # Skip an empty tile since the contribution is 0
+            if masks.nnz == 0:
+                return
+            # This performs the trotter integration
+            # Transposed copy of the input data for fast scipy.sparse __matmul__()
+            dot_result = masks.dot(tile_flat.T.copy()).T
+            self.merge_dot_result(dot_result)
+        elif self.meta.array_backend in (self.BACKEND_SCIPY_CSR, self.BACKEND_CUPY_SCIPY_CSR):
+            masks = self.task_data.masks.get(
+                self.meta.slice, transpose=True, backend=self.task_data.backend,
+                sparse_backend='scipy.sparse.csr'
+            )
+            # Skip an empty tile since the contribution is 0
+            if masks.nnz == 0:
+                return
+            dot_result = tile_flat.dot(masks)
+            dot_result = sparseconverter.for_backend(
+                dot_result,
+                sparseconverter.get_backend(self.results.fourier)
+            )
+            self.merge_dot_result(dot_result)
+        else:
+            raise RuntimeError(f"Didn't find implementation for backend {self.meta.array_backend}")
 
     def get_backends(self):
         ''
-        return ('numpy', 'cupy')
+        return (
+            self.BACKEND_CUPY,
+            self.BACKEND_CUPY_SCIPY_CSR,
+            self.BACKEND_SCIPY_CSR,
+            self.BACKEND_NUMPY
+        )
 
     def get_tiling_preferences(self):
         ''
@@ -582,11 +604,13 @@ class BinnedSSB_UDF(SSB_Base):
     def get_task_data(self):
         result = super().get_task_data()
         result['binner'] = _get_binner(self.xp.array, self.params.y_binner, self.params.x_binner)
-        if self.meta.device_class == 'cpu':
+        if self.meta.array_backend in sparseconverter.CPU_BACKENDS:
             result['trotters'] = self.params.csr_trotters
-        elif self.meta.device_class == 'cuda':
+        elif self.meta.array_backend in sparseconverter.CUDA_BACKENDS:
             import cupy.sparse
             result['trotters'] = cupy.sparse.csr_matrix(self.params.csr_trotters)
+        else:
+            raise RuntimeError("Should not happen")
         return result
 
     def process_partition(self, tile):
@@ -626,4 +650,4 @@ class BinnedSSB_UDF(SSB_Base):
 
     def get_backends(self):
         ''
-        return ('numpy', 'cupy')
+        return (self.BACKEND_CUPY, self.BACKEND_SPARSE_GCXS, self.BACKEND_NUMPY)
