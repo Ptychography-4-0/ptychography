@@ -108,6 +108,47 @@ def test_mask_tile_pair_within():
     assert np.allclose(trimmed_pair[3], reference_pair[3][1:11, 2:15])
 
 
+@pytest.mark.with_numba
+def test_ssb_small():
+    """
+    A small SSB reconstruction to run with numba disabled
+    """
+    dpix = 0.5654/50*1e-9
+    n_threads = 6  # to run into the "efficient threading" case
+    lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=n_threads))
+    dtype = np.float64
+
+    scaling = 16
+    shape = (12, 7, 189 // scaling, 197 // scaling)
+
+    # The acceleration voltage U in keV
+    U = 300
+    lamb = wavelength(U)
+
+    # STEM semiconvergence angle in radians
+    semiconv = 25e-3
+    # Diameter of the primary beam in the diffraction pattern in pixels
+    semiconv_pix = 78.6649 / scaling
+
+    cy = 93 // scaling
+    cx = 97 // scaling
+
+    input_data = (
+        np.random.uniform(0, 1, np.prod(shape))
+        * np.linspace(1.0, 1000.0, num=np.prod(shape))
+    )
+    input_data = input_data.astype(np.float64).reshape(shape)
+
+    udf = SSB_UDF(lamb=lamb, dpix=dpix, semiconv=semiconv, semiconv_pix=semiconv_pix,
+                dtype=dtype, cy=cy, cx=cx, method='subpix')
+
+    dataset = MemoryDataSet(
+        data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
+    )
+
+    _ = lt_ctx.run_udf(udf=udf, dataset=dataset)
+
+
 @pytest.mark.parametrize(
     # dpix: STEM pixel size in m, here 50 STEM pixels on 0.5654 nm
     # Second one tests for different y and x dpix
