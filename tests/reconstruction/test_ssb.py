@@ -76,6 +76,7 @@ if has_real:
         )
 
 
+@pytest.mark.with_numba
 def test_mask_tile_pair_within():
     shape = (13, 17)
     filter_center = circular(
