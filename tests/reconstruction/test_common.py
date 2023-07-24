@@ -34,6 +34,7 @@ def test_wavelength(dtype, atol):
     assert np.allclose(wavelength_result_ssb,  wavelength_expected, atol=atol)
 
 
+@pytest.mark.with_numba
 def test_get_shifted_base():
     data = np.random.random((6, 7))
     tile_origin = np.array((0, 0))
@@ -270,6 +271,7 @@ def test_bounding_box_single():
     assert x_max == 5
 
 
+@pytest.mark.with_numba
 def test_transformation_identity():
     data_shape = np.random.randint(1, 77, 3, dtype=int)
     data = np.random.random(data_shape)
@@ -641,6 +643,7 @@ def test_shifted_probe():
                 )
 
 
+@pytest.mark.with_numba
 @pytest.mark.parametrize(
     'ifftshift', (False, True)
 )
@@ -676,6 +679,7 @@ def test_rolled_object_probe_product_cpu(ifftshift):
         assert np.all(subpixel_indices[i] == (subpixel_y, subpixel_x))
 
 
+@pytest.mark.with_numba
 @pytest.mark.parametrize(
     'fftshift', (False, True)
 )
