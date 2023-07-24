@@ -9,16 +9,16 @@ from urllib.request import urlretrieve
 s = platform.system()
 
 if s == "Linux":
-    url = 'https://uploader.codecov.io/v0.1.17/linux/codecov'
-    sha = 'ca88335829e3a5b589674a200fdd1dae8f2ef27775647bc3aef6677266a6fda2'
+    url = 'https://uploader.codecov.io/v0.6.1/linux/codecov'
+    sha = '0c9b79119b0d8dbe7aaf460dc3bd7c3094ceda06e5ae32b0d11a8ff56e2cc5c5'
     fname = './codecov'
 elif s == 'Darwin':
-    url = 'https://uploader.codecov.io/v0.3.2/macos/codecov'
-    sha = 'ccc032e70958ea3eca9bd15c7fdad5bbacc279c3bab22f227417573356569666'
+    url = 'https://uploader.codecov.io/v0.6.1/macos/codecov'
+    sha = '62ba56f0f0d62b28e955fcfd4a3524c7c327fcf8f5fcb5124cccf88db358282e'
     fname = './codecov'
 elif s == 'Windows':
-    url = 'https://uploader.codecov.io/v0.3.2/windows/codecov.exe'
-    sha = '9dce1ac2d35f550d96d46f8a1116b4f03740d61ca4508bfccdbf1ea1dfeabe4d'
+    url = 'https://uploader.codecov.io/v0.6.1/windows/codecov.exe'
+    sha = '6b95584fbb252b721b73ddfe970d715628879543d119f1d2ed08b073155f7d06'
     fname = 'codecov.exe'
 else:
     print(f"unknown system: {s}")
