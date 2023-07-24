@@ -102,7 +102,7 @@ def mask_tile_pair(center_tile, tile_origin, tile_shape, filter_center, sy, sx):
     offsets_n : numpy.ndarray
         Offsets per axis that were used for shifting the negative trotter tile.
     '''
-    sy, sx, = np.int(np.round(sy)), np.int(np.round(sx))
+    sy, sx, = int(np.round(sy)), int(np.round(sx))
     positive_tile = np.zeros_like(center_tile)
     negative_tile = np.zeros_like(center_tile)
     # We get from negative coordinates,

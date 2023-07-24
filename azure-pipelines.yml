@@ -58,40 +58,40 @@ stages:
           testResultsFiles: 'junit.xml'
           testRunTitle: 'Publish test results for Python $(python.version)'
 
-# - job: numba_coverage
-#   pool:
-#     vmImage: 'ubuntu-latest'
-#   variables:
-#     TOXENV: 'numba_coverage'
-#   steps:
-#   - task: UsePythonVersion@0
-#     displayName: 'Use Python $(python.version)'
-#     inputs:
-#       versionSpec: '3.8'
+    - job: numba_coverage
+      pool:
+        vmImage: 'ubuntu-latest'
+      variables:
+        TOXENV: 'numba_coverage'
+      steps:
+      - task: UsePythonVersion@0
+        displayName: 'Use Python $(python.version)'
+        inputs:
+          versionSpec: '3.10'
 
-#   - task: Cache@2
-#     inputs:
-#       key: 'python | "$(Agent.OS)" | test_requirements.txt'
-#       restoreKeys: |
-#         python | "$(Agent.OS)"
-#         python
-#       path: $(PIP_CACHE_DIR)
-#     displayName: 'cache pip packages'
+      - task: Cache@2
+        inputs:
+          key: 'python | "$(Agent.OS)" | test_requirements.txt'
+          restoreKeys: |
+            python | "$(Agent.OS)"
+            python
+          path: $(PIP_CACHE_DIR)
+        displayName: 'cache pip packages'
 
-#   - bash: pip install -U tox
-#     displayName: 'install requirements'
+      - bash: pip install -U tox
+        displayName: 'install requirements'
 
-#   - bash: tox
-#     displayName: 'Run tox tests'
+      - bash: tox
+        displayName: 'Run tox tests'
 
-#   - bash: bash <(curl -s https://codecov.io/bash) -f coverage.xml
-#     displayName: 'Submit coverage to codecov.io'
+      - bash: python ./scripts/codecov.py -f ./coverage.xml
+        displayName: 'Submit coverage to codecov.io'
 
-#   - task: PublishTestResults@2
-#     condition: succeededOrFailed()
-#     inputs:
-#       testResultsFiles: 'junit.xml'
-#       testRunTitle: 'Publish test results for Python $(python.version)'
+      - task: PublishTestResults@2
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFiles: 'junit.xml'
+          testRunTitle: 'Publish test results for Python $(python.version)'
 
     - job: lint
       pool:
@@ -127,9 +127,6 @@ stages:
         vmImage: 'windows-latest'
       strategy:
         matrix:
-          Python36:
-            python.version: '3.6'
-            TOXENV: 'py36'
           Python38:
             python.version: '3.8'
             TOXENV: 'py38'
