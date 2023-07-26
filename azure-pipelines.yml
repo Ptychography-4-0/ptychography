@@ -26,6 +26,9 @@ stages:
           Python310:
             python.version: '3.10'
             TOXENV: 'py310'
+          Python311:
+            python.version: '3.11'
+            TOXENV: 'py311'
       variables:
         TOXENV: '$(TOXENV)'
       steps:
@@ -67,7 +70,7 @@ stages:
       - task: UsePythonVersion@0
         displayName: 'Use Python $(python.version)'
         inputs:
-          versionSpec: '3.10'
+          versionSpec: '3.11'
 
       - task: Cache@2
         inputs:
@@ -104,9 +107,9 @@ stages:
         TOXENV: '$(TOXENV)'
       steps:
       - task: UsePythonVersion@0
-        displayName: 'Use Python 3.10'
+        displayName: 'Use Python 3.11'
         inputs:
-          versionSpec: '3.10'
+          versionSpec: '3.11'
       - task: Cache@2
         inputs:
           key: 'python | "$(Agent.OS)" | test_requirements.txt'
@@ -136,6 +139,9 @@ stages:
           Python310:
             python.version: '3.10'
             TOXENV: 'py310'
+          Python311:
+            python.version: '3.11'
+            TOXENV: 'py311'
       variables:
         TOXENV: '$(TOXENV)'
       steps:
@@ -183,6 +189,10 @@ stages:
             python.version: '3.10'
             TOXENV: 'py310'
             imageName: 'macos-latest'
+          Python311:
+            python.version: '3.11'
+            TOXENV: 'py311'
+            imageName: 'macos-latest'
       pool:
         vmImage: '$(imageName)'
       variables:
@@ -224,9 +234,9 @@ stages:
         vmImage: 'ubuntu-latest'
       steps:
       - task: UsePythonVersion@0
-        displayName: 'Use Python 3.10'
+        displayName: 'Use Python 3.11'
         inputs:
-          versionSpec: '3.10'
+          versionSpec: '3.11'
       - bash: sudo apt install -y pandoc
         displayName: 'install required debian packages'
 
@@ -265,9 +275,9 @@ stages:
         vmImage: 'ubuntu-latest'
       steps:
       - task: UsePythonVersion@0
-        displayName: 'Use Python 3.10'
+        displayName: 'Use Python 3.11'
         inputs:
-          versionSpec: '3.10'
+          versionSpec: '3.11'
       - task: Cache@2
         inputs:
           key: 'python | "$(Agent.OS)" | test_requirements.txt'
