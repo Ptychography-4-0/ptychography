@@ -1,14 +1,16 @@
 import numpy as np
 import pytest
 import typing
-from libertem.corrections.coordinates import identity
+from libertem.corrections.coordinates import identity, rotate_deg
 from libertem.io.dataset.memory import MemoryDataSet
 from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.common import Shape
-from ptychography40.reconstruction.wdd.params_recon import f2d_matrix_replacement
+from ptychography40.reconstruction.wdd.params_recon import (
+    f2d_matrix_replacement)
 from ptychography40.reconstruction.wdd.dim_reduct import compress, decompress
-from ptychography40.reconstruction.wdd.wdd_udf import WDDUDF, wdd_per_frame_combined
+from ptychography40.reconstruction.wdd.wdd_udf import (
+    WDDUDF, wdd_per_frame_combined)
 from ptychography40.reconstruction.wdd.params_recon import wdd_params_recon
 from ptychography40.reconstruction.wdd.wiener_filter import probe_initial
 from ptychography40.reconstruction.common import wavelength
@@ -149,7 +151,8 @@ def wdd_reference(ds_shape: Shape,
     scan_dim = np.array(ds_shape.nav)
     # First step in WDD, to apply Fourier transform in the scanning position
     # by changin the scan position
-    # Apply Fourier transform to scan position in order to get spatial frequency
+    # Apply Fourier transform to scan position in order to get
+    # spatial frequency
     idp_fft = np.fft.fft2(idp, axes=(0, 1))
 
     # Physical parameters
@@ -220,10 +223,14 @@ def wdd_reference(ds_shape: Shape,
     return real_cut.conj().astype(complex_dtype)
 
 
+@pytest.mark.parametrize(
+     'complex_dtype, rtol, atol', [
+         (np.complex64, 1e-6, 1e-6),
+         (np.complex128, 1e-8, 1e-8)]
+)
 @pytest.mark.with_numba
-def test_wdd_no_rot():
+def test_wdd_no_rot(complex_dtype, rtol, atol):
     lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=6))
-    complex_dtype = np.complex128
     scaling = 4
     shape = (16, 16, 189 // scaling, 197 // scaling)
     dpix = 0.5654/50*1e-9
@@ -248,7 +255,8 @@ def test_wdd_no_rot():
     input_data = input_data.astype(np.float64).reshape(shape)
 
     ds = MemoryDataSet(
-        data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
+        data=input_data, tileshape=(20, shape[2],
+                                    shape[3]), num_partitions=2, sig_dims=2,
     )
     # Parameter reconstruction
     params = {'com': com,
@@ -268,10 +276,11 @@ def test_wdd_no_rot():
     com_decom_input_data = np.zeros_like(input_data)
     for row in range(input_data.shape[0]):
         for col in range(input_data.shape[1]):
-            com_decom_input_data[row, col] = decompress(compress(input_data[row, col],
-                                                                 recon_parameters.coeff),
-                                                        recon_parameters.coeff
-                                                        )
+            com_decom_input_data[row, col] = decompress(
+                compress(input_data[row, col],
+                         recon_parameters.coeff),
+                recon_parameters.coeff)
+
     # Create context
     live_wdd = lt_ctx.run_udf(dataset=ds,
                               roi=None,
@@ -286,13 +295,19 @@ def test_wdd_no_rot():
                                params,
                                complex_dtype
                                )
-    assert np.allclose(np.angle(result_ref), np.angle(live_wdd_recon.data))
+    assert np.allclose(np.angle(result_ref),
+                       np.angle(live_wdd_recon.data),
+                       rtol, atol)
 
 
+@pytest.mark.parametrize(
+     'complex_dtype, rtol, atol', [
+        (np.complex64, 1e-6, 1e-6),
+        (np.complex128, 1e-8, 1e-8)]
+)
 @pytest.mark.with_numba
-def test_wdd_udf():
+def test_wdd_udf(complex_dtype, rtol, atol):
     lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=6))
-    complex_dtype = np.complex128
     scaling = 4
     shape = (16, 16, 189 // scaling, 197 // scaling)
     dpix = 0.5654/50*1e-9
@@ -317,7 +332,8 @@ def test_wdd_udf():
     input_data = input_data.astype(np.float64).reshape(shape)
 
     ds = MemoryDataSet(
-        data=input_data, tileshape=(20, shape[2], shape[3]), num_partitions=2, sig_dims=2,
+        data=input_data, tileshape=(20, shape[2], shape[3]),
+        num_partitions=2, sig_dims=2,
     )
     # Parameter reconstruction
     params = {'com': com,
@@ -343,11 +359,132 @@ def test_wdd_udf():
 
     live_wdd_recon = live_wdd['reconstructed']
     # Reference
-    result_ref = wdd_per_frame_combined(input_data,
-                                        recon_parameters.coeff,
-                                        recon_parameters.wiener_filter_compressed,
-                                        recon_parameters.wiener_roi,
-                                        recon_parameters.row_exp,
-                                        recon_parameters.col_exp,
-                                        complex_dtype,)
+    result_ref = wdd_per_frame_combined(
+        input_data,
+        recon_parameters.coeff,
+        recon_parameters.wiener_filter_compressed,
+        recon_parameters.wiener_roi,
+        recon_parameters.row_exp,
+        recon_parameters.col_exp,
+        complex_dtype,)
+    assert np.allclose(np.angle(result_ref),
+                       np.angle(live_wdd_recon.data), rtol, atol)
+
+
+def test_wdd_rotate():
+    complex_dtype = np.complex128
+    lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=6))
+    scaling = 4
+    det = 45
+    shape = (29, 30, det, det)
+
+    # The acceleration voltage U in keV
+    U = 300
+    lamb = wavelength(U)
+    # STEM pixel size in m, here 50 STEM pixels on 0.5654 nm
+    dpix = 0.5654/50*1e-9
+    # STEM semiconvergence angle in radians
+    semiconv = 25e-3
+    # Diameter of the primary beam in the diffraction pattern in pixels
+    semiconv_pix = 78.6649 / scaling
+    # Center of Mass
+    cy = det // 2
+    cx = det // 2
+    com = (cy, cx)
+
+    # Input data
+    input_data = (
+        np.random.uniform(0, 1, np.prod(shape))
+        * np.linspace(1.0, 1000.0, num=np.prod(shape))
+    )
+    input_data = input_data.astype(np.float64).reshape(shape)
+
+    # Rotate 90 degrees clockwise
+    data_90deg = np.zeros_like(input_data)
+    for y in range(det):
+        for x in range(det):
+            data_90deg[:, :, x, det-1-y] = input_data[:, :, y, x]
+
+    # Parameters WDD
+    params = {'com': com,
+              'dpix': dpix,
+              'lamb': lamb,
+              'semiconv_pix': semiconv_pix,
+              'semiconv': semiconv,
+              'transformation': rotate_deg(-90.),
+              'epsilon': 100
+              }
+
+    ds = MemoryDataSet(
+        data=data_90deg, tileshape=(20, shape[2], shape[3]),
+        num_partitions=2, sig_dims=2,
+    )
+
+    recon_parameters = wdd_params_recon(ds_shape=ds.shape,
+                                        params=params,
+                                        complex_dtype=complex_dtype,
+                                        )
+    # Create context
+    live_wdd = lt_ctx.run_udf(
+                            dataset=ds,
+                            roi=None,
+                            udf=WDDUDF(recon_parameters,
+                                       complex_dtype),
+                            )
+
+    live_wdd_recon = live_wdd['reconstructed']
+
+    # Compress decompress data for reference wd
+    com_decom_input_data = np.zeros_like(input_data)
+    for row in range(input_data.shape[0]):
+        for col in range(input_data.shape[1]):
+            com_decom_input_data[row, col] = decompress(
+                compress(input_data[row, col],
+                         recon_parameters.coeff),
+                recon_parameters.coeff)
+    # Reference
+    params_ref = {'com': com,
+                  'dpix': dpix,
+                  'lamb': lamb,
+                  'semiconv_pix': semiconv_pix,
+                  'semiconv': semiconv,
+                  'transformation': identity(),
+                  'epsilon': 100
+                  }
+    result_ref = wdd_reference(ds.shape,
+                               com_decom_input_data,
+                               params_ref,
+                               complex_dtype
+                               )
+
     assert np.allclose(np.angle(result_ref), np.angle(live_wdd_recon.data))
+
+
+def test_match_dtype():
+    with pytest.raises(RuntimeError) as excinfo:
+        def wdd_dtype(complex_dtype):
+
+            scaling = 4
+            shape = (29, 30, 189 // scaling, 197 // scaling)
+
+            cy = 93 // scaling
+            cx = 97 // scaling
+
+            # Parameter reconstruction
+            params = {'com': (cy, cx),
+                      'dpix': 0.5654/50*1e-9,
+                      'lamb': wavelength(300),
+                      'semiconv_pix': 78.6649 / scaling,
+                      'semiconv': 25e-3,
+                      'transformation': identity(),
+                      'epsilon': 100}
+
+            recon_parameters = wdd_params_recon(ds_shape=shape,
+                                                params=params,
+                                                complex_dtype=complex_dtype,
+                                                )
+            return recon_parameters
+        complex_dtype = np.complex256
+        wdd_dtype(complex_dtype)
+
+    assert f"unknown complex dtype: {complex_dtype}" in str(excinfo.value)
