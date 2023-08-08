@@ -484,7 +484,7 @@ def test_match_dtype():
                                                 complex_dtype=complex_dtype,
                                                 )
             return recon_parameters
-        complex_dtype = np.complex256
+        complex_dtype = np.float32
         wdd_dtype(complex_dtype)
 
     assert f"unknown complex dtype: {complex_dtype}" in str(excinfo.value)
