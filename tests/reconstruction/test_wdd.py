@@ -8,11 +8,13 @@ from libertem.executor.inline import InlineJobExecutor
 from libertem.common import Shape
 from ptychography40.reconstruction.wdd.params_recon import (
     f2d_matrix_replacement)
-from ptychography40.reconstruction.wdd.dim_reduct import compress, decompress
+from ptychography40.reconstruction.wdd.dim_reduct import (
+    compress, decompress, get_sampled_basis)
 from ptychography40.reconstruction.wdd.wdd_udf import (
     WDDUDF, wdd_per_frame_combined)
 from ptychography40.reconstruction.wdd.params_recon import wdd_params_recon
-from ptychography40.reconstruction.wdd.wiener_filter import probe_initial
+from ptychography40.reconstruction.wdd.wiener_filter import (
+    probe_initial, pre_computed_Wiener)
 from ptychography40.reconstruction.common import wavelength
 if typing.TYPE_CHECKING:
     import numpy.typing as nt
@@ -460,7 +462,47 @@ def test_wdd_rotate():
     assert np.allclose(np.angle(result_ref), np.angle(live_wdd_recon.data))
 
 
-def test_match_dtype():
+def wiener_dtype(complex_dtype):
+    scaling = 4
+    shape = (29, 30, 189 // scaling, 197 // scaling)
+
+    cy = 93 // scaling
+    cx = 97 // scaling
+
+    # Parameter reconstruction
+    params = {'com': (cy, cx),
+              'dpix': 0.5654/50*1e-9,
+              'lamb': wavelength(300),
+              'semiconv_pix': 78.6649 / scaling,
+              'semiconv': 25e-3,
+              'epsilon': 100}
+
+    coeff = get_sampled_basis(order=16,
+                              sig_shape=shape,
+                              com=params['com'],
+                              scale=5,
+                              semiconv_pix=params['semiconv_pix'],
+                              float_dtype=np.float32)
+
+    wiener_filter_compressed, wiener_roi = pre_computed_Wiener(
+                                shape,
+                                order=16,
+                                params=params,
+                                coeff=coeff,
+                                epsilon=params['epsilon'],
+                                complex_dtype=complex_dtype,
+                            )
+    return wiener_filter_compressed, wiener_roi
+
+
+def test_dtype_wiener():
+    with pytest.raises(RuntimeError) as excinfo:
+        complex_dtype = np.float32
+        wiener_dtype(complex_dtype)
+    assert f"unknown complex dtype: {complex_dtype}" in str(excinfo.value)
+
+
+def test_dtype_wdd_recon():
     with pytest.raises(RuntimeError) as excinfo:
         def wdd_dtype(complex_dtype):
 
