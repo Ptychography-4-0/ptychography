@@ -175,6 +175,8 @@ def wdd_reference(ds_shape: Shape,
                                 norm=True
                                )
     transformation = params['transformation']
+    if transformation is None:
+        transformation = identity()
     # Allocate object cut
     cut = np.zeros((scan_dim[0], scan_dim[1]), dtype=complex_dtype)
     for q in range(scan_dim[0]):
@@ -266,7 +268,7 @@ def test_wdd_no_rot(complex_dtype, rtol, atol):
               'lamb': lamb,
               'semiconv_pix': semiconv_pix,
               'semiconv': semiconv,
-              'transformation': identity(),
+              'transformation': None,
               'epsilon': 100
               }
 
@@ -343,7 +345,7 @@ def test_wdd_udf(complex_dtype, rtol, atol):
               'lamb': lamb,
               'semiconv_pix': semiconv_pix,
               'semiconv': semiconv,
-              'transformation': identity(),
+              'transformation': None,
               'epsilon': 100
               }
 
