@@ -12,7 +12,10 @@ from libertem.masks import circular
 from libertem.corrections.coordinates import identity, rotate_deg
 from libertem.common.container import MaskContainer
 
-from ptychography40.reconstruction.ssb import SSB_UDF, generate_masks
+from ptychography40.reconstruction.ssb import (
+    SSB_UDF, generate_masks,
+    BinnedSSB_UDF, crop_bin_params,
+)
 from ptychography40.reconstruction.ssb.trotters import mask_tile_pair
 from ptychography40.reconstruction.common import wavelength
 
@@ -360,6 +363,93 @@ def test_ssb_rotate(n_threads):
                              semiconv_pix=semiconv_pix, cy=cy, cx=cx)
 
     assert np.allclose(result['fourier'].data, result_f)
+
+
+@pytest.mark.parametrize(
+    'bin_factor', (1,)
+)
+@pytest.mark.parametrize(
+    'backend', ('numpy', 'cupy')
+)
+def test_ssb_bin(lt_ctx, bin_factor, backend):
+    if backend == 'cupy':
+        d = detect()
+        if not d['cudas'] or not d['has_cupy']:
+            pytest.skip("No CUDA device or no CuPy, skipping CuPy test")
+    try:
+        if backend == 'cupy':
+            set_use_cuda(d['cudas'][0])
+        det = 44
+        cy = det / 2
+        cx = det / 2
+        shape = (29, 30, det, det)
+        U = 300
+        rec_params = {
+            "dtype": np.float64,
+            "lamb": wavelength(U),
+            "dpix": 12.7e-12,
+            "semiconv": 22.1346e-3,
+            "semiconv_pix": 10,
+            "transformation": identity(),
+            "cx": cx,
+            "cy": cy,
+            "cutoff": 1,
+        }
+        mask_params = {
+            'reconstruct_shape': shape[:2],
+            'mask_shape': shape[2:],
+            'method': 'shift',
+        }
+
+        binned_rec_params, binned_mask_params, y_binner, x_binner = crop_bin_params(
+            rec_params=rec_params,
+            mask_params=mask_params,
+            binning_factor=bin_factor,
+        )
+        binned_trotters = generate_masks(**binned_rec_params, **binned_mask_params)
+        flat_shape = (binned_trotters.shape[0], np.prod(binned_trotters.shape[1:]))
+        csr_trotters = binned_trotters.reshape(flat_shape).tocsr()
+        udf = BinnedSSB_UDF(
+            y_binner=y_binner,
+            x_binner=x_binner,
+            csr_trotters=csr_trotters,
+        )
+
+        input_data = (
+            np.random.uniform(0, 1, np.prod(shape))
+            * np.linspace(1.0, 1000.0, num=np.prod(shape))
+        )
+        input_data = input_data.astype(np.float64).reshape(shape)
+
+        # do stupid reshape+sum binning here as a reference:
+        input_data_binned = input_data.reshape((
+            shape[0],
+            shape[1],
+            shape[2]//bin_factor, bin_factor,
+            shape[3]//bin_factor, bin_factor,
+        )).sum(axis=(3, 5))
+
+        dataset = MemoryDataSet(
+            data=input_data,
+            tileshape=(20, shape[2], shape[3]),
+            num_partitions=2,
+            sig_dims=2,
+        )
+
+        result = lt_ctx.run_udf(udf=udf, dataset=dataset)
+
+        result_f, _ = reference_ssb(
+            input_data_binned,
+            U=U,
+            dpix=rec_params['dpix'],
+            semiconv=rec_params['semiconv'],
+            semiconv_pix=rec_params['semiconv_pix']//bin_factor,
+            cy=cy/bin_factor, cx=cx/bin_factor
+        )
+
+        assert np.allclose(result['fourier'].data, result_f)
+    finally:
+        set_use_cpu(0)
 
 
 @pytest.mark.parametrize(
