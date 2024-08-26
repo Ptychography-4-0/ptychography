@@ -39,7 +39,7 @@ def wavelength(U):
     c = const.speed_of_light  # Speed of light
     m_0 = const.electron_mass  # Electron rest mass
 
-    T = e*U*1000
+    T = e*np.float64(U)*1000
     lambda_e = h*c/(math.sqrt(T**2+2*T*m_0*(c**2)))
     return lambda_e
 
