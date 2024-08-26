@@ -1,4 +1,4 @@
-sphinx>=3.5.1
+sphinx>=5,<7.3
 sphinx-autobuild
 sphinxcontrib-bibtex>=2
 sphinx-issues
