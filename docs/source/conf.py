@@ -209,8 +209,8 @@ doctest_test_doctest_blocks = ''
 todo_include_todos = True
 
 intersphinx_mapping = {
-    'numpy': ('http://docs.scipy.org/doc/numpy/', None),
-    'python': ('https://docs.python.org/3.7', None)
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'python': ('https://docs.python.org/3.12', None)
 }
 
 # Sphinx' link checker.
