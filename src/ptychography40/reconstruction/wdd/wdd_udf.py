@@ -295,7 +295,7 @@ class GridSpec:
         '''
         candidates = self.get_patch_indices(0)
         assert len(candidates) > 0
-        min_index = min(c.path_index for c in candidates)
+        min_index = min(c.patch_index for c in candidates)
         return min_index
 
     def max_patch_index(self, size):
