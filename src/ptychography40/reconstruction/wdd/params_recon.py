@@ -1,4 +1,4 @@
-from typing import NamedTuple, Tuple, TYPE_CHECKING
+from typing import Tuple, TYPE_CHECKING, Optional
 import numpy as np
 from libertem.common import Shape
 from ptychography40.reconstruction.wdd.dim_reduct import get_sampled_basis
@@ -56,7 +56,7 @@ def f2d_matrix_replacement(
             )
 
 
-class WDDReconstructionPlan(NamedTuple):
+class WDDReconstructionPlan:
     """
     Parameters that is needed for reconstruction
 
@@ -74,11 +74,23 @@ class WDDReconstructionPlan(NamedTuple):
         Matrix contains sampled Hermite-Gauss functions
         for dimensionality reduction
     """
-    coeff: Tuple[np.ndarray, np.ndarray]
-    wiener_filter_compressed: np.ndarray
-    row_exp: np.ndarray
-    col_exp: np.ndarray
-    wiener_roi: np.ndarray
+    def __init__(
+            self, coeff: Tuple[np.ndarray, np.ndarray],
+            wiener_filter_compressed: np.ndarray,
+            row_exp: np.ndarray,
+            col_exp: np.ndarray,
+            wiener_roi: np.ndarray):
+        self.coeff = coeff
+        self.wiener_filter_compressed = wiener_filter_compressed
+        self.row_exp = row_exp
+        self.col_exp = col_exp
+        self.wiener_roi = wiener_roi
+
+        # TODO validation etc
+
+    @property
+    def patch_shape(self):
+        return (self.row_exp.shape[0], self.col_exp.shape[0])
 
 
 def wdd_params_recon(ds_shape: Shape,
@@ -86,9 +98,12 @@ def wdd_params_recon(ds_shape: Shape,
                      order: int = 16,
                      scale: int = 5,
                      complex_dtype: "nt.DTypeLike" = np.complex64,
+                     patch_shape: Optional[Tuple] = None
                      ):
 
     """
+    ds_shape
+        Dataset shape
     params
         Dictionary related to physical coordinates
     order
@@ -98,6 +113,9 @@ def wdd_params_recon(ds_shape: Shape,
         The scaling radius for Hermite-Gaussian polynomials
     complex_dtype
         Pre-defined complex_dtype
+    patch_shape
+        Size of a reconstruction patch for tiled WDD. Leave as None for
+        full WDD reconstruction
 
     """
 
@@ -116,14 +134,16 @@ def wdd_params_recon(ds_shape: Shape,
                               semiconv_pix=params['semiconv_pix'],
                               float_dtype=float_dtype
                               )
-
+    if patch_shape is None:
+        patch_shape = ds_shape.nav
     # Fourier calculation
-    row_exp, col_exp = f2d_matrix_replacement(nav_shape=ds_shape.nav,
+    row_exp, col_exp = f2d_matrix_replacement(nav_shape=patch_shape,
                                               complex_dtype=complex_dtype)
 
     # Calculate Wiener filter
     wiener_filter_compressed, wiener_roi = pre_computed_Wiener(
-        ds_shape,
+        nav_shape=patch_shape,
+        sig_shape=ds_shape.sig,
         order=order,
         params=params,
         coeff=coeff,

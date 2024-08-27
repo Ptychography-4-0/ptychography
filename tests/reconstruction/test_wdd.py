@@ -1,23 +1,78 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
+from numpy.testing import assert_allclose
 import pytest
-import typing
+
 from libertem.corrections.coordinates import identity, rotate_deg
 from libertem.io.dataset.memory import MemoryDataSet
 from libertem import api as lt
 from libertem.executor.inline import InlineJobExecutor
 from libertem.common import Shape
-from ptychography40.reconstruction.wdd.params_recon import (
-    f2d_matrix_replacement)
-from ptychography40.reconstruction.wdd.dim_reduct import (
-    compress, decompress, get_sampled_basis)
+
+from ptychography40.reconstruction.wdd.params_recon import f2d_matrix_replacement
+from ptychography40.reconstruction.wdd.dim_reduct import compress, decompress, get_sampled_basis
 from ptychography40.reconstruction.wdd.wdd_udf import (
-    WDDUDF, wdd_per_frame_combined)
+    WDDUDF, PatchWDDUDF, GridSpec, wdd_per_frame_combined)
 from ptychography40.reconstruction.wdd.params_recon import wdd_params_recon
-from ptychography40.reconstruction.wdd.wiener_filter import (
-    probe_initial, pre_computed_Wiener)
+from ptychography40.reconstruction.wdd.wiener_filter import probe_initial, pre_computed_Wiener
 from ptychography40.reconstruction.common import wavelength
-if typing.TYPE_CHECKING:
+
+if TYPE_CHECKING:
     import numpy.typing as nt
+
+
+@pytest.mark.parametrize(
+    'size, step', [
+        (0, 23),  # Size not positive finite
+        (-1, 23),  # Size not positive finite
+        (23, 0),  # Step not positive finite
+        (23, -1),  # Step not positive finite
+        (4, 5),  # Step larger than size
+        (4, "hello"),  # Type mismatch
+        ("hello", 23),  # Type mismatch
+    ]
+)
+def test_gridspec_errors(size, step):
+    with pytest.raises(ValueError):
+        GridSpec(size=size, step=step)
+
+
+def test_gridspec_simple():
+    g = GridSpec(size=3, step=3)
+    assert g.min_patch_index == 0
+    # patches 0 and 1
+    assert g.max_patch_index(5) == 1
+    # patches 0 and 1, filling the area completely
+    assert g.max_patch_index(6) == 1
+    # Starting patch 2
+    assert g.max_patch_index(7) == 2
+    # patch index, index within patch
+    assert g.get_patch_indices(0) == [(0, 0)]
+    assert g.get_patch_indices(2) == [(0, 2)]
+    assert g.get_patch_indices(3) == [(1, 0)]
+    assert g.get_patch_indices(-1) == [(-1, 2)]
+
+
+def test_gridspec_overlap():
+    g = GridSpec(size=4, step=3)
+    assert g.min_patch_index == -1
+    # patches 0 and 1
+    assert g.max_patch_index(5) == 1
+    # patches 0 and 1, filling the area completely
+    assert g.max_patch_index(6) == 1
+    # Starting patch 2
+    assert g.max_patch_index(7) == 2
+    # patch index, index within patch
+    assert g.get_patch_indices(0) == [(0, 0), (-1, 3)]
+    # Only one
+    assert g.get_patch_indices(2) == [(0, 2)]
+    # Overlap region
+    assert g.get_patch_indices(3) == [(1, 0), (0, 3)]
+    # only one
+    assert g.get_patch_indices(-1) == [(-1, 2)]
+    # Overlap region
+    assert g.get_patch_indices(-3) == [(-1, 0), (-2, 3)]
 
 
 def test_fourier_matrix():
@@ -305,15 +360,25 @@ def test_wdd_no_rot(complex_dtype, rtol, atol):
 
 
 @pytest.mark.parametrize(
-     'complex_dtype, rtol, atol', [
-        (np.complex64, 1e-6, 1e-6),
-        (np.complex128, 1e-8, 1e-8)]
+    # patchspec: (patch_shape, patch_trim, patch_overlap, raises)
+    'complex_dtype, rtol, atol, patchspec', [
+        (np.complex64, 1e-6, 1e-6, None),
+        (np.complex128, 1e-8, 1e-8, None),
+        # Not equivalent, but reasonably similar to real result
+        # Since the exmple is small, we have to work with
+        # small trim and overlap which increases the difference.
+        (np.complex64, 1e-3, 1e-3, ((14, 14), 3, 3, False)),
+        (np.complex64, 1e-3, 1e-3, ((19, 11), (3, 2), (2, 3), False)),
+        (np.complex64, 1e-3, 1e-3, ((20, 21), (2, 3), (2, 3), False)),
+        (np.complex64, 1e-3, 1e-3, ((20, 21), 8, 8, True)),
+        (np.complex64, 1e-3, 1e-3, ((36, 38), None, None, False)),
+    ]
 )
 @pytest.mark.with_numba
-def test_wdd_udf(complex_dtype, rtol, atol):
+def test_wdd_udf(complex_dtype, rtol, atol, patchspec):
     lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=6))
     scaling = 4
-    shape = (16, 16, 189 // scaling, 197 // scaling)
+    shape = (37, 39, 189 // scaling, 197 // scaling)
     dpix = 0.5654/50*1e-9
     # The acceleration voltage U in keV
     U = 300
@@ -329,11 +394,21 @@ def test_wdd_udf(complex_dtype, rtol, atol):
     cx = 97 // scaling
     com = (cy, cx)
 
-    # Input Data
-    input_data = (
-        100000*np.random.uniform(0, 1, np.prod(shape))
-    )
-    input_data = input_data.astype(np.float64).reshape(shape)
+    # Make sure we have a real signal for comparing
+    # since random noise tends to average to near 0,
+    # which magnifies errors
+    obj = 1 - 0.2j * np.random.random(shape[2:])
+    illum = np.random.random(shape[2:])
+
+    input_data = np.zeros(shape)
+
+    for y in range(shape[0]):
+        for x in range(shape[1]):
+            rolled = np.roll(illum, (-y, -x))
+            wave = obj * rolled
+            projected = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(wave)))
+            intensity = np.abs(projected)**2
+            input_data[y, x] = intensity
 
     ds = MemoryDataSet(
         data=input_data, tileshape=(20, shape[2], shape[3]),
@@ -348,31 +423,108 @@ def test_wdd_udf(complex_dtype, rtol, atol):
               'transformation': None,
               'epsilon': 100
               }
+    if patchspec is None:
+        patch_shape = None
+        patch_trim = None
+        patch_overlap = None
+        raises = False
+    else:
+        patch_shape, patch_trim, patch_overlap, raises = patchspec
 
-    recon_parameters = wdd_params_recon(ds_shape=ds.shape,
-                                        params=params,
-                                        complex_dtype=complex_dtype,
-                                        )
+    recon_parameters = wdd_params_recon(
+        ds_shape=ds.shape,
+        params=params,
+        complex_dtype=complex_dtype,
+        patch_shape=patch_shape
+    )
+
+    recon_parameters_ref = wdd_params_recon(
+        ds_shape=ds.shape,
+        params=params,
+        complex_dtype=complex_dtype,
+    )
+
+    if patchspec is None:
+        udf = WDDUDF(
+            recon_parameters=recon_parameters,
+            complex_dtype=complex_dtype
+        )
+    else:
+        if raises:
+            with pytest.raises(ValueError):
+                udf = PatchWDDUDF(
+                    recon_parameters=recon_parameters,
+                    complex_dtype=complex_dtype,
+                    patch_trim=patch_trim,
+                    patch_overlap=patch_overlap,
+                )
+            return
+        else:
+            udf = PatchWDDUDF(
+                recon_parameters=recon_parameters,
+                complex_dtype=complex_dtype,
+                patch_trim=patch_trim,
+                patch_overlap=patch_overlap,
+            )
+        for i in (0, 1):
+            assert udf.patch_step[i] == (
+                recon_parameters.patch_shape[i]
+                - 2*udf.params.patch_trim[i]
+                - udf.params.patch_overlap[i]
+            )
+        if isinstance(patch_overlap, int):
+            _overlap = (patch_overlap, patch_overlap)
+        else:
+            _overlap = patch_overlap
+        if isinstance(patch_trim, int):
+            _trim = (patch_trim, patch_trim)
+        else:
+            _trim = patch_trim
+        if _overlap is not None:
+            assert udf.params.patch_overlap == _overlap
+        if _trim is not None:
+            assert udf.params.patch_trim == _trim
 
     # Create context
-    live_wdd = lt_ctx.run_udf(dataset=ds,
-                              roi=None,
-                              udf=WDDUDF(recon_parameters,
-                                         complex_dtype),
-                              )
+    live_wdd = lt_ctx.run_udf(
+        dataset=ds,
+        udf=udf,
+        roi=None,
+        plots=[['amplitude', 'phase']],
+    )
 
     live_wdd_recon = live_wdd['reconstructed']
     # Reference
     result_ref = wdd_per_frame_combined(
-        input_data,
-        recon_parameters.coeff,
-        recon_parameters.wiener_filter_compressed,
-        recon_parameters.wiener_roi,
-        recon_parameters.row_exp,
-        recon_parameters.col_exp,
-        complex_dtype,)
-    assert np.allclose(np.angle(result_ref),
-                       np.angle(live_wdd_recon.data), rtol, atol)
+        idp=input_data,
+        coeff=recon_parameters_ref.coeff,
+        wiener_filter_compressed=recon_parameters_ref.wiener_filter_compressed,
+        scan_idx=recon_parameters_ref.wiener_roi,
+        row_exp=recon_parameters_ref.row_exp,
+        col_exp=recon_parameters_ref.col_exp,
+        complex_dtype=complex_dtype,
+    )
+    if patchspec is None:
+        res = live_wdd_recon.data
+        ref = result_ref
+    else:
+        # Cut border where tiled and normal differ the most
+        res = live_wdd_recon.data[3:-3, 3:-3]
+        ref = result_ref[3:-3, 3:-3]
+    assert_allclose(
+        np.angle(res),
+        np.angle(ref),
+        rtol=rtol, atol=atol
+    )
+    # Check that the numerical tolerance is small enough to catch
+    # a gross error in the result
+    with pytest.raises(AssertionError):
+        assert_allclose(
+            np.angle(result_ref),
+            # Transposed
+            np.angle(live_wdd_recon.data).T,
+            rtol=rtol, atol=atol
+        )
 
 
 def test_wdd_rotate():
@@ -487,7 +639,8 @@ def wiener_dtype(complex_dtype):
                               float_dtype=np.float32)
 
     wiener_filter_compressed, wiener_roi = pre_computed_Wiener(
-                                shape,
+                                nav_shape=shape[:2],
+                                sig_shape=shape[2:],
                                 order=16,
                                 params=params,
                                 coeff=coeff,

@@ -1,7 +1,6 @@
 from typing import Tuple, Optional
 from ptychography40.reconstruction.wdd.dim_reduct import compress
 from libertem.corrections.coordinates import identity
-from libertem.common import Shape
 import typing
 import numpy as np
 import numba
@@ -59,7 +58,8 @@ probe_init_jit = numba.njit(probe_initial)
 
 
 def pre_computed_Wiener(
-    ds_shape: Shape,
+    nav_shape: Tuple,
+    sig_shape: Tuple,
     order: int,
     params: dict,
     coeff: Tuple[np.ndarray, np.ndarray],
@@ -85,8 +85,10 @@ def pre_computed_Wiener(
 
     Parameters
     ----------
-    ds_shape
-        Dimension of 4D datasets
+    nav_shape
+        Nav dimension of reconstruction patch
+    sig_shape
+        Sig Dimension of 4D datasets
     order
         Maximum degree of polynomials
     coeff
@@ -116,11 +118,11 @@ def pre_computed_Wiener(
     cx = params['com'][1]
 
     d_Kf = np.sin(params['semiconv'])/params['lamb']/params['semiconv_pix']
-    d_Qp = 1/params['dpix']/np.array(ds_shape.nav)
+    d_Qp = 1/params['dpix']/np.array(nav_shape)
 
     # Generate grid for probe
-    y, x = np.ogrid[0:ds_shape.sig[0], 0:ds_shape.sig[1]]
-    wiener_filter_compressed = wiener_jit(tuple(ds_shape.nav), order,
+    y, x = np.ogrid[0:sig_shape[0], 0:sig_shape[1]]
+    wiener_filter_compressed = wiener_jit(tuple(nav_shape), order,
                                           y, x, cy, cx, d_Kf, d_Qp,
                                           params['semiconv_pix'],
                                           coeff, epsilon, complex_dtype,
