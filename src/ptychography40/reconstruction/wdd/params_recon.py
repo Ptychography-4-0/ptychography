@@ -98,7 +98,7 @@ def wdd_params_recon(ds_shape: Shape,
                      order: int = 16,
                      scale: int = 5,
                      complex_dtype: "nt.DTypeLike" = np.complex64,
-                     patch_shape: Optional[Tuple] = None
+                     patch_shape: Optional[Tuple[int, int]] = None
                      ):
 
     """
