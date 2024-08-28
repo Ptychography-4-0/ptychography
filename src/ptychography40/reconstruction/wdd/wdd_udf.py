@@ -222,7 +222,9 @@ class WDDUDF(UDF):
         real_cut = np.fft.ifft2(
             (self.results.cut)
             ).astype(self.params.complex_dtype)
-        real_cut = real_cut/np.max(np.abs(real_cut))
+        max_abs = np.max(np.abs(real_cut))
+        if max_abs != 0:
+            real_cut /= max_abs
         res = real_cut.conj()
         return {
             'cut': self.results.cut,
@@ -450,6 +452,12 @@ class PatchWDDUDF(UDF):
                 use='result_only',
                 dtype=self.params.complex_dtype
             ),
+            'patches': self.buffer(
+                kind='single',
+                use='result_only',
+                extra_shape=cuts_shape,
+                dtype=self.params.complex_dtype
+            ),
             # for live plotting
             'amplitude': self.buffer(
                 kind='nav',
@@ -505,7 +513,6 @@ class PatchWDDUDF(UDF):
         Inverse Fourier transform of the result in order to get into real space
 
         """
-        layers = []
         rec_shape = tuple(self.meta.dataset_shape.nav)
         gsp = self.gridspec
         y_start_padding = -gsp[0].min_patch_index * gsp[0].step
@@ -530,39 +537,41 @@ class PatchWDDUDF(UDF):
         zero_pad[-y_trim:, :] = 0
         zero_pad[:, 0:x_trim] = 0
         zero_pad[:, -x_trim:] = 0
+        res = np.zeros(shape=layer_shape, dtype=self.params.complex_dtype)
+        patches = np.zeros_like(self.results.cuts)
         for y_patch in range(self.results.cuts.shape[0]):
             for x_patch in range(self.results.cuts.shape[1]):
                 cut = self.results.cuts[y_patch, x_patch]
                 # Skip empty cuts
-                if np.any(cut != 0):
+                if not np.allclose(cut, 0):
                     real_cut = np.fft.ifft2(
                         (cut)
                         ).astype(self.params.complex_dtype)
+                    patches[y_patch, x_patch] = real_cut.conj()
                     real_cut *= zero_pad
-                    layers.append((y_patch, x_patch, real_cut))
-        if layers:
-            result_stack = np.zeros(
-                shape=layer_shape + (len(layers), ),
-                dtype=self.params.complex_dtype
-            )
-            for i, (y_patch, x_patch, layer) in enumerate(layers):
-                y_start = y_patch * gsp[0].step
-                x_start = x_patch * gsp[1].step
-                y_stop = y_start + gsp[0].size
-                x_stop = x_start + gsp[1].size
-                result_stack[y_start:y_stop, x_start:x_stop, i] = layer
-            res = stitch(result_stack)[
-                y_start_padding:-y_stop_padding,
-                x_start_padding:-x_stop_padding
-            ]
-            assert res.shape == rec_shape
-            res /= np.max(np.abs(res))
-        else:
-            # Empty result
-            res = np.zeros(rec_shape, dtype=self.params.complex_dtype)
+                    y_start = y_patch * gsp[0].step
+                    x_start = x_patch * gsp[1].step
+                    y_stop = y_start + gsp[0].size
+                    x_stop = x_start + gsp[1].size
+                    source = res[y_start:y_stop, x_start:x_stop]
+                    if np.allclose(source, 0):
+                        source[:] = real_cut
+                    else:
+                        # Stitching rotates relative to the first layer
+                        source[:] = stitch(np.stack((source, real_cut), axis=-1))
+        # Extract the valid portion
+        res = res[
+            y_start_padding:-y_stop_padding,
+            x_start_padding:-x_stop_padding
+        ]
+        assert res.shape == rec_shape
+        max_abs = np.max(np.abs(res))
+        if max_abs != 0:
+            res /= max_abs
         res = res.conj()
         return {
             'cuts': self.results.cuts,
+            'patches': patches,
             'reconstructed': res,
             'amplitude': np.abs(res),
             'phase': np.angle(res),

@@ -374,7 +374,6 @@ def test_wdd_no_rot(complex_dtype, rtol, atol):
         (np.complex64, 1e-3, 1e-3, ((36, 38), None, None, False)),
     ]
 )
-@pytest.mark.with_numba
 def test_wdd_udf(complex_dtype, rtol, atol, patchspec):
     lt_ctx = lt.Context(InlineJobExecutor(debug=True, inline_threads=6))
     scaling = 4
