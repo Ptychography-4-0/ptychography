@@ -7,6 +7,7 @@ Reference
    :maxdepth: 2
 
    ssb
+   wdd
    stitching
    common
 
