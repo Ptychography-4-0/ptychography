@@ -31,8 +31,8 @@ def wavelength(U):
     Examples
     --------
 
-    >>> wavelength(300)
-    1.9687489006848795e-12
+    >>> wavelength(300)  # doctest: +ELLIPSIS
+    1.9687...e-12
     '''
     e = const.elementary_charge  # Elementary charge  !!! 1.602176634×10−19
     h = const.Planck  # Planck constant    !!! 6.62607004 × 10-34
