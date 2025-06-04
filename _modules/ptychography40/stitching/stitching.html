@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ptychography40.stitching.stitching &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=130a53a1"></script>
+      <script src="../../../_static/doctools.js?v=888ff710"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Ptychography 4.0
+              <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets.html">Public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/index.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../releasing.html">Releasing</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ptychography40.stitching.stitching</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ptychography40.stitching.stitching</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Wed Sep  9 21:30:50 2020</span>
+
+<span class="sd">@author: oleh.melnyk</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.sparse.linalg</span><span class="w"> </span><span class="kn">import</span> <span class="n">eigsh</span>
+
+
+<div class="viewcode-block" id="stitch">
+<a class="viewcode-back" href="../../../reference/stitching.html#ptychography40.stitching.stitching.stitch">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">stitch</span><span class="p">(</span><span class="n">objects</span><span class="p">,</span> <span class="n">wtype</span><span class="o">=</span><span class="s1">&#39;weighted&#39;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    In paralelized ptychography, each node returns recovered</span>
+<span class="sd">    part of the object up to a phase factor. Our goal is to stich those pieces by synchronizing</span>
+<span class="sd">    phase factors. To do so, we solve the angular synchronization, a</span>
+<span class="sd">    recovery of the unknown phase factors from their (noisy) pairwise differences</span>
+<span class="sd">    To obtain these pairwise differences, we compute the inner product between</span>
+<span class="sd">    two overlapping parts. Since on the overlap two objects are approximately the</span>
+<span class="sd">    same, it gives us the phase difference. Mathematically, it is given by</span>
+<span class="sd">    &lt; e^(i a_r1) O_r1, e^(i a_r2) O_r2 &gt; approx. = e^(i [a_r1 - a_r2]) norm(O_r1,r_2)^2,</span>
+<span class="sd">    where O_r is recovered r-th part of the object,</span>
+<span class="sd">    O_r1,r2 - part of the object corresponging to the overlap of two parts,</span>
+<span class="sd">    a_r - unknown phase factor.</span>
+
+<span class="sd">    This inner products are stored in the ph_diff matrix. Then, the matrix is entrywise</span>
+<span class="sd">    normalized to separate phases e^(i [a_r1 - a_r2]) and non-negative norm(O_r1,r_2)^2.</span>
+
+<span class="sd">    In angular synchronization we take phase differences as data and</span>
+<span class="sd">    can use norms as weights to solve (un)weighted least squares problem.</span>
+<span class="sd">    Problem itself is NP-hard and, thus, its relaxation instead is solved, which is</span>
+<span class="sd">    simply a computation of the eigenvector corresponding to the smallest eigenvalue</span>
+<span class="sd">    of the graph laplacian matrix.</span>
+
+<span class="sd">    Obtained eigenvector (v in code) is entrywise normalized to get phases.</span>
+<span class="sd">    Each part of the object is then phase-rotated correspondingly. Finally, we</span>
+<span class="sd">    join the pieces, avaraging on the overlaps.</span>
+
+<span class="sd">    Note: obtained solution is the original object up to a globabl phase factor.</span>
+
+<span class="sd">    For more details see Section 2 of https://arxiv.org/pdf/2005.02032.pdf</span>
+
+<span class="sd">    Possible speed up of the routine: avoid dot product calculation of between all</span>
+<span class="sd">    parts, but only those which overlap.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    objects : numpy.ndarray</span>
+<span class="sd">        d1 X d2 X R array containing recovered pieces of object,</span>
+<span class="sd">        required to be stitched</span>
+<span class="sd">    wtype : str, optional</span>
+<span class="sd">        Selected type of weights to be used in the angular synchronization</span>
+<span class="sd">        There are 2 possible choices:</span>
+<span class="sd">        &#39;unweighted&#39; or &#39;weighted&#39;, depending on usage or not of the weights for</span>
+<span class="sd">        angular synchronization (explained above)</span>
+<span class="sd">    threshold : float, optional</span>
+<span class="sd">        Minimum absolute value to be considered in finding the phase match for stitching.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+    <span class="n">d1</span> <span class="o">=</span> <span class="n">objects</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">d2</span> <span class="o">=</span> <span class="n">objects</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="n">objects</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="n">ph_diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">R</span><span class="p">,</span> <span class="n">R</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">r1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">R</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">r2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">r1</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">R</span><span class="p">):</span>
+            <span class="n">ph_diff</span><span class="p">[</span><span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;ij,ij&#39;</span><span class="p">,</span> <span class="n">objects</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">r1</span><span class="p">],</span> <span class="n">objects</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">r2</span><span class="p">]</span><span class="o">.</span><span class="n">conj</span><span class="p">())</span>
+            <span class="n">ph_diff</span><span class="p">[</span><span class="n">r2</span><span class="p">,</span> <span class="n">r1</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph_diff</span><span class="p">[</span><span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">]</span><span class="o">.</span><span class="n">conj</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">wtype</span> <span class="o">==</span> <span class="s1">&#39;weighted&#39;</span><span class="p">:</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ph_diff</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">wtype</span> <span class="o">==</span> <span class="s1">&#39;unweighted&#39;</span><span class="p">:</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ph_diff</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
+
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="n">ph_diff</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">ph_diff</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ph_diff</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+    <span class="n">degree</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">laplacian</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">degree</span><span class="p">)</span> <span class="o">-</span> <span class="n">ph_diff</span> <span class="o">*</span> <span class="n">weights</span>
+    <span class="n">sig</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">eigsh</span><span class="p">(</span><span class="n">laplacian</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s1">&#39;SM&#39;</span><span class="p">)</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">threshold</span>
+    <span class="n">phases</span> <span class="o">=</span> <span class="n">v</span>
+    <span class="n">phases</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">phases</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">phases</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+    <span class="n">phases</span><span class="p">[</span><span class="o">~</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">v</span> <span class="o">*=</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">conj</span><span class="p">()</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">R</span><span class="p">):</span>
+        <span class="n">result</span><span class="p">[:,</span> <span class="p">:]</span> <span class="o">+=</span> <span class="n">phases</span><span class="p">[</span><span class="n">r</span><span class="p">]</span><span class="o">.</span><span class="n">conj</span><span class="p">()</span> <span class="o">*</span> <span class="n">objects</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">r</span><span class="p">]</span>
+        <span class="n">count</span><span class="p">[:,</span> <span class="p">:]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">objects</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">r</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">threshold</span>
+
+    <span class="n">result</span> <span class="o">/=</span> <span class="n">count</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

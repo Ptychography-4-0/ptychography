@@ -1,0 +1,330 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=130a53a1"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Algorithms" href="algorithms.html" />
+    <link rel="prev" title="Ptychography 4.0 Software" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Ptychography 4.0
+              <img src="_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-short-version">The short version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#linux-and-mac-os-x">Linux and Mac OS X</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#creating-an-isolated-python-environment">Creating an isolated Python environment</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#using-virtualenv">Using virtualenv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#using-conda">Using conda</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#installing-from-pypi">Installing from PyPi</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#installing-from-a-git-clone">Installing from a git clone</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#updating">Updating</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#cupy">CuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#windows">Windows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#jupyter">Jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#jupyterhub">JupyterHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/index.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="releasing.html">Releasing</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Installation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/install.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="installation">
+<span id="id1"></span><h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
+<section id="the-short-version">
+<h2>The short version<a class="headerlink" href="#the-short-version" title="Link to this heading"></a></h2>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>virtualenv<span class="w"> </span>-p<span class="w"> </span>python3<span class="w"> </span>~/ptychography-venv/
+$<span class="w"> </span><span class="nb">source</span><span class="w"> </span>~/ptychography-venv/bin/activate
+<span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>ptychography40
+
+<span class="c1"># optional for GPU support</span>
+<span class="c1"># See also https://docs.cupy.dev/en/stable/install.html</span>
+<span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>cupy
+</pre></div>
+</div>
+<p>For details, please read on!</p>
+</section>
+<section id="linux-and-mac-os-x">
+<h2>Linux and Mac OS X<a class="headerlink" href="#linux-and-mac-os-x" title="Link to this heading"></a></h2>
+<section id="creating-an-isolated-python-environment">
+<h3>Creating an isolated Python environment<a class="headerlink" href="#creating-an-isolated-python-environment" title="Link to this heading"></a></h3>
+<p>To provide an isolated environment for ptychography and its dependencies, you can
+use virtualenvs or conda environments.</p>
+<section id="using-virtualenv">
+<h4>Using virtualenv<a class="headerlink" href="#using-virtualenv" title="Link to this heading"></a></h4>
+<p>You can use <a class="reference external" href="https://virtualenv.pypa.io/">virtualenv</a> or <a class="reference external" href="https://docs.python.org/3/tutorial/venv.html">venv</a> if you have a system-wide
+Python 3.6 or newer installation. For Mac OS X, using conda is recommended.</p>
+<p>To create a new virtualenv for ptychography, you can use the following command:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>virtualenv<span class="w"> </span>-p<span class="w"> </span>python3.9<span class="w"> </span>~/ptychography-venv/
+</pre></div>
+</div>
+<p>Replace <code class="code docutils literal notranslate"><span class="pre">~/ptychography-venv/</span></code> with any path where you would like to create
+the venv. You can then activate the virtualenv with</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span><span class="nb">source</span><span class="w"> </span>~/ptychography-venv/bin/activate
+</pre></div>
+</div>
+<p>Afterwards, your shell prompt should be prefixed with <code class="code docutils literal notranslate"><span class="pre">(ptychography)</span></code> to
+indicate that the environment is active:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$
+</pre></div>
+</div>
+<p>For more information about virtualenv, for example if you are using a shell
+without <cite>source</cite>, please <a class="reference external" href="https://virtualenv.pypa.io/en/latest/user_guide.html">refer to the virtualenv documentation</a>. If you are often
+working with virtualenvs, using a convenience wrapper like <a class="reference external" href="https://virtualenvwrapper.readthedocs.io/en/latest/">virtualenvwrapper</a> is recommended.</p>
+</section>
+<section id="using-conda">
+<h4>Using conda<a class="headerlink" href="#using-conda" title="Link to this heading"></a></h4>
+<p>If you are already using conda, or if you don’t have a system-wide Python 3.6, 3.7 or
+3.8 installation, you can create a conda environment for ptychography.</p>
+<p>This section assumes that you have <a class="reference external" href="https://conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation">installed conda</a>
+and that your installation is working.</p>
+<p>You can create a new conda environment to install ptychography with the following
+command:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>ptychography<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.9
+</pre></div>
+</div>
+<p>To install or later run ptychography, activate the environment with the following
+command:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>conda<span class="w"> </span>activate<span class="w"> </span>ptychography
+</pre></div>
+</div>
+<p>Afterwards, your shell prompt should be prefixed with <code class="code docutils literal notranslate"><span class="pre">(ptychography)</span></code> to
+indicate that the environment is active:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$
+</pre></div>
+</div>
+<p>Now the environment is ready to install ptychography.</p>
+<p>For more information about conda, see their <a class="reference external" href="https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html">documentation about creating and
+managing environments</a>.</p>
+</section>
+</section>
+<section id="installing-from-pypi">
+<h3>Installing from PyPi<a class="headerlink" href="#installing-from-pypi" title="Link to this heading"></a></h3>
+<p>To install the latest release version, you can use pip. Activate the Python
+environment (conda or virtualenv) and install using:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>ptychography40
+</pre></div>
+</div>
+<p>This should install ptychography40 and its dependencies in the environment. Please
+continue by reading about the <a class="reference internal" href="algorithms.html#algorithms"><span class="std std-ref">Algorithms</span></a>.</p>
+</section>
+<section id="installing-from-a-git-clone">
+<span id="id2"></span><h3>Installing from a git clone<a class="headerlink" href="#installing-from-a-git-clone" title="Link to this heading"></a></h3>
+<p>If you want to follow the latest development or contribute to ptychography, you
+should install ptychography from a git clone:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Ptychography-4-0/ptychography
+</pre></div>
+</div>
+<p>Activate the Python environment (conda or virtualenv) and change to the newly
+created directory with the clone of the ptychography repository. Now you can start
+the ptychography40 installation. Please note the dot at the end, which indicates the
+current directory!</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+<p>This should download the dependencies and install ptychography in the environment.
+Please continue by reading about the <a class="reference internal" href="algorithms.html#algorithms"><span class="std std-ref">Algorithms</span></a>.</p>
+</section>
+<section id="updating">
+<h3>Updating<a class="headerlink" href="#updating" title="Link to this heading"></a></h3>
+<p>If you have installed from a git clone, you can easily update it to the current
+status. Open a command line in the base directory of the ptychography clone and
+update the source code with this command:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>git<span class="w"> </span>pull
+</pre></div>
+</div>
+<p>The installation with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span></code> has installed ptychography40 in <a class="reference external" href="https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs">“editable”
+mode</a>.
+That means the changes pulled from git are active immediately. Only if the
+requirements for installed third-party packages have changed, you can re-run
+<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.</span></code> in order to install any missing packages.</p>
+</section>
+</section>
+<section id="cupy">
+<h2>CuPy<a class="headerlink" href="#cupy" title="Link to this heading"></a></h2>
+<p>GPU support is based on <a class="reference external" href="https://cupy.dev/">CuPy</a>. See
+<a class="reference external" href="https://docs.cupy.dev/en/stable/install.html#installing-cupy">https://docs.cupy.dev/en/stable/install.html#installing-cupy</a> for installation of
+precompiled binary packages (recommended). <code class="code docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span>
+<span class="pre">cupy</span></code> installs CuPy from source, which requires a build chain and
+can be time-consuming.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>libertem<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>cupy
+</pre></div>
+</div>
+</section>
+<section id="windows">
+<h2>Windows<a class="headerlink" href="#windows" title="Link to this heading"></a></h2>
+<p>The recommended method to install ptychography on Windows is based on <a class="reference external" href="https://docs.conda.io/en/latest/miniconda.html">Miniconda 64
+bit</a>.
+This installs a Python distribution.</p>
+<p>For <a class="reference internal" href="#installing-from-a-git-clone">installing from a git clone</a> you require a suitable git client, for
+example <a class="reference external" href="https://desktop.github.com/">GitHub Desktop</a>, <a class="reference external" href="https://tortoisegit.org/">TortoiseGit</a>, or <a class="reference external" href="https://gitforwindows.org/">git for windows</a>. Clone the repository
+<a class="reference external" href="https://github.com/Ptychography-4-0/ptychography">https://github.com/Ptychography-4-0/ptychography</a> in a folder of your choice.</p>
+<p>From here on the installation and running of ptychography on Windows with the
+Anaconda Prompt is very similar to <a class="reference internal" href="#using-conda">Using conda</a> on Linux or Mac OS X.</p>
+<p>Differences:</p>
+<ul class="simple">
+<li><p>The command to activate a conda environment on Windows is</p></li>
+</ul>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>&gt;<span class="w"> </span>conda<span class="w"> </span>activate<span class="w"> </span>ptychography
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>You might have to install pip into your local ptychography conda environment to
+make sure that <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span></code> installs packages into your local environment and
+not into the global Anaconda base environment. This helps to avoid permission
+issues and interference between environments.</p></li>
+</ul>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>&gt;<span class="w"> </span>conda<span class="w"> </span>install<span class="w"> </span>pip
+</pre></div>
+</div>
+</section>
+<section id="jupyter">
+<h2>Jupyter<a class="headerlink" href="#jupyter" title="Link to this heading"></a></h2>
+<p>To use the Python API from within a Jupyter notebook, you can install Jupyter
+into your ptychography virtual environment.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>jupyter
+</pre></div>
+</div>
+<p>You can then run a local notebook from within the ptychography environment, which
+should open a browser window with Jupyter that uses your ptychography environment.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>jupyter<span class="w"> </span>notebook
+</pre></div>
+</div>
+</section>
+<section id="jupyterhub">
+<h2>JupyterHub<a class="headerlink" href="#jupyterhub" title="Link to this heading"></a></h2>
+<p>If you’d like to use the Python API from a ptychography virtual environment on a
+system that manages logins with JupyterHub, you can easily <a class="reference external" href="https://ipython.readthedocs.io/en/stable/install/kernel_install.html">install a custom
+kernel definition</a> for
+your ptychography environment.</p>
+<p>First, you can launch a terminal on JupyterHub from the “New” drop-down menu in
+the file browser. Alternatively you can execute shell commands by prefixing them
+with “!” in a Python notebook.</p>
+<p>In the terminal you can create and activate virtual environments and perform the
+ptychography40 installation as described above. Within the activated ptychography
+environment you additionally install ipykernel:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>ipykernel
+</pre></div>
+</div>
+<p>Now you can create a custom ipython kernel definition for your environment:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>ipykernel<span class="w"> </span>install<span class="w"> </span>--user<span class="w"> </span>--name<span class="w"> </span>ptychography<span class="w"> </span>--display-name<span class="w"> </span><span class="s2">&quot;Python (ptychography)&quot;</span>
+</pre></div>
+</div>
+<p>After reloading the file browser window, a new Notebook option “Python
+(ptychography)” should be available in the “New” drop-down menu. You can test it by
+creating a new notebook and running</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">In</span> <span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="kn">import</span><span class="w"> </span><span class="nn">ptychography40</span>
+</pre></div>
+</div>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<p>If you are having trouble with the installation, please let us know by <a class="reference external" href="https://github.com/Ptychography-4-0/ptychography/issues">filing
+an issue</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Ptychography 4.0 Software" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="algorithms.html" class="btn btn-neutral float-right" title="Algorithms" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
