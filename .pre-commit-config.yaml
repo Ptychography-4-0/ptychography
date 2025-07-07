@@ -9,12 +9,12 @@ repos:
   - id: check-yaml
   - id: check-added-large-files
 - repo: https://github.com/pycqa/flake8
-  rev: 7.2.0
+  rev: 7.3.0
   hooks:
   - id: flake8
     exclude: ^prototypes/
 - repo: https://github.com/regebro/pyroma
-  rev: "4.2"
+  rev: "4.3.3"
   hooks:
   - id: pyroma
 - repo: https://github.com/miki725/pre-commit-twine-check
