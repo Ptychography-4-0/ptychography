@@ -14,7 +14,7 @@ repos:
   - id: flake8
     exclude: ^prototypes/
 - repo: https://github.com/regebro/pyroma
-  rev: "4.3.3"
+  rev: "5.0"
   hooks:
   - id: pyroma
 - repo: https://github.com/miki725/pre-commit-twine-check
