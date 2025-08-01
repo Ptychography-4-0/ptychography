@@ -4,7 +4,9 @@ Created on Thu Oct 29 11:41:54 2020
 
 @author: oleh.melnyk
 """
+import pytest
 import numpy as np
+from numpy.testing import assert_allclose
 from skimage import data
 from ptychography40.stitching.stitching import stitch
 
@@ -54,3 +56,37 @@ def test_stitching():
     known_good = obj
     your_result = stitch(parts)
     assert np.allclose(known_good, your_result)
+
+
+@pytest.mark.parametrize(
+        'angle1', (0, 13, 179, 180, 181, 355, 360)
+)
+@pytest.mark.parametrize(
+        'angle2', (0, 13, 179, 180, 181, 355, 360)
+)
+def test_stitching_reference(angle1, angle2):
+    '''
+    Confirm that the layer with index 0 is the "anchor" of the fit and
+    only subsequent layers are rotated to match it.
+    '''
+    def distance(angle1, angle2):
+        d1 = angle2 - angle1
+        d2 = angle2 - angle1 + 360
+        result = d2.copy()
+        select_first = np.abs(d1) < np.abs(d2)
+        result[select_first] = d1[select_first]
+        return result
+
+    # wrap-around like np.angle
+    if angle1 >= 180:
+        angle1 -= 180
+    if angle2 >= 180:
+        angle2 -= 180
+    a = np.zeros((1, 2, 2), dtype=np.complex64)
+    a[0, 0, 0] = np.exp(1j*np.pi*(angle1-1)/180)
+    a[0, 1, 0] = 0.5 * np.exp(1j*np.pi*(angle1+1)/180)
+    a[0, 0, 1] = np.exp(1j*np.pi*(angle2-1)/180)
+    a[0, 1, 1] = 0.5 * np.exp(1j*np.pi*(angle2+1)/180)
+    stitched_angle = np.angle(stitch(a), deg=True)
+    print(angle1, angle2, stitched_angle, stitched_angle - angle1)
+    assert_allclose(distance(angle1, stitched_angle), ((-1, 1), ), atol=1e-6, rtol=1e-6)

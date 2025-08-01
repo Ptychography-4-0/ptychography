@@ -6,3 +6,4 @@ sphinx-rtd-theme
 nbsphinx!=0.8.8
 nbsphinx_link
 ipython
+setuptools  # for sphinxcontrib.bibtex
