@@ -1,0 +1,175 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stitching &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=130a53a1"></script>
+      <script src="../_static/doctools.js?v=888ff710"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Common" href="common.html" />
+    <link rel="prev" title="Single Side Band" href="ssb.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Ptychography 4.0
+              <img src="../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets.html">Public datasets</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ssb.html">Single Side Band</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Stitching</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ptychography40.stitching.stitching.stitch"><code class="docutils literal notranslate"><span class="pre">stitch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="common.html">Common</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#indices-and-tables">Indices and tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../releasing.html">Releasing</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Reference</a></li>
+      <li class="breadcrumb-item active">Stitching</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/reference/stitching.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-ptychography40.stitching.stitching">
+<span id="stitching"></span><h1>Stitching<a class="headerlink" href="#module-ptychography40.stitching.stitching" title="Link to this heading"></a></h1>
+<p>Created on Wed Sep  9 21:30:50 2020</p>
+<p>&#64;author: oleh.melnyk</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="ptychography40.stitching.stitching.stitch">
+<span class="sig-prename descclassname"><span class="pre">ptychography40.stitching.stitching.</span></span><span class="sig-name descname"><span class="pre">stitch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'weighted'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-12</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ptychography40/stitching/stitching.html#stitch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ptychography40.stitching.stitching.stitch" title="Link to this definition"></a></dt>
+<dd><p>In paralelized ptychography, each node returns recovered
+part of the object up to a phase factor. Our goal is to stich those pieces by synchronizing
+phase factors. To do so, we solve the angular synchronization, a
+recovery of the unknown phase factors from their (noisy) pairwise differences
+To obtain these pairwise differences, we compute the inner product between
+two overlapping parts. Since on the overlap two objects are approximately the
+same, it gives us the phase difference. Mathematically, it is given by
+&lt; e^(i a_r1) O_r1, e^(i a_r2) O_r2 &gt; approx. = e^(i [a_r1 - a_r2]) norm(O_r1,r_2)^2,
+where O_r is recovered r-th part of the object,
+O_r1,r2 - part of the object corresponging to the overlap of two parts,
+a_r - unknown phase factor.</p>
+<p>This inner products are stored in the ph_diff matrix. Then, the matrix is entrywise
+normalized to separate phases e^(i [a_r1 - a_r2]) and non-negative norm(O_r1,r_2)^2.</p>
+<p>In angular synchronization we take phase differences as data and
+can use norms as weights to solve (un)weighted least squares problem.
+Problem itself is NP-hard and, thus, its relaxation instead is solved, which is
+simply a computation of the eigenvector corresponding to the smallest eigenvalue
+of the graph laplacian matrix.</p>
+<p>Obtained eigenvector (v in code) is entrywise normalized to get phases.
+Each part of the object is then phase-rotated correspondingly. Finally, we
+join the pieces, avaraging on the overlaps.</p>
+<p>Note: obtained solution is the original object up to a globabl phase factor.</p>
+<p>For more details see Section 2 of <a class="reference external" href="https://arxiv.org/pdf/2005.02032.pdf">https://arxiv.org/pdf/2005.02032.pdf</a></p>
+<p>Possible speed up of the routine: avoid dot product calculation of between all
+parts, but only those which overlap.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>objects</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><em>numpy.ndarray</em></a>) – d1 X d2 X R array containing recovered pieces of object,
+required to be stitched</p></li>
+<li><p><strong>wtype</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Selected type of weights to be used in the angular synchronization
+There are 2 possible choices:
+‘unweighted’ or ‘weighted’, depending on usage or not of the weights for
+angular synchronization (explained above)</p></li>
+<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>, </em><em>optional</em>) – Minimum absolute value to be considered in finding the phase match for stitching.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="ssb.html" class="btn btn-neutral float-left" title="Single Side Band" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="common.html" class="btn btn-neutral float-right" title="Common" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,226 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Single Side Band &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=130a53a1"></script>
+      <script src="../_static/doctools.js?v=888ff710"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Stitching" href="stitching.html" />
+    <link rel="prev" title="Reference" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Ptychography 4.0
+              <img src="../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datasets.html">Public datasets</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Single Side Band</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ptychography40.reconstruction.ssb.SSB_UDF"><code class="docutils literal notranslate"><span class="pre">SSB_UDF</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#ptychography40.reconstruction.ssb.SSB_UDF.__init__"><code class="docutils literal notranslate"><span class="pre">SSB_UDF.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#ptychography40.reconstruction.ssb.SSB_UDF.get_results"><code class="docutils literal notranslate"><span class="pre">SSB_UDF.get_results()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#ptychography40.reconstruction.ssb.generate_masks"><code class="docutils literal notranslate"><span class="pre">generate_masks()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="stitching.html">Stitching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="common.html">Common</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#indices-and-tables">Indices and tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../releasing.html">Releasing</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Reference</a></li>
+      <li class="breadcrumb-item active">Single Side Band</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/reference/ssb.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-ptychography40.reconstruction.ssb">
+<span id="single-side-band"></span><h1>Single Side Band<a class="headerlink" href="#module-ptychography40.reconstruction.ssb" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ptychography40.reconstruction.ssb.SSB_UDF">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ptychography40.reconstruction.ssb.</span></span><span class="sig-name descname"><span class="pre">SSB_UDF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lamb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dpix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semiconv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semiconv_pix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype=&lt;class</span> <span class="pre">'numpy.float32'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cy=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cx=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transformation=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method='subpix'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_container=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ptychography40/reconstruction/ssb/udf.html#SSB_UDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ptychography40.reconstruction.ssb.SSB_UDF" title="Link to this definition"></a></dt>
+<dd><p>UDF to perform ptychography using the single side band (SSB) method <span id="id1">[<a class="reference internal" href="../index.html#id14" title="Timothy J. Pennycook, Andrew R. Lupini, Hao Yang, Matthew F. Murfitt, Lewys Jones, and Peter D. Nellist. Efficient phase contrast imaging in STEM using a pixelated detector. part 1: experimental demonstration at atomic resolution. Ultramicroscopy, 151:160–167, apr 2015. doi:10.1016/j.ultramic.2014.09.013.">PLY+15</a>]</span>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="ptychography40.reconstruction.ssb.SSB_UDF.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lamb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dpix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semiconv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semiconv_pix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype=&lt;class</span> <span class="pre">'numpy.float32'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cy=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cx=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transformation=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method='subpix'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_container=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ptychography40/reconstruction/ssb/udf.html#SSB_UDF.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ptychography40.reconstruction.ssb.SSB_UDF.__init__" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lamb</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – The illumination wavelength in m. The function <code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.common.wavelength()</span></code>
+allows to calculate the electron wavelength as a function of acceleration voltage.</p></li>
+<li><p><strong>dpix</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em> or </em><em>Iterable</em><em>(</em><em>y</em><em>, </em><em>x</em><em>)</em>) – STEM pixel size in m</p></li>
+<li><p><strong>semiconv</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – STEM semiconvergence angle in radians</p></li>
+<li><p><strong>dtype</strong> (<em>np.dtype</em>) – dtype to perform the calculation in</p></li>
+<li><p><strong>semiconv_pix</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Diameter of the primary beam in the diffraction pattern in pixels</p></li>
+<li><p><strong>cy</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>, </em><em>optional</em>) – Position of the optical axis on the detector in px, center of illumination.
+Default: Center of the detector</p></li>
+<li><p><strong>cx</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>, </em><em>optional</em>) – Position of the optical axis on the detector in px, center of illumination.
+Default: Center of the detector</p></li>
+<li><p><strong>transformation</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><em>numpy.ndarray</em></a><em>(</em><em>) of </em><em>shape</em><em> (</em><em>2</em><em>, </em><em>2</em><em>) or </em><em>None</em>) – Transformation matrix to apply to shift vectors. This allows to adjust for scan rotation
+and mismatch of detector coordinate system handedness, such as flipped y axis for MIB.</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – Minimum number of pixels in a trotter</p></li>
+<li><p><strong>method</strong> (<em>'subpix'</em><em> or </em><em>'shift'</em>) – Method to use for generating the mask stack</p></li>
+<li><p><strong>mask_container</strong> (<em>MaskContainer</em>) – Allows to pass in a precomputed mask stack when using with single thread live data
+or with an inline executor as a work-around. The number of masks is sanity-checked
+to match the other parameters.
+The proper fix is <a class="reference external" href="https://github.com/LiberTEM/LiberTEM/issues/335">https://github.com/LiberTEM/LiberTEM/issues/335</a></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ptychography40.reconstruction.ssb.SSB_UDF.get_results">
+<span class="sig-name descname"><span class="pre">get_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ptychography40/reconstruction/ssb/udf.html#SSB_UDF.get_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ptychography40.reconstruction.ssb.SSB_UDF.get_results" title="Link to this definition"></a></dt>
+<dd><p>Since we derive the wave front with a linear function from intensities,
+but the wave front is inherently an amplitude,
+we take the square root of the calculated amplitude and
+combine it with the calculated phase.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ptychography40.reconstruction.ssb.generate_masks">
+<span class="sig-prename descclassname"><span class="pre">ptychography40.reconstruction.ssb.</span></span><span class="sig-name descname"><span class="pre">generate_masks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reconstruct_shape</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_shape</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lamb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dpix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semiconv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semiconv_pix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transformation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff_freq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">np.float32(inf)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'subpix'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ptychography40/reconstruction/ssb/trotters.html#generate_masks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ptychography40.reconstruction.ssb.generate_masks" title="Link to this definition"></a></dt>
+<dd><p>Generate the trotter mask stack.</p>
+<p>The y dimension is trimmed to size(y)//2 + 1 to exploit the inherent
+symmetry of the mask stack.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>reconstruct_shape</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/stdtypes.html#tuple" title="(in Python v3.12)"><em>tuple</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3.12/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>)</em>) – Shape of the reconstructed area</p></li>
+<li><p><strong>mask_shape</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/stdtypes.html#tuple" title="(in Python v3.12)"><em>tuple</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3.12/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>)</em>) – Shape of the detector</p></li>
+<li><p><strong>dtype</strong> (<em>numpy dtype</em>) – dtype to use for the mask stack</p></li>
+<li><p><strong>lamb</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Wavelength of the illuminating radiation in m</p></li>
+<li><p><strong>dpix</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em> or </em><em>(</em><a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>)</em>) – Scan step in m. Tuple (y, x) in case scan step is different in x and y direction.</p></li>
+<li><p><strong>semiconv</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Semiconvergence angle of the illumination in radians</p></li>
+<li><p><strong>semiconv_pix</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Semiconvergence angle in measured in detector pixel, i.e. radius of the zero order disk.</p></li>
+<li><p><strong>transformation</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><em>numpy.ndarray</em></a><em>, </em><em>optional</em>) – Matrix for affine transformation from the scan coordinate directions
+to the detector coordinate directions. This does not include the scale, which is handled by
+dpix, lamb, semiconv and semiconv_pix. It should only be used to rotate and flip
+the coordinate system as necessary. See also
+<a class="reference external" href="https://github.com/LiberTEM/LiberTEM/blob/master/src/libertem/corrections/coordinates.py">https://github.com/LiberTEM/LiberTEM/blob/master/src/libertem/corrections/coordinates.py</a></p></li>
+<li><p><strong>cy</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>, </em><em>optional</em>) – Position of the optical axis on the detector in px, center of illumination.
+Default: Center of the detector</p></li>
+<li><p><strong>cx</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a><em>, </em><em>optional</em>) – Position of the optical axis on the detector in px, center of illumination.
+Default: Center of the detector</p></li>
+<li><p><strong>cutoff</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em>, </em><em>optional</em>) – Minimum number of pixels in the positive and negative trotter. This can be used to purge
+very small trotters to reduce noise. Default is 1, i.e. no cutoff unless one trotter is
+empty.</p></li>
+<li><p><strong>cutoff_freq</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – Trotters belonging to a spatial frequency higher than this value in reciprocal pixel
+coordinates will be cut off.</p></li>
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3.12/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a><em>, </em><em>optional</em>) – Can be <code class="code docutils literal notranslate"><span class="pre">'subpix'`(default)</span> <span class="pre">or</span> <span class="pre">:code:</span></code>’shift’` to switch between
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">mask_pair_subpix()</span></code> and <code class="xref py py-meth docutils literal notranslate"><span class="pre">mask_pair_shift()</span></code> to generate a trotter pair.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>masks</strong> – Masks in sparse.pydata.org COO format. y and x frequency index are FFT shifted, i.e. the
+zero frequency is at (0,0) and negative frequencies are in the far quadrant and reversed.
+The y frequency index is cut in half with size(y)//2 + 1 to exploit the inherent symmetry
+of a real-valued Fourier transform. The y and x index are then flattened to make it
+suitable for using it with MaskContainer.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>sparse.COO</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="stitching.html" class="btn btn-neutral float-right" title="Stitching" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

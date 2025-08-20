@@ -1,0 +1,530 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ptychography40.reconstruction.ssb.udf &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=130a53a1"></script>
+      <script src="../../../../_static/doctools.js?v=888ff710"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Ptychography 4.0
+              <img src="../../../../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datasets.html">Public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/index.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../releasing.html">Releasing</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ptychography40.reconstruction.ssb.udf</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ptychography40.reconstruction.ssb.udf</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numba</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">libertem.udf</span><span class="w"> </span><span class="kn">import</span> <span class="n">UDF</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">libertem.common.container</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaskContainer</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ptychography40.reconstruction.ssb.trotters</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_masks</span>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nogil</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">rmatmul_csc_fourier</span><span class="p">(</span><span class="n">n_threads</span><span class="p">,</span> <span class="n">left_dense</span><span class="p">,</span> <span class="n">right_data</span><span class="p">,</span> <span class="n">right_indices</span><span class="p">,</span> <span class="n">right_indptr</span><span class="p">,</span>
+                        <span class="n">coordinates</span><span class="p">,</span> <span class="n">row_exp</span><span class="p">,</span> <span class="n">col_exp</span><span class="p">,</span> <span class="n">res_inout</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Fold :meth:`SSB_UDF.merge_dot_result` into a sparse dot product from</span>
+<span class="sd">    :meth:`libertem.common.numba._rmatmul_csc`</span>
+
+<span class="sd">    The result can be directly merged into the result buffer instead of</span>
+<span class="sd">    instantiating the intermediate dot result, which can be large. That way,</span>
+<span class="sd">    this method can process entire memory-mapped partitions efficiently.</span>
+<span class="sd">    Furthermore, it allows early skipping of trotters that are empty in this tile.</span>
+
+<span class="sd">    It uses multithreading to process different parts of a tile in parallel.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">left_rows</span> <span class="o">=</span> <span class="n">left_dense</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">p_size</span> <span class="o">=</span> <span class="n">col_exp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">q_size</span> <span class="o">=</span> <span class="n">row_exp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="c1"># We subdivide in blocks per thread so that each thread</span>
+    <span class="c1"># writes exclusively to its own part of an intermediate result buffer.</span>
+    <span class="c1"># Using prange and automated &#39;+=&#39; merge leads to wrong results when using threading.</span>
+    <span class="n">blocksize</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">left_rows</span> <span class="o">/</span> <span class="n">n_threads</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">resbuf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_threads</span><span class="p">,</span> <span class="n">q_size</span><span class="p">,</span> <span class="n">p_size</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">res_inout</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="c1"># The blocks are processed in parallel</span>
+    <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">numba</span><span class="o">.</span><span class="n">prange</span><span class="p">(</span><span class="n">n_threads</span><span class="p">):</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">block</span> <span class="o">*</span> <span class="n">blocksize</span>
+        <span class="n">stop</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">block</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">blocksize</span><span class="p">,</span> <span class="n">left_rows</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">left_row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">):</span>
+            <span class="c1"># Pixel coordinates in nav dimension</span>
+            <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">coordinates</span><span class="p">[</span><span class="n">left_row</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">q_size</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p_size</span><span class="p">):</span>
+                    <span class="c1"># right_column is the mask index</span>
+                    <span class="n">right_column</span> <span class="o">=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">p_size</span> <span class="o">+</span> <span class="n">p</span>
+                    <span class="c1"># Descent into CSC data structure</span>
+                    <span class="n">offset</span> <span class="o">=</span> <span class="n">right_indptr</span><span class="p">[</span><span class="n">right_column</span><span class="p">]</span>
+                    <span class="n">items</span> <span class="o">=</span> <span class="n">right_indptr</span><span class="p">[</span><span class="n">right_column</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">offset</span>
+                    <span class="k">if</span> <span class="n">items</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="c1"># We accumulate for the whole mask into acc</span>
+                        <span class="c1"># before applying the phase factor</span>
+                        <span class="n">acc</span> <span class="o">=</span> <span class="mi">0</span>
+                        <span class="c1"># Iterate over non-zero entries in this mask</span>
+                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">items</span><span class="p">):</span>
+                            <span class="n">index</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="n">offset</span>
+                            <span class="n">right_row</span> <span class="o">=</span> <span class="n">right_indices</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                            <span class="n">right_value</span> <span class="o">=</span> <span class="n">right_data</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                            <span class="n">acc</span> <span class="o">+=</span> <span class="n">left_dense</span><span class="p">[</span><span class="n">left_row</span><span class="p">,</span> <span class="n">right_row</span><span class="p">]</span> <span class="o">*</span> <span class="n">right_value</span>
+                        <span class="c1"># Phase factor for this scan point and mask</span>
+                        <span class="n">factor</span> <span class="o">=</span> <span class="n">row_exp</span><span class="p">[</span><span class="n">y</span><span class="p">,</span> <span class="n">q</span><span class="p">]</span> <span class="o">*</span> <span class="n">col_exp</span><span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">p</span><span class="p">]</span>
+                        <span class="c1"># Applying the factor, accumulate in per-thread buffer</span>
+                        <span class="n">resbuf</span><span class="p">[</span><span class="n">block</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">p</span><span class="p">]</span> <span class="o">+=</span> <span class="n">acc</span> <span class="o">*</span> <span class="n">factor</span>
+    <span class="c1"># Finally, accumulate per-thread buffer into result</span>
+    <span class="n">res_inout</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resbuf</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SSB_UDF">
+<a class="viewcode-back" href="../../../../reference/ssb.html#ptychography40.reconstruction.ssb.SSB_UDF">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SSB_UDF</span><span class="p">(</span><span class="n">UDF</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    UDF to perform ptychography using the single side band (SSB) method :cite:`Pennycook2015`.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="SSB_UDF.__init__">
+<a class="viewcode-back" href="../../../../reference/ssb.html#ptychography40.reconstruction.ssb.SSB_UDF.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lamb</span><span class="p">,</span> <span class="n">dpix</span><span class="p">,</span> <span class="n">semiconv</span><span class="p">,</span> <span class="n">semiconv_pix</span><span class="p">,</span>
+                 <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">cy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cx</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">transformation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">cutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;subpix&#39;</span><span class="p">,</span> <span class="n">mask_container</span><span class="o">=</span><span class="kc">None</span><span class="p">,):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+
+<span class="sd">        lamb: float</span>
+<span class="sd">            The illumination wavelength in m. The function :meth:`ptychography40.common.wavelength`</span>
+<span class="sd">            allows to calculate the electron wavelength as a function of acceleration voltage.</span>
+<span class="sd">        dpix: float or Iterable(y, x)</span>
+<span class="sd">            STEM pixel size in m</span>
+<span class="sd">        semiconv: float</span>
+<span class="sd">            STEM semiconvergence angle in radians</span>
+<span class="sd">        dtype: np.dtype</span>
+<span class="sd">            dtype to perform the calculation in</span>
+<span class="sd">        semiconv_pix: float</span>
+<span class="sd">            Diameter of the primary beam in the diffraction pattern in pixels</span>
+<span class="sd">        cy, cx : float, optional</span>
+<span class="sd">            Position of the optical axis on the detector in px, center of illumination.</span>
+<span class="sd">            Default: Center of the detector</span>
+<span class="sd">        transformation: numpy.ndarray() of shape (2, 2) or None</span>
+<span class="sd">            Transformation matrix to apply to shift vectors. This allows to adjust for scan rotation</span>
+<span class="sd">            and mismatch of detector coordinate system handedness, such as flipped y axis for MIB.</span>
+<span class="sd">        cutoff : int</span>
+<span class="sd">            Minimum number of pixels in a trotter</span>
+<span class="sd">        method : &#39;subpix&#39; or &#39;shift&#39;</span>
+<span class="sd">            Method to use for generating the mask stack</span>
+<span class="sd">        mask_container: MaskContainer</span>
+<span class="sd">            Allows to pass in a precomputed mask stack when using with single thread live data</span>
+<span class="sd">            or with an inline executor as a work-around. The number of masks is sanity-checked</span>
+<span class="sd">            to match the other parameters.</span>
+<span class="sd">            The proper fix is https://github.com/LiberTEM/LiberTEM/issues/335</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">lamb</span><span class="o">=</span><span class="n">lamb</span><span class="p">,</span> <span class="n">dpix</span><span class="o">=</span><span class="n">dpix</span><span class="p">,</span> <span class="n">semiconv</span><span class="o">=</span><span class="n">semiconv</span><span class="p">,</span> <span class="n">semiconv_pix</span><span class="o">=</span><span class="n">semiconv_pix</span><span class="p">,</span>
+                         <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span> <span class="n">cy</span><span class="o">=</span><span class="n">cy</span><span class="p">,</span> <span class="n">cx</span><span class="o">=</span><span class="n">cx</span><span class="p">,</span> <span class="n">mask_container</span><span class="o">=</span><span class="n">mask_container</span><span class="p">,</span>
+                         <span class="n">transformation</span><span class="o">=</span><span class="n">transformation</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">)</span></div>
+
+
+    <span class="n">EFFICIENT_THREADS</span> <span class="o">=</span> <span class="mi">4</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_result_buffers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s1">&#39;&#39;</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">result_type</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">complex64</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">component_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">result_type</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;fourier&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">(</span>
+                <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;single&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span> <span class="n">extra_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">,</span>
+                <span class="n">where</span><span class="o">=</span><span class="s1">&#39;device&#39;</span>
+            <span class="p">),</span>
+            <span class="s1">&#39;complex&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">(</span>
+                <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;single&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span> <span class="n">extra_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">,</span>
+                <span class="n">use</span><span class="o">=</span><span class="s1">&#39;result_only&#39;</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s1">&#39;amplitude&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">(</span>
+                <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;single&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">component_dtype</span><span class="p">,</span> <span class="n">extra_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">,</span>
+                <span class="n">use</span><span class="o">=</span><span class="s1">&#39;result_only&#39;</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s1">&#39;phase&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">(</span>
+                <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;single&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">component_dtype</span><span class="p">,</span> <span class="n">extra_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">,</span>
+                <span class="n">use</span><span class="o">=</span><span class="s1">&#39;result_only&#39;</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">}</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reconstruct_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">dataset_shape</span><span class="o">.</span><span class="n">nav</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_task_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s1">&#39;&#39;</span>
+        <span class="c1"># shorthand, cupy or numpy</span>
+        <span class="n">xp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xp</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">device_class</span> <span class="o">==</span> <span class="s1">&#39;cpu&#39;</span><span class="p">:</span>
+            <span class="n">backend</span> <span class="o">=</span> <span class="s1">&#39;numpy&#39;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">device_class</span> <span class="o">==</span> <span class="s1">&#39;cuda&#39;</span><span class="p">:</span>
+            <span class="n">backend</span> <span class="o">=</span> <span class="s1">&#39;cupy&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown device class&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Hack to pass a fixed external container</span>
+        <span class="c1"># In particular useful for single-process live processing</span>
+        <span class="c1"># or inline executor</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mask_container</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">masks</span> <span class="o">=</span> <span class="n">generate_masks</span><span class="p">(</span>
+                <span class="n">reconstruct_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">,</span>
+                <span class="n">mask_shape</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">dataset_shape</span><span class="o">.</span><span class="n">sig</span><span class="p">),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+                <span class="n">lamb</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">lamb</span><span class="p">,</span>
+                <span class="n">dpix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dpix</span><span class="p">,</span>
+                <span class="n">semiconv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">semiconv</span><span class="p">,</span>
+                <span class="n">semiconv_pix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">semiconv_pix</span><span class="p">,</span>
+                <span class="n">cy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">cy</span><span class="p">,</span>
+                <span class="n">cx</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">cx</span><span class="p">,</span>
+                <span class="n">transformation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">transformation</span><span class="p">,</span>
+                <span class="n">cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">cutoff</span><span class="p">,</span>
+                <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">method</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">container</span> <span class="o">=</span> <span class="n">MaskContainer</span><span class="p">(</span>
+                <span class="n">mask_factories</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">masks</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">masks</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+                <span class="n">use_sparse</span><span class="o">=</span><span class="s1">&#39;scipy.sparse.csr&#39;</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="n">masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">container</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mask_container</span>
+            <span class="n">target_size</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">container_shape</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">computed_masks</span><span class="o">.</span><span class="n">shape</span>
+            <span class="n">expected_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">target_size</span><span class="p">,</span> <span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">dataset_shape</span><span class="o">.</span><span class="n">sig</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">container_shape</span> <span class="o">!=</span> <span class="n">expected_shape</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;External mask container doesn&#39;t have the expected shape. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Got </span><span class="si">{</span><span class="n">container_shape</span><span class="si">}</span><span class="s2">, expected </span><span class="si">{</span><span class="n">expected_shape</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="s2">&quot;Mask count (self.meta.dataset_shape.nav[0] // 2 + 1) &quot;</span>
+                    <span class="s2">&quot;* self.meta.dataset_shape.nav[1], &quot;</span>
+                    <span class="s2">&quot;Mask shape self.meta.dataset_shape.sig. &quot;</span>
+                    <span class="s2">&quot;The methods generate_masks_*() help to generate a suitable mask stack.&quot;</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Precalculated LUT for Fourier transform</span>
+        <span class="c1"># The y axis is trimmed in half since the full trotter stack is symmetric,</span>
+        <span class="c1"># i.e. the missing half can be reconstructed from the other results</span>
+        <span class="n">row_steps</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span><span class="n">j</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">endpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">col_steps</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span><span class="n">j</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">endpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">half_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">full_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># This creates a 2D array of row x spatial frequency</span>
+        <span class="n">row_exp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span>
+            <span class="n">row_steps</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">half_y</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="p">)</span>
+        <span class="c1"># This creates a 2D array of col x spatial frequency</span>
+        <span class="n">col_exp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span>
+            <span class="n">col_steps</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">full_x</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="p">)</span>
+
+        <span class="n">steps_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">result_type</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">complex64</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;masks&quot;</span><span class="p">:</span> <span class="n">container</span><span class="p">,</span>
+            <span class="s2">&quot;row_exp&quot;</span><span class="p">:</span> <span class="n">xp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">row_exp</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">steps_dtype</span><span class="p">)),</span>
+            <span class="s2">&quot;col_exp&quot;</span><span class="p">:</span> <span class="n">xp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">col_exp</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">steps_dtype</span><span class="p">)),</span>
+            <span class="s2">&quot;backend&quot;</span><span class="p">:</span> <span class="n">backend</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">src</span><span class="p">):</span>
+        <span class="s1">&#39;&#39;</span>
+        <span class="n">dest</span><span class="o">.</span><span class="n">fourier</span><span class="p">[:]</span> <span class="o">+=</span> <span class="n">src</span><span class="o">.</span><span class="n">fourier</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">merge_dot_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dot_result</span><span class="p">):</span>
+        <span class="c1"># shorthand, cupy or numpy</span>
+        <span class="n">xp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xp</span>
+
+        <span class="n">tile_depth</span> <span class="o">=</span> <span class="n">dot_result</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># We calculate only half of the Fourier transform due to the</span>
+        <span class="c1"># inherent symmetry of the mask stack. In this case we</span>
+        <span class="c1"># cut the y axis in half. The &quot;+ 1&quot; accounts for odd sizes</span>
+        <span class="c1"># The mask stack is already trimmed in y direction to only contain</span>
+        <span class="c1"># one of the trotter pairs</span>
+        <span class="n">half_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Get the real x and y indices within the dataset navigation dimension</span>
+        <span class="c1"># for the current tile</span>
+        <span class="n">y_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">coordinates</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">x_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">coordinates</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># This loads the correct entries for the current tile from the pre-calculated</span>
+        <span class="c1"># 1-D DFT matrices using the x and y indices of the frames in the current tile</span>
+        <span class="c1"># fourier_factors_row is already trimmed for half_y, but the explicit index</span>
+        <span class="c1"># is kept for clarity</span>
+        <span class="n">fourier_factors_row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">row_exp</span><span class="p">[</span><span class="n">y_indices</span><span class="p">,</span> <span class="p">:</span><span class="n">half_y</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="n">fourier_factors_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">col_exp</span><span class="p">[</span><span class="n">x_indices</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="c1"># The masks are in order [row, col], but flattened. Here we undo the flattening</span>
+        <span class="n">dot_result</span> <span class="o">=</span> <span class="n">dot_result</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">tile_depth</span><span class="p">,</span> <span class="n">half_y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+        <span class="c1"># Calculate the part of the Fourier transform for this tile.</span>
+        <span class="c1"># Reconstructed shape corresponds to depth of mask stack, see above.</span>
+        <span class="c1"># Shape of operands:</span>
+        <span class="c1"># dot_result: (tile_depth, reconstructed_shape_y // 2 + 1, reconstructed_shape_x)</span>
+        <span class="c1"># fourier_factors_row: (tile_depth, reconstructed_shape_y // 2 + 1, 1)</span>
+        <span class="c1"># fourier_factors_col: (tile_depth, 1, reconstructed_shape_x)</span>
+        <span class="c1"># The einsum is equivalent to</span>
+        <span class="c1"># (dot_result*fourier_factors_row*fourier_factors_col).sum(axis=0)</span>
+        <span class="c1"># The product of the Fourier factors for row and column implicitly builds part</span>
+        <span class="c1"># of the full 2D DFT matrix through NumPy broadcasting</span>
+        <span class="c1"># The sum of axis 0 (tile depth) already performs the accumulation for the tile</span>
+        <span class="c1"># stack before patching the missing half for the full result.</span>
+        <span class="c1"># Einsum is about 3x faster in this scenario, likely because of not building a large</span>
+        <span class="c1"># intermediate array before summation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="p">[:</span><span class="n">half_y</span><span class="p">]</span> <span class="o">+=</span> <span class="n">xp</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span>
+            <span class="s1">&#39;i...,i...,i...&#39;</span><span class="p">,</span>
+            <span class="n">dot_result</span><span class="p">,</span>
+            <span class="n">fourier_factors_row</span><span class="p">,</span>
+            <span class="n">fourier_factors_col</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">postprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s1">&#39;&#39;</span>
+        <span class="c1"># shorthand, cupy or numpy</span>
+        <span class="n">xp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xp</span>
+        <span class="n">half_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="c1"># patch accounts for even and odd sizes</span>
+        <span class="c1"># FIXME make sure this is correct using an example that transmits also</span>
+        <span class="c1"># the high spatial frequencies</span>
+        <span class="n">patch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">%</span> <span class="mi">2</span>
+        <span class="c1"># We skip the first row since it would be outside the FOV</span>
+        <span class="n">extracted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">patch</span><span class="p">]</span>
+        <span class="c1"># The coordinates of the bottom half are inverted and</span>
+        <span class="c1"># the zero column is rolled around to the front</span>
+        <span class="c1"># The real part is inverted</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="p">[</span><span class="n">half_y</span><span class="p">:]</span> <span class="o">=</span> <span class="o">-</span><span class="n">xp</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span>
+            <span class="n">xp</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">extracted</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">shift</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="SSB_UDF.get_results">
+<a class="viewcode-back" href="../../../../reference/ssb.html#ptychography40.reconstruction.ssb.SSB_UDF.get_results">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Since we derive the wave front with a linear function from intensities,</span>
+<span class="sd">        but the wave front is inherently an amplitude,</span>
+<span class="sd">        we take the square root of the calculated amplitude and</span>
+<span class="sd">        combine it with the calculated phase.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">inverse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifft2</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="p">)</span>
+        <span class="n">amp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">inverse</span><span class="p">))</span>
+        <span class="n">phase</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">inverse</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;fourier&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="p">,</span>
+            <span class="s1">&#39;complex&#39;</span><span class="p">:</span> <span class="n">amp</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="o">*</span><span class="n">phase</span><span class="p">),</span>
+            <span class="s1">&#39;amplitude&#39;</span><span class="p">:</span> <span class="n">amp</span><span class="p">,</span>
+            <span class="s1">&#39;phase&#39;</span><span class="p">:</span> <span class="n">phase</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">process_tile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tile</span><span class="p">):</span>
+        <span class="s1">&#39;&#39;</span>
+        <span class="c1"># We flatten the signal dimension of the tile in preparation of the dot product</span>
+        <span class="n">tile_flat</span> <span class="o">=</span> <span class="n">tile</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">tile</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;cupy&#39;</span><span class="p">:</span>
+            <span class="c1"># Load the preconditioned trotter stack from the mask container:</span>
+            <span class="c1"># * Coutout for current tile</span>
+            <span class="c1"># * Flattened signal dimension</span>
+            <span class="c1"># * Clean CSR matrix</span>
+            <span class="c1"># * On correct device</span>
+            <span class="n">masks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">transpose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">backend</span><span class="p">,</span>
+                <span class="n">sparse_backend</span><span class="o">=</span><span class="s1">&#39;scipy.sparse.csr&#39;</span>
+            <span class="p">)</span>
+            <span class="c1"># Skip an empty tile since the contribution is 0</span>
+            <span class="k">if</span> <span class="n">masks</span><span class="o">.</span><span class="n">nnz</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="c1"># This performs the trotter integration</span>
+            <span class="c1"># As of now, cupy doesn&#39;t seem to support __rmatmul__ with sparse matrices</span>
+            <span class="n">dot_result</span> <span class="o">=</span> <span class="n">masks</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">tile_flat</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">merge_dot_result</span><span class="p">(</span><span class="n">dot_result</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># We calculate only half of the Fourier transform due to the</span>
+            <span class="c1"># inherent symmetry of the mask stack. In this case we</span>
+            <span class="c1"># cut the y axis in half. The &quot;+ 1&quot; accounts for odd sizes</span>
+            <span class="c1"># The mask stack is already trimmed in y direction to only contain</span>
+            <span class="c1"># one of the trotter pairs</span>
+            <span class="n">half_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">tpw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">threads_per_worker</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">tpw</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">tpw</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">EFFICIENT_THREADS</span><span class="p">):</span>
+                <span class="c1"># Load the preconditioned trotter stack from the mask container:</span>
+                <span class="c1"># * Coutout for current tile</span>
+                <span class="c1"># * Flattened signal dimension</span>
+                <span class="c1"># * Transposed for right hand side of dot product</span>
+                <span class="c1">#   (rmatmul_csc_fourier() takes care of putting things where they belong</span>
+                <span class="c1">#    in the result)</span>
+                <span class="c1"># * Clean CSC matrix</span>
+                <span class="c1"># * On correct device (CPU)</span>
+                <span class="n">masks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">transpose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">backend</span><span class="p">,</span>
+                    <span class="n">sparse_backend</span><span class="o">=</span><span class="s1">&#39;scipy.sparse.csc&#39;</span>
+                <span class="p">)</span>
+                <span class="c1"># Skip an empty tile since the contribution is 0</span>
+                <span class="k">if</span> <span class="n">masks</span><span class="o">.</span><span class="n">nnz</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">return</span>
+
+                <span class="c1"># This combines the trotter integration with merge_dot_result</span>
+                <span class="c1"># into a Numba loop that eliminates a potentially large intermediate result</span>
+                <span class="c1"># and allows efficient multithreading on a large tile</span>
+                <span class="n">rmatmul_csc_fourier</span><span class="p">(</span>
+                    <span class="n">n_threads</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">threads_per_worker</span><span class="p">,</span>
+                    <span class="n">left_dense</span><span class="o">=</span><span class="n">tile_flat</span><span class="p">,</span>
+                    <span class="n">right_data</span><span class="o">=</span><span class="n">masks</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                    <span class="n">right_indices</span><span class="o">=</span><span class="n">masks</span><span class="o">.</span><span class="n">indices</span><span class="p">,</span>
+                    <span class="n">right_indptr</span><span class="o">=</span><span class="n">masks</span><span class="o">.</span><span class="n">indptr</span><span class="p">,</span>
+                    <span class="n">coordinates</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">coordinates</span><span class="p">,</span>
+                    <span class="n">row_exp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">row_exp</span><span class="p">,</span>
+                    <span class="n">col_exp</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">col_exp</span><span class="p">,</span>
+                    <span class="n">res_inout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">fourier</span><span class="p">[:</span><span class="n">half_y</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">masks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">masks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">slice</span><span class="p">,</span> <span class="n">transpose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_data</span><span class="o">.</span><span class="n">backend</span><span class="p">,</span>
+                    <span class="n">sparse_backend</span><span class="o">=</span><span class="s1">&#39;scipy.sparse.csr&#39;</span>
+                <span class="p">)</span>
+                <span class="c1"># Skip an empty tile since the contribution is 0</span>
+                <span class="k">if</span> <span class="n">masks</span><span class="o">.</span><span class="n">nnz</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">return</span>
+                <span class="c1"># This performs the trotter integration</span>
+                <span class="c1"># Transposed copy of the input data for fast scipy.sparse __matmul__()</span>
+                <span class="n">dot_result</span> <span class="o">=</span> <span class="n">masks</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">tile_flat</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span><span class="o">.</span><span class="n">T</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">merge_dot_result</span><span class="p">(</span><span class="n">dot_result</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_backends</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s1">&#39;&#39;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;numpy&#39;</span><span class="p">,</span> <span class="s1">&#39;cupy&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_tiling_preferences</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s1">&#39;&#39;</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">result_type</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">complex64</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">result_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reconstruct_shape</span><span class="p">)</span> <span class="o">*</span> <span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">device_class</span> <span class="o">==</span> <span class="s1">&#39;cuda&#39;</span><span class="p">:</span>
+            <span class="n">free</span><span class="p">,</span> <span class="n">total</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xp</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">runtime</span><span class="o">.</span><span class="n">memGetInfo</span><span class="p">()</span>
+            <span class="n">total_size</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mf">100e6</span><span class="p">,</span> <span class="n">free</span> <span class="o">//</span> <span class="mi">4</span><span class="p">)</span>
+            <span class="n">good_depth</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">total_size</span> <span class="o">/</span> <span class="n">result_size</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;depth&quot;</span><span class="p">:</span> <span class="n">good_depth</span><span class="p">,</span>
+                <span class="s2">&quot;total_size&quot;</span><span class="p">:</span> <span class="n">total_size</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tpw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">threads_per_worker</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">tpw</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">tpw</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">EFFICIENT_THREADS</span><span class="p">):</span>
+                <span class="c1"># The parallel Numba loop can process entire partitions efficiently</span>
+                <span class="c1"># since it accumulates in the result without large intermediate</span>
+                <span class="c1"># data</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;depth&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">TILE_DEPTH_MAX</span><span class="p">,</span>
+                    <span class="s2">&quot;total_size&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">TILE_SIZE_MAX</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># We limit the depth of a tile so that the intermediate</span>
+                <span class="c1"># results from processing a tile fit into the CPU cache.</span>
+                <span class="n">good_depth</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1e6</span> <span class="o">/</span> <span class="n">result_size</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;depth&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">good_depth</span><span class="p">),</span>
+                    <span class="c1"># We reduce the size of a tile since a transposed copy of</span>
+                    <span class="c1"># each tile will be taken to speed up the sparse matrix product</span>
+                    <span class="s2">&quot;total_size&quot;</span><span class="p">:</span> <span class="mf">0.5e6</span><span class="p">,</span>
+                <span class="p">}</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,233 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Releasing &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=130a53a1"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Citing" href="citing.html" />
+    <link rel="prev" title="Contributing" href="contributing.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Ptychography 4.0
+              <img src="_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/index.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="contributing.html">Contributing</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#development-principles">Development principles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#code-contributions">Code contributions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#running-the-tests">Running the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#code-style">Code style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#building-the-documentation">Building the documentation</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="contributing.html#advanced">Advanced</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Releasing</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#release-checklist">Release checklist</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Releasing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#release-checklist">Release checklist</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#tagging-a-version">Tagging a version</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#before-using-a-release-candidate-package">Before (using a release candidate package)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#after-releasing-on-github">After releasing on GitHub</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="contributing.html">Contributing</a></li>
+      <li class="breadcrumb-item active">Releasing</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/releasing.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="releasing">
+<h1>Releasing<a class="headerlink" href="#releasing" title="Link to this heading"></a></h1>
+<p>This document describes release procedures and infrastructure that is relevant
+for advanced contributors. See <a class="reference internal" href="contributing.html#contributing"><span class="std std-ref">Contributing</span></a> for information on regular
+contributions.</p>
+<section id="release-checklist">
+<h2>Release checklist<a class="headerlink" href="#release-checklist" title="Link to this heading"></a></h2>
+<p>Not all aspects of ptychography are covered with automated unit tests. For that
+reason we should perform some manual tests before and after a release.</p>
+<section id="tagging-a-version">
+<h3>Tagging a version<a class="headerlink" href="#tagging-a-version" title="Link to this heading"></a></h3>
+<p>Install dependencies from <code class="code docutils literal notranslate"><span class="pre">scripts/requirements.txt</span></code>,
+which are used by <code class="code docutils literal notranslate"><span class="pre">scripts/release</span></code>. Then call the script with
+the <code class="code docutils literal notranslate"><span class="pre">bump</span></code> command, with the new version as parameter:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>./scripts/release<span class="w"> </span>bump<span class="w"> </span>v0.3.0.rc0<span class="w"> </span>--tag
+</pre></div>
+</div>
+<p>If you are bumping to a .dev0 suffix, omit <code class="code docutils literal notranslate"><span class="pre">--tag</span></code> and only pass <code class="code docutils literal notranslate"><span class="pre">--commit</span></code>:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>./scripts/release<span class="w"> </span>bump<span class="w"> </span>v0.4.0.dev0<span class="w"> </span>--commit
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In normal development, the version in the master branch will be x.y.z.dev0,
+if the next expected version is x.y.z. When starting the release process, it
+will be bumped up to x.y.zrc0 (note: no dot before rc!) and possibly
+additional release candidates afterwards (rc1, …, rcN). These release candidates
+are done mostly to assure our release scripts work as expected and for doing
+additional QA. See below for our QA process.</p>
+</div>
+</section>
+<section id="before-using-a-release-candidate-package">
+<h3>Before (using a release candidate package)<a class="headerlink" href="#before-using-a-release-candidate-package" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Review open issues and pull requests</p></li>
+<li><p>Handle deprecation, search the code base for <code class="code docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>
+that are supposed to be removed in that release.</p></li>
+<li><p>Full documentation review and update, including link check using
+<code class="docutils literal notranslate"><span class="pre">sphinx-build</span> <span class="pre">-b</span> <span class="pre">linkcheck</span> <span class="pre">&quot;docs/source&quot;</span> <span class="pre">&quot;docs/build/html&quot;</span></code></p></li>
+<li><p>Run complete test suite, including slow tests that are deactivated by default
+and tests that require sample files. Also run tests that require a GPU.</p></li>
+<li><p>Update the expected version in notes on changes, i.e. from <code class="code docutils literal notranslate"><span class="pre">0.3.0.dev0</span></code>
+to <code class="code docutils literal notranslate"><span class="pre">0.3.0</span></code> when releasing version 0.3.0.</p></li>
+<li><p>Update and review change log in <code class="code docutils literal notranslate"><span class="pre">docs/source/changelog.rst</span></code>, merging
+snippets in <code class="code docutils literal notranslate"><span class="pre">docs/source/changelog/*/</span></code> as appropriate.</p></li>
+<li><p>Update the JSON files in the <code class="docutils literal notranslate"><span class="pre">packaging/</span></code> folder with author and project information</p></li>
+<li><p>Create a release candidate using <code class="code docutils literal notranslate"><span class="pre">scripts/release</span></code>. See <code class="code docutils literal notranslate"><span class="pre">scripts/release</span> <span class="pre">--help</span></code> for details.</p></li>
+<li><p><a class="reference external" href="https://github.com/Ptychography-4-0/ptychography/releases">Confirm that wheel and tar.gz are built for the release candidate on
+GitHub</a></p></li>
+<li><p>Confirm that a new version with the most recent release candidate is created in the
+<a class="reference external" href="https://sandbox.zenodo.org/record/743636">Zenodo.org sandbox</a> that is ready for submission.</p></li>
+<li><p>Install release candidate packages in a clean environment
+(for example:
+<code class="code docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-i</span> <span class="pre">https://test.pypi.org/simple/</span> <span class="pre">--extra-index-url</span> <span class="pre">https://pypi.org/simple</span> <span class="pre">'ptychography40==0.1.0rc0'</span></code>)</p></li>
+<li><p>Make sure you have test files for all supported algorithms available</p></li>
+<li><dl class="simple">
+<dt>Run all examples and applications using the test files</dt><dd><ul>
+<li><p>Are parameters recognized correctly, as far as implemented?</p></li>
+<li><p>Any bad default values?</p></li>
+<li><p>Does the file open correctly?</p></li>
+<li><p>Does the result change when the input parameters are changed?</p></li>
+<li><p>All display channels present and looking reasonable?</p></li>
+<li><p>Reasonable performance?</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>Run all examples and applications on Windows</p></li>
+<li><p>Confirm that pull requests and issues are handled as intended, i.e. milestoned and merged
+in appropriate branch.</p></li>
+</ul>
+</section>
+<section id="after-releasing-on-github">
+<h3>After releasing on GitHub<a class="headerlink" href="#after-releasing-on-github" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Confirm that all release packages are built and release notes are up-to-date</p></li>
+<li><p>Install release package</p></li>
+<li><p>Confirm correct version info</p></li>
+<li><p>confirm package upload to PyPI</p></li>
+<li><p>Publish new version on zenodo.org</p></li>
+<li><dl class="simple">
+<dt>Update documentation with new links, if necessary</dt><dd><ul>
+<li><p>Add zenodo badge for the new release to Changelog page</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>Send announcement message on mailing list</p></li>
+<li><p>Bump version in master branch to next .dev0</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="contributing.html" class="btn btn-neutral float-left" title="Contributing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="citing.html" class="btn btn-neutral float-right" title="Citing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

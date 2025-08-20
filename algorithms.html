@@ -1,0 +1,410 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Algorithms &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=130a53a1"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Single Side Band ptychography example" href="algorithms/ssb.html" />
+    <link rel="prev" title="Installation" href="install.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Ptychography 4.0
+              <img src="_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Algorithms</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#single-side-band">Single side band</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="algorithms/ssb.html">Single Side Band ptychography example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="algorithms/live-ssb.html">Run Single Side Band (SSB) ptychography on Merlin live streams</a></li>
+<li class="toctree-l3"><a class="reference internal" href="algorithms/simple-ssb.html">Simple SSB implementation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#tools-for-iterative-algorithms">Tools for iterative algorithms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#example-on-simulated-diffraction-data">Example on simulated diffraction data</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="algorithms/transform-example.html">Tools for iterative ptychography</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#transform-to-reconstruction-coordinates">Transform to reconstruction coordinates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#shifted-products-and-shifted-aggregation">Shifted products and shifted aggregation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/index.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="releasing.html">Releasing</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Algorithms</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/algorithms.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="algorithms">
+<span id="id1"></span><h1>Algorithms<a class="headerlink" href="#algorithms" title="Link to this heading"></a></h1>
+<section id="single-side-band">
+<h2>Single side band<a class="headerlink" href="#single-side-band" title="Link to this heading"></a></h2>
+<p>The algorithm after <span id="id2">[<a class="reference internal" href="index.html#id14" title="Timothy J. Pennycook, Andrew R. Lupini, Hao Yang, Matthew F. Murfitt, Lewys Jones, and Peter D. Nellist. Efficient phase contrast imaging in STEM using a pixelated detector. part 1: experimental demonstration at atomic resolution. Ultramicroscopy, 151:160–167, apr 2015. doi:10.1016/j.ultramic.2014.09.013.">PLY+15</a>]</span> is reformulated to allow incremental
+processing using a <a class="reference external" href="https://libertem.github.io/LiberTEM/udf.html">LiberTEM user-defined function</a> <span id="id3">[<a class="reference internal" href="index.html#id23" title="Achim Strauch, Dieter Weber, Alexander Clausen, Anastasiia Lesnichaia, Arya Bangun, Benjamin März, Feng Jiao Lyu, Qing Chen, Andreas Rosenauer, Rafal Dunin-Borkowski, and Knut Müller-Caspary. Live processing of momentum-resolved STEM data for first moment imaging and ptychography. Microscopy and Microanalysis, pages 1–15, aug 2021. doi:10.1017/s1431927621012423.">SWC+21</a>]</span>. The
+notebooks can be downloaded at
+<a class="reference external" href="https://github.com/Ptychography-4-0/ptychography/tree/master/examples">https://github.com/Ptychography-4-0/ptychography/tree/master/examples</a>.</p>
+<figure class="align-default" id="id5">
+<img alt="Animation of progressive SSB processing" src="_images/live-ptychography.gif" />
+<figcaption>
+<p><span class="caption-text">Incremental ptychography animation <span id="id4">[<a class="reference internal" href="index.html#id23" title="Achim Strauch, Dieter Weber, Alexander Clausen, Anastasiia Lesnichaia, Arya Bangun, Benjamin März, Feng Jiao Lyu, Qing Chen, Andreas Rosenauer, Rafal Dunin-Borkowski, and Knut Müller-Caspary. Live processing of momentum-resolved STEM data for first moment imaging and ptychography. Microscopy and Microanalysis, pages 1–15, aug 2021. doi:10.1017/s1431927621012423.">SWC+21</a>]</span>.</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="algorithms/ssb.html">Single Side Band ptychography example</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/ssb.html#Create-the-LiberTEM-context">Create the LiberTEM context</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/ssb.html#Open-the-input-data">Open the input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/ssb.html#Reconstruction-parameters">Reconstruction parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/ssb.html#Initial-analysis-of-the-dataset">Initial analysis of the dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/ssb.html#Center-of-mass-analysis">Center of mass analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/ssb.html#Pre-calculate-the-trotter-stack">Pre-calculate the trotter stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/ssb.html#Instantiate-and-run-the-SSB-UDF">Instantiate and run the SSB UDF</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<p>Live processing with Quantum Detectors Merlin camera using <a class="reference external" href="https://libertem.github.io/LiberTEM-live/">LiberTEM-live</a>:</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="algorithms/live-ssb.html">Run Single Side Band (SSB) ptychography on Merlin live streams</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/live-ssb.html#Camera-setup">Camera setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/live-ssb.html#Trigger-function">Trigger function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/live-ssb.html#SSB-setup">SSB setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/live-ssb.html#COM-setup">COM setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/live-ssb.html#Plot-setup-for-gridded-display">Plot setup for gridded display</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/live-ssb.html#Sample-output">Sample output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/live-ssb.html#Run-SSB-and-centre-of-mass-on-live-data">Run SSB and centre of mass on live data</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<p>Simplified implementation as a reference:</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="algorithms/simple-ssb.html">Simple SSB implementation</a></li>
+</ul>
+</div>
+</section>
+<section id="tools-for-iterative-algorithms">
+<span id="iterative"></span><h2>Tools for iterative algorithms<a class="headerlink" href="#tools-for-iterative-algorithms" title="Link to this heading"></a></h2>
+<p>Many algorithms for iterative ptychographic reconstruction require the same
+basic operations. Ptychography 4.0 offers fast implementations for CPU and GPU
+for some of these operations that handle coordinate systems and parameters in a
+consistent way.</p>
+<section id="example-on-simulated-diffraction-data">
+<h3>Example on simulated diffraction data<a class="headerlink" href="#example-on-simulated-diffraction-data" title="Link to this heading"></a></h3>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="algorithms/transform-example.html">Tools for iterative ptychography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Define-parameters-for-the-initial-simulation">Define parameters for the initial simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Create-an-object">Create an object</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Calculate-the-illumination">Calculate the illumination</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Forward-simulation">Forward simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Transform-the-%22perfect%22-simulation-to-a-typical-experimental-result">Transform the “perfect” simulation to a typical experimental result</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Show-mismatch-between-detector-and-forward-model">Show mismatch between detector and forward model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Forward-models">Forward models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Transformation-of-the-detector-data">Transformation of the detector data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Verify-match">Verify match</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Compare-performance">Compare performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms/transform-example.html#Conclusion">Conclusion</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="transform-to-reconstruction-coordinates">
+<h3>Transform to reconstruction coordinates<a class="headerlink" href="#transform-to-reconstruction-coordinates" title="Link to this heading"></a></h3>
+<p>Usually, the pixel coordinates of detector and reconstruction grid are not
+aligned. In order to calculate an update of the object and probe function, the
+recorded detector image has to be transformed to match exactly the forward
+model, usually the Fourier transform of the exit wave. Furthermore, real-world
+implementations may require an FFT shift or inverse FFT shift to move the zero
+frequency to the correct position.</p>
+<p>Doing this with <code class="xref py py-meth docutils literal notranslate"><span class="pre">numpy.fft.fftshift()</span></code> and <code class="xref py py-mod docutils literal notranslate"><span class="pre">scipy.ndimage</span></code> repeatedly
+for a whole dataset can be the rate-limiting step, while keeping an intermediate
+transformed version can be memory-consuming. Furthermore, it can be tricky to
+get the scaling in physical coordinates right.</p>
+<p>Ptychography 4.0 offers a fast implementation that allows to perform the
+transformation of detector data to reconstruction coordinates on-the-fly. The
+implementation does not perform a precise interpolation, but chooses the nearest
+pixel value. If the detector data is scaled down, each pixel in the target area
+is filled with the average from the corresponding source area.</p>
+<p>The transformation infrastructure consists of three components:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="reference/common.html#ptychography40.reconstruction.common.diffraction_to_detector" title="ptychography40.reconstruction.common.diffraction_to_detector"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.reconstruction.common.diffraction_to_detector()</span></code></a>
+generates a function that transforms coordinates in the reconstruction
+coordinate system to detector coordinates. The parameters of this function
+correspond to the parameters of
+<a class="reference internal" href="reference/ssb.html#ptychography40.reconstruction.ssb.SSB_UDF" title="ptychography40.reconstruction.ssb.SSB_UDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">ptychography40.reconstruction.ssb.SSB_UDF</span></code></a> and
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">libertem.api.Context.create_com_analysis()</span></code>.</p></li>
+<li><p><a class="reference internal" href="reference/common.html#ptychography40.reconstruction.common.image_transformation_matrix" title="ptychography40.reconstruction.common.image_transformation_matrix"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.reconstruction.common.image_transformation_matrix()</span></code></a>
+constructs a sparse matrix that maps a flattened detector image to a flattened
+target image in reconstruction coordinates by applying a function that
+transforms the pixel outlines of the target image to the source coordinates.
+Additionally, it can apply pre- and post-transforms in case the target or
+source coordinates are not euclidean. Most notably, a pre-transform of the
+reconstruction coordinates using
+<a class="reference internal" href="reference/common.html#ptychography40.reconstruction.common.ifftshift_coords" title="ptychography40.reconstruction.common.ifftshift_coords"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.reconstruction.common.ifftshift_coords()</span></code></a> can apply an
+inverse FFT shift with zero overhead. A post-transform allows flexible mapping
+of detector positions to detector channels, for example to support detectors
+with nonstandard geometries.</p></li>
+<li><p><a class="reference internal" href="reference/common.html#ptychography40.reconstruction.common.apply_matrix" title="ptychography40.reconstruction.common.apply_matrix"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.reconstruction.common.apply_matrix()</span></code></a> is a convenience
+function that applies a transformation matrix to a stack of detector images,
+taking care of properly reshaping the input and output.</p></li>
+</ul>
+<p>Applying a transformation with this method repeatedly on stacks of images can
+achieve excellent performance compared with working on image data using
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">scipy.ndimage</span></code> since the matrix has to be calculated only once and can
+then be applied with fast implementations for sparse matrix products from
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">scipy.sparse</span></code> and <code class="xref py py-mod docutils literal notranslate"><span class="pre">cupyx.scipy.sparse</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ptychography40.reconstruction.common</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">diffraction_to_detector</span><span class="p">,</span> <span class="n">ifftshift_coords</span><span class="p">,</span>
+    <span class="n">image_transformation_matrix</span><span class="p">,</span> <span class="n">apply_matrix</span>
+<span class="p">)</span>
+
+<span class="n">data_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">data_shape</span><span class="p">)</span>
+<span class="n">source_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+<span class="n">target_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+
+<span class="n">f</span> <span class="o">=</span> <span class="n">diffraction_to_detector</span><span class="p">(</span>
+    <span class="n">lamb</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">diffraction_shape</span><span class="o">=</span><span class="n">target_shape</span><span class="p">,</span>
+    <span class="n">pixel_size_real</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="c1"># Detector is 2x finer than required</span>
+    <span class="n">pixel_size_detector</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">8</span><span class="p">),</span>
+    <span class="n">cy</span><span class="o">=</span><span class="n">source_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">cx</span><span class="o">=</span><span class="n">source_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">flip_y</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">scan_rotation</span><span class="o">=</span><span class="mf">90.</span>
+<span class="p">)</span>
+
+<span class="n">m</span> <span class="o">=</span> <span class="n">image_transformation_matrix</span><span class="p">(</span>
+    <span class="n">source_shape</span><span class="o">=</span><span class="n">source_shape</span><span class="p">,</span>
+    <span class="n">target_shape</span><span class="o">=</span><span class="n">target_shape</span><span class="p">,</span>
+    <span class="c1"># swap y and x (transpose) and scale up</span>
+    <span class="c1"># Transformation goes backwards, from target to source</span>
+    <span class="n">affine_transformation</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+    <span class="n">pre_transform</span><span class="o">=</span><span class="n">ifftshift_coords</span><span class="p">(</span><span class="n">target_shape</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="n">res</span> <span class="o">=</span> <span class="n">apply_matrix</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">target_shape</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this particular example this is equivalent to the following:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Binning, not accumulating intensity but keeping same absolute values</span>
+<span class="n">binned</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+    <span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">target_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">2</span><span class="p">,</span> <span class="n">target_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+<span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+<span class="c1"># flip_y + scan_rotation=90 is equivalent to transposing</span>
+<span class="n">transposed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">binned</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+<span class="n">ref</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifftshift</span><span class="p">(</span><span class="n">transposed</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+<span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">res</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="shifted-products-and-shifted-aggregation">
+<h3>Shifted products and shifted aggregation<a class="headerlink" href="#shifted-products-and-shifted-aggregation" title="Link to this heading"></a></h3>
+<p>Ptychography can often be performed with a relatively small illumination
+function that is mapped across a larger object function since the illumination
+is usually limited in size. That means the forward calculation can be performed
+efficiently by slicing out the appropriate portion of the object function,
+obtaining the exit wave with a product, calculating the update function and then
+applying it back to the object function at the correct place.</p>
+<p>Since the reconstruction can be performed with rather small illumination
+functions, for example shape <code class="code docutils literal notranslate"><span class="pre">(32,</span> <span class="pre">32)</span></code>, an efficient Python
+implementation should calculate and apply many updates in a batch.
+<a class="reference internal" href="reference/common.html#ptychography40.reconstruction.common.rolled_object_probe_product_cpu" title="ptychography40.reconstruction.common.rolled_object_probe_product_cpu"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.reconstruction.common.rolled_object_probe_product_cpu()</span></code></a> and
+<a class="reference internal" href="reference/common.html#ptychography40.reconstruction.common.rolled_object_probe_product_cuda" title="ptychography40.reconstruction.common.rolled_object_probe_product_cuda"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.reconstruction.common.rolled_object_probe_product_cuda()</span></code></a>
+calculate a stack of cropped, shifted and rolled products.
+<a class="reference internal" href="reference/common.html#ptychography40.reconstruction.common.rolled_object_aggregation_cpu" title="ptychography40.reconstruction.common.rolled_object_aggregation_cpu"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.reconstruction.common.rolled_object_aggregation_cpu()</span></code></a> and
+<a class="reference internal" href="reference/common.html#ptychography40.reconstruction.common.rolled_object_aggregation_cuda" title="ptychography40.reconstruction.common.rolled_object_aggregation_cuda"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.reconstruction.common.rolled_object_aggregation_cuda()</span></code></a>
+accumulate a stack of shifted updates.</p>
+<p>The function to calculate products also supports subpixel shifts if an array of
+illuminations with subpixel shifts is supplied. Finer resolution than the
+reconstruction grid can be supported for the scan coordinates that way.
+<a class="reference internal" href="reference/common.html#ptychography40.reconstruction.common.rolled_object_probe_product_cpu" title="ptychography40.reconstruction.common.rolled_object_probe_product_cpu"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ptychography40.reconstruction.common.rolled_object_probe_product_cpu()</span></code></a>
+returns the index of the subpixel-shifted probe for each product so that the
+correct shifted version can be selected easily in downstream code if necessary.</p>
+<p>Since the forward calculation often includes a Fourier transform, these
+functions can optionally perform an FFT shift resp. inverse FFT shift on-the-fly
+to avoid unnecessary memory transfers.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ptychography40.reconstruction.common</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+   <span class="n">rolled_object_probe_product_cpu</span><span class="p">,</span> <span class="n">shifted_probes</span>
+<span class="p">)</span>
+
+<span class="n">obj_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">)</span>
+<span class="n">probe_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
+
+<span class="n">obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">obj_shape</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">obj_shape</span><span class="p">)</span>
+
+<span class="n">probe</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">probe_shape</span><span class="p">)</span>
+<span class="n">probe</span><span class="p">[</span><span class="mi">8</span><span class="p">:</span><span class="mi">24</span><span class="p">,</span> <span class="mi">8</span><span class="p">:</span><span class="mi">24</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="n">probes</span> <span class="o">=</span> <span class="n">shifted_probes</span><span class="p">(</span><span class="n">probe</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+
+<span class="n">count</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">products</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">count</span><span class="p">,</span> <span class="p">)</span> <span class="o">+</span> <span class="n">probe_shape</span><span class="p">)</span>
+<span class="n">shifts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+   <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+   <span class="p">(</span><span class="mf">3.25</span><span class="p">,</span> <span class="mf">7.5</span><span class="p">),</span>
+   <span class="p">(</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">127</span><span class="p">)</span>
+<span class="p">])</span>
+<span class="n">subpixel_indices</span> <span class="o">=</span> <span class="n">rolled_object_probe_product_cpu</span><span class="p">(</span>
+   <span class="n">obj</span><span class="p">,</span>
+   <span class="n">probes</span><span class="p">,</span>
+   <span class="n">shifts</span><span class="p">,</span>
+   <span class="n">products</span><span class="p">,</span>
+   <span class="n">ifftshift</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>This is equivalent to the following NumPy implementation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+    <span class="n">subpixel_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">%</span> <span class="mi">4</span>
+    <span class="n">subpixel_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">%</span> <span class="mi">4</span>
+    <span class="n">shift_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="n">shift_x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">ref</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span> <span class="c1"># Roll the object under the probe,</span>
+        <span class="n">obj</span><span class="p">,</span>
+        <span class="p">(</span><span class="o">-</span><span class="n">shift_y</span><span class="p">,</span> <span class="o">-</span><span class="n">shift_x</span><span class="p">),</span>
+        <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="p">)[</span>  <span class="c1"># slice out the probe region</span>
+        <span class="p">:</span><span class="n">probe_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span>
+        <span class="p">:</span><span class="n">probe_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="p">]</span> <span class="o">*</span> <span class="n">probes</span><span class="p">[</span><span class="n">subpixel_y</span><span class="p">,</span> <span class="n">subpixel_x</span><span class="p">]</span>  <span class="c1"># multiply with probe</span>
+
+    <span class="c1"># perform the inverse FFT shift</span>
+    <span class="n">ref</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifftshift</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">products</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">ref</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">subpixel_indices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="p">(</span><span class="n">subpixel_y</span><span class="p">,</span> <span class="n">subpixel_x</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Now the update function can be calculated:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ptychography40.reconstruction.common</span><span class="w"> </span><span class="kn">import</span> <span class="n">rolled_object_aggregation_cpu</span>
+
+<span class="n">acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+<span class="n">updates</span> <span class="o">=</span> <span class="n">calculate_update</span><span class="p">(</span><span class="n">products</span><span class="p">)</span>
+<span class="n">rolled_object_aggregation_cpu</span><span class="p">(</span>
+   <span class="n">acc</span><span class="p">,</span>
+   <span class="n">updates</span><span class="p">,</span>
+   <span class="n">shifts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span>
+   <span class="n">fftshift</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>This is equivalent to the following NumPy implementation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">acc_ref</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+<span class="n">int_shifts</span> <span class="o">=</span> <span class="n">shifts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+<span class="n">shifted_updates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftshift</span><span class="p">(</span><span class="n">updates</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+    <span class="c1"># Roll the accumulator under the probe position</span>
+    <span class="n">acc_ref</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">acc_ref</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="n">int_shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="n">int_shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="c1"># Add the update to the appropriate slice</span>
+    <span class="n">acc_ref</span><span class="p">[:</span><span class="n">probe_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">:</span><span class="n">probe_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">+=</span> <span class="n">shifted_updates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="c1"># Roll back to the original position</span>
+    <span class="n">acc_ref</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">acc_ref</span><span class="p">,</span> <span class="p">(</span><span class="n">int_shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">int_shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+<span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">acc_ref</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="install.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="algorithms/ssb.html" class="btn btn-neutral float-right" title="Single Side Band ptychography example" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

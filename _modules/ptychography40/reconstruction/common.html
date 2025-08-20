@@ -1,0 +1,888 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ptychography40.reconstruction.common &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=130a53a1"></script>
+      <script src="../../../_static/doctools.js?v=888ff710"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Ptychography 4.0
+              <img src="../../../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets.html">Public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/index.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../releasing.html">Releasing</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ptychography40.reconstruction.common</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ptychography40.reconstruction.common</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numba</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numba.cuda</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.constants</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">const</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.sparse</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.ndimage</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">libertem.corrections</span><span class="w"> </span><span class="kn">import</span> <span class="n">coordinates</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">libertem.common.numba</span><span class="w"> </span><span class="kn">import</span> <span class="n">rmatmul</span>
+
+
+<span class="c1"># Calculation of the relativistic electron wavelength in meters</span>
+<div class="viewcode-block" id="wavelength">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.wavelength">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">wavelength</span><span class="p">(</span><span class="n">U</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Calculate the electron wavelength</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    U : float</span>
+<span class="sd">        Acceleration voltage in kV</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    wavelength : float</span>
+<span class="sd">        Wavelength in m</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+
+<span class="sd">    &gt;&gt;&gt; wavelength(300)  # doctest: +ELLIPSIS</span>
+<span class="sd">    1.9687...e-12</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">e</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">elementary_charge</span>  <span class="c1"># Elementary charge  !!! 1.602176634×10−19</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">Planck</span>  <span class="c1"># Planck constant    !!! 6.62607004 × 10-34</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">speed_of_light</span>  <span class="c1"># Speed of light</span>
+    <span class="n">m_0</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">electron_mass</span>  <span class="c1"># Electron rest mass</span>
+
+    <span class="n">T</span> <span class="o">=</span> <span class="n">e</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">U</span><span class="p">)</span><span class="o">*</span><span class="mi">1000</span>
+    <span class="n">lambda_e</span> <span class="o">=</span> <span class="n">h</span><span class="o">*</span><span class="n">c</span><span class="o">/</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">T</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">T</span><span class="o">*</span><span class="n">m_0</span><span class="o">*</span><span class="p">(</span><span class="n">c</span><span class="o">**</span><span class="mi">2</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">lambda_e</span></div>
+
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">offset</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">):</span>
+    <span class="n">o1</span><span class="p">,</span> <span class="n">ss1</span> <span class="o">=</span> <span class="n">s1</span>
+    <span class="n">o2</span><span class="p">,</span> <span class="n">ss2</span> <span class="o">=</span> <span class="n">s2</span>
+    <span class="k">return</span> <span class="n">o2</span> <span class="o">-</span> <span class="n">o1</span>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">shift_by</span><span class="p">(</span><span class="n">sl</span><span class="p">,</span> <span class="n">shift</span><span class="p">):</span>
+    <span class="n">origin</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">sl</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">origin</span> <span class="o">+</span> <span class="n">shift</span><span class="p">,</span>
+        <span class="n">shape</span>
+    <span class="p">)</span>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">shift_to</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">origin</span><span class="p">):</span>
+    <span class="n">o1</span><span class="p">,</span> <span class="n">ss1</span> <span class="o">=</span> <span class="n">s1</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">origin</span><span class="p">,</span>
+        <span class="n">ss1</span>
+    <span class="p">)</span>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">intersection</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">):</span>
+    <span class="n">o1</span><span class="p">,</span> <span class="n">ss1</span> <span class="o">=</span> <span class="n">s1</span>
+    <span class="n">o2</span><span class="p">,</span> <span class="n">ss2</span> <span class="o">=</span> <span class="n">s2</span>
+    <span class="c1"># Adapted from libertem.common.slice</span>
+    <span class="n">new_origin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">o1</span><span class="p">,</span> <span class="n">o2</span><span class="p">)</span>
+    <span class="n">new_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">o1</span> <span class="o">+</span> <span class="n">ss1</span><span class="p">)</span> <span class="o">-</span> <span class="n">new_origin</span><span class="p">,</span>
+        <span class="p">(</span><span class="n">o2</span> <span class="o">+</span> <span class="n">ss2</span><span class="p">)</span> <span class="o">-</span> <span class="n">new_origin</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">new_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">new_shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">new_origin</span><span class="p">,</span> <span class="n">new_shape</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_shifted">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.get_shifted">[docs]</a>
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_shifted</span><span class="p">(</span><span class="n">arr_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">tile_origin</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">tile_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">shift</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Calculate the slices to cut out a shifted part of a 2D source</span>
+<span class="sd">    array and place it into a target array, including tiling support.</span>
+
+<span class="sd">    This works with negative and positive integer shifts.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1"># TODO this could be adapted for full sig, nav, n-D etc support</span>
+    <span class="c1"># and included as a method in Slice?</span>
+    <span class="n">full_slice</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span> <span class="n">arr_shape</span><span class="p">)</span>
+    <span class="n">tileslice</span> <span class="o">=</span> <span class="p">(</span><span class="n">tile_origin</span><span class="p">,</span> <span class="n">tile_shape</span><span class="p">)</span>
+    <span class="n">shifted</span> <span class="o">=</span> <span class="n">shift_by</span><span class="p">(</span><span class="n">tileslice</span><span class="p">,</span> <span class="n">shift</span><span class="p">)</span>
+    <span class="n">isect</span> <span class="o">=</span> <span class="n">intersection</span><span class="p">(</span><span class="n">full_slice</span><span class="p">,</span> <span class="n">shifted</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">isect</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]),</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="p">)</span>
+    <span class="c1"># We measure by how much we have clipped the zero point</span>
+    <span class="c1"># This is zero if we didn&#39;t shift into the negative region beyond the original array</span>
+    <span class="n">clip</span> <span class="o">=</span> <span class="n">offset</span><span class="p">(</span><span class="n">shifted</span><span class="p">,</span> <span class="n">isect</span><span class="p">)</span>
+    <span class="c1"># Now we move the intersection to (0, 0) plus the amount we clipped</span>
+    <span class="c1"># so that the overlap region is moved by the correct amount, in total</span>
+    <span class="n">targetslice</span> <span class="o">=</span> <span class="n">shift_by</span><span class="p">(</span><span class="n">shift_to</span><span class="p">(</span><span class="n">isect</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))),</span> <span class="n">clip</span><span class="p">)</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">targetslice</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="n">targetslice</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">target_tup</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">start</span><span class="o">+</span><span class="n">length</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">offsets</span> <span class="o">=</span> <span class="n">isect</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">targetslice</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">target_tup</span><span class="p">,</span> <span class="n">offsets</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">to_slices</span><span class="p">(</span><span class="n">target_tup</span><span class="p">,</span> <span class="n">offsets</span><span class="p">):</span>
+    <span class="n">target_slice</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">target_tup</span><span class="p">)</span>
+    <span class="n">source_slice</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">o</span><span class="p">,</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">o</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">target_tup</span><span class="p">,</span> <span class="n">offsets</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">target_slice</span><span class="p">,</span> <span class="n">source_slice</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">bounding_box</span><span class="p">(</span><span class="n">array</span><span class="p">):</span>
+    <span class="c1"># Based on https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array</span>
+    <span class="c1"># But return values that work as start:stop slices</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+        <span class="n">y_min</span><span class="p">,</span> <span class="n">y_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">rows</span><span class="p">)[</span><span class="mi">0</span><span class="p">][[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">x_min</span><span class="p">,</span> <span class="n">x_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">cols</span><span class="p">)[</span><span class="mi">0</span><span class="p">][[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(((</span><span class="n">y_min</span><span class="p">,</span> <span class="n">y_max</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="n">x_min</span><span class="p">,</span> <span class="n">x_max</span><span class="o">+</span><span class="mi">1</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)])</span>
+
+
+<div class="viewcode-block" id="diffraction_to_detector">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.diffraction_to_detector">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">diffraction_to_detector</span><span class="p">(</span>
+        <span class="n">lamb</span><span class="p">,</span> <span class="n">diffraction_shape</span><span class="p">,</span> <span class="n">pixel_size_real</span><span class="p">,</span> <span class="n">pixel_size_detector</span><span class="p">,</span>
+        <span class="n">cy</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">flip_y</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scan_rotation</span><span class="o">=</span><span class="mf">0.</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Generate a function that transforms pixel coordinates from diffraction of</span>
+<span class="sd">    real space to detector coordinates.</span>
+
+<span class="sd">    When performing a forward calculation where a wave front is passed through an object</span>
+<span class="sd">    function and projected in the far field, the projection is a Fourier transform.</span>
+<span class="sd">    Each pixel in the fourier-transformed slice of real space corresponds to a diffraction</span>
+<span class="sd">    angle in radian. This angle is a function of real space dimensions and wavelength.</span>
+
+<span class="sd">    For ptychography, this forward-projected beam is put in relation with detector data.</span>
+<span class="sd">    The projection and detector, however, are usually not calibrated in such a way that each</span>
+<span class="sd">    pixel corresponds exactly to one diffracted pixel/beam from the object and illumination</span>
+<span class="sd">    function. This function applies the correct scale, rotation and handedness to match</span>
+<span class="sd">    the forward-projected beam with the detector data, given the necessary input parameters.</span>
+
+<span class="sd">    cy, cx, flip_y and scan_rotation are chosen to correspond to the parameters in</span>
+<span class="sd">    :meth:libertem.api.Context.create_com_analysis`.</span>
+
+<span class="sd">    This function is designed to create a :code:`affine_transformation` parameter</span>
+<span class="sd">    for :meth:`image_transformation_matrix`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    lamb : float</span>
+<span class="sd">        Wavelength in m</span>
+<span class="sd">    diffraction_shape : Tuple[int, int]</span>
+<span class="sd">        Shape of the diffracted area</span>
+<span class="sd">    pixel_size_real : float or tuple or ndarray</span>
+<span class="sd">        Pixel size in m for the diffracted shape. Can be a Tuple[float, float] or array with</span>
+<span class="sd">        two values for y and x</span>
+<span class="sd">    pixel_size_detector : float or tuple or ndarray</span>
+<span class="sd">        Pixel size in radian of the detector. Can be a Tuple[float, float] or array with two values</span>
+<span class="sd">        for y and x. For free propagation into the far-field, this is the detector pixel size in</span>
+<span class="sd">        m divided by the camera length for small angles.</span>
+<span class="sd">    cy : float</span>
+<span class="sd">        Y position of the central beam on the detector in pixel.</span>
+<span class="sd">    cx : float</span>
+<span class="sd">        X position of the central beam on the detector in pixel.</span>
+<span class="sd">    flip_y : bool</span>
+<span class="sd">        Flip the y axis of the detector coordinates</span>
+<span class="sd">    scan_rotation : float</span>
+<span class="sd">        Scan rotation in degrees</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    transform : callable(coords : numpy.ndarray) -&gt; numpy.ndarray</span>
+<span class="sd">        A function that accepts pixel coordinates in diffracted space as an</span>
+<span class="sd">        array of shape (n, 2) with (y, x). Upper left</span>
+<span class="sd">        corner is (0, 0). It returns pixel coordinates on the detector as floats of shape (n, 2).</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1"># Make sure broadcasting works as expected</span>
+    <span class="n">diffraction_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">diffraction_shape</span><span class="p">)</span>
+    <span class="n">pixel_size_real</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pixel_size_real</span><span class="p">)</span>
+    <span class="n">pixel_size_detector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pixel_size_detector</span><span class="p">)</span>
+    <span class="c1"># Size of one pixel in radian of the diffracted shape.</span>
+    <span class="c1"># Twice the diffraction_shape and half the pixel_size_real, i.e. the same physical</span>
+    <span class="c1"># area at a finer pixel resolution, can capture higher diffraction orders and</span>
+    <span class="c1"># therefore the FFT extends twice as far.</span>
+    <span class="c1"># That means the pixel_size_diffracted should stay the same.</span>
+    <span class="c1"># Longer wavelength means higher diffraction angles to get the same relative</span>
+    <span class="c1"># path difference.</span>
+    <span class="n">pixel_size_diffracted</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="n">pixel_size_real</span><span class="o">/</span><span class="n">diffraction_shape</span><span class="o">*</span><span class="n">lamb</span>
+
+    <span class="n">transformation</span> <span class="o">=</span> <span class="n">coordinates</span><span class="o">.</span><span class="n">identity</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">flip_y</span><span class="p">:</span>
+        <span class="n">transformation</span> <span class="o">=</span> <span class="n">coordinates</span><span class="o">.</span><span class="n">flip_y</span><span class="p">()</span> <span class="o">@</span> <span class="n">transformation</span>
+
+    <span class="n">transformation</span> <span class="o">=</span> <span class="n">coordinates</span><span class="o">.</span><span class="n">rotate_deg</span><span class="p">(</span><span class="n">scan_rotation</span><span class="p">)</span> <span class="o">@</span> <span class="n">transformation</span>
+
+    <span class="n">transformation</span> <span class="o">*=</span> <span class="n">pixel_size_diffracted</span> <span class="o">/</span> <span class="n">pixel_size_detector</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="n">coords</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="c1"># Shift the coordinates relative to the center of the</span>
+        <span class="c1"># diffraction pattern</span>
+        <span class="n">relative_to_center</span> <span class="o">=</span> <span class="p">(</span><span class="n">coords</span> <span class="o">-</span> <span class="n">diffraction_shape</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">relative_to_center</span> <span class="o">@</span> <span class="n">transformation</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">cy</span><span class="p">,</span> <span class="n">cx</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">transform</span></div>
+
+
+
+<div class="viewcode-block" id="fftshift_coords">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.fftshift_coords">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fftshift_coords</span><span class="p">(</span><span class="n">reconstruct_shape</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Generate a function that performs an FFT shift of coordinates.</span>
+
+<span class="sd">    On the detector, the central beam is near the center, while for native FFT</span>
+<span class="sd">    the center is at the (0, 0) position of the result array. Instead of</span>
+<span class="sd">    fft-shifting the result of a projection calculation to match the detector directly,</span>
+<span class="sd">    one can instead calculate a transformation that picks from an unshifted FFT result</span>
+<span class="sd">    in such a way that it matches a diffraction pattern in its native layout. This allows</span>
+<span class="sd">    to combine the FFT shift with additional transformation steps. See also</span>
+<span class="sd">    :meth:`image_transformation_matrix`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    reconstruct_shape : Tuple[int, int]</span>
+<span class="sd">        Taget shape</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Callable(coords:  numpy.ndarray)</span>
+<span class="sd">        Function that accepts target coordinates with shape (n, 2), kind int</span>
+<span class="sd">        and calculates the source coordinates with shape (n, 2), kind int</span>
+<span class="sd">        so that taking from the source coordinates and placing into the target</span>
+<span class="sd">        coordinates performs an FFT shift.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">reconstruct_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">reconstruct_shape</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">fftshift</span><span class="p">(</span><span class="n">coords</span><span class="p">):</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">coords</span> <span class="o">+</span> <span class="p">(</span><span class="n">reconstruct_shape</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">reconstruct_shape</span>
+
+    <span class="k">return</span> <span class="n">fftshift</span></div>
+
+
+
+<div class="viewcode-block" id="ifftshift_coords">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.ifftshift_coords">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ifftshift_coords</span><span class="p">(</span><span class="n">reconstruct_shape</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Generate a function that performs an inverse FFT shift of coordinates.</span>
+
+<span class="sd">    On the detector, the central beam is near the center, while for native FFT</span>
+<span class="sd">    the center is at the (0, 0) position of the result array. Instead of</span>
+<span class="sd">    fft-shifting the result of a projection calculation to match the detector,</span>
+<span class="sd">    one can instead calculate a transformation that picks from the detector data</span>
+<span class="sd">    in such a way that an inverse FFT shift is performed. This allows to combine the</span>
+<span class="sd">    inverse FFT shift with additional transformations. See also</span>
+<span class="sd">    :meth:`image_transformation_matrix`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    reconstruct_shape : Tuple[int, int]</span>
+<span class="sd">        Taget shape</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Callable(coords:  numpy.ndarray)</span>
+<span class="sd">        Function that accepts target coordinates with shape (n, 2), kind int</span>
+<span class="sd">        and calculates the source coordinates with shape (n, 2), kind int</span>
+<span class="sd">        so that taking from the source coordinates and placing into the target</span>
+<span class="sd">        coordinates performs an inverse FFT shift.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">reconstruct_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">reconstruct_shape</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">ifftshift</span><span class="p">(</span><span class="n">coords</span><span class="p">):</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">coords</span> <span class="o">+</span> <span class="n">reconstruct_shape</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">reconstruct_shape</span>
+
+    <span class="k">return</span> <span class="n">ifftshift</span></div>
+
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_binning_elements</span><span class="p">(</span>
+        <span class="n">multi_target</span><span class="p">,</span> <span class="n">multi_y_steps</span><span class="p">,</span> <span class="n">multi_x_steps</span><span class="p">,</span> <span class="n">multi_upleft</span><span class="p">,</span>
+        <span class="n">multi_y_vectors</span><span class="p">,</span> <span class="n">multi_x_vectors</span><span class="p">):</span>
+    <span class="n">n_entries</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">multi_y_steps</span><span class="o">*</span><span class="n">multi_x_steps</span><span class="p">))</span>
+    <span class="n">source_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">n_entries</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">target_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">n_entries</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">multi_target</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">multi_y_steps</span><span class="p">[</span><span class="n">i</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">multi_x_steps</span><span class="p">[</span><span class="n">i</span><span class="p">]):</span>
+                <span class="n">source_coord</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">multi_upleft</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="o">+</span> <span class="n">y</span> <span class="o">/</span> <span class="n">multi_y_steps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">multi_y_vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="o">+</span> <span class="n">x</span> <span class="o">/</span> <span class="n">multi_x_steps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">multi_x_vectors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="n">source_array</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">source_coord</span>
+                <span class="n">target_array</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">multi_target</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">index</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">source_array</span><span class="p">,</span> <span class="n">target_array</span>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_weights</span><span class="p">(</span><span class="n">targets</span><span class="p">,</span> <span class="n">target_shape</span><span class="p">):</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">target_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">targets</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">:</span>
+        <span class="n">counts</span><span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">t</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">targets</span><span class="p">):</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="n">counts</span><span class="p">[</span><span class="n">t</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">t</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<div class="viewcode-block" id="image_transformation_matrix">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.image_transformation_matrix">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">image_transformation_matrix</span><span class="p">(</span>
+        <span class="n">source_shape</span><span class="p">,</span> <span class="n">target_shape</span><span class="p">,</span> <span class="n">affine_transformation</span><span class="p">,</span> <span class="n">pre_transform</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">post_transform</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Construct a sparse matrix that transforms a flattened source image stack to</span>
+<span class="sd">    a flattened target image stack.</span>
+
+<span class="sd">    A sparse matrix prodct can be a highly efficient method to apply a set of</span>
+<span class="sd">    transformations to an image in one pass. This function constructs a sparse</span>
+<span class="sd">    matrix that picks values from a source image to fill each pixel of the</span>
+<span class="sd">    target image by first applying :code:`pre_transform()` to the target image</span>
+<span class="sd">    indices to map them into a 2D vector space, then projecting the pixel</span>
+<span class="sd">    outline in this vector space using :code:`affine_transformation()` to</span>
+<span class="sd">    calculate the source pixel coordinates, and then using</span>
+<span class="sd">    :code:`post_transform()` to map the source coordinates to indices in the</span>
+<span class="sd">    source image. If the projected pixel is of size 1.5 or smaller in the source</span>
+<span class="sd">    coordinates, the closest integer is chosen. If it is larger, the average of</span>
+<span class="sd">    pixels within the projected pixel outline is chosen. This corresponds to</span>
+<span class="sd">    scaling with order=0 in :meth:`scipy.ndimage.zoom`.</span>
+
+<span class="sd">    :code:`pre_transform() and :code:`post_transform()` can also be used for</span>
+<span class="sd">    shifting the center of :code:`affine_transformation()`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    source_shape, target_shape : Tuple[int, int]</span>
+<span class="sd">        Shape of source and target image for bounds checking and index raveling</span>
+<span class="sd">    affine_transformation : callable(coords -&gt; coords)</span>
+<span class="sd">        Transformation that maps intermediate coordinates, i.e. the result of</span>
+<span class="sd">        applying :code:`pre_transform()`, to float source coordinates.</span>
+<span class="sd">        It should be continuous, strictly monotone and approximately affine for the size</span>
+<span class="sd">        of one pixel. :meth:`diffraction_to_detector` can be used to generate a suitable</span>
+<span class="sd">        coordinate transformation function.</span>
+<span class="sd">    pre_transform : callable(coords) -&gt; coords</span>
+<span class="sd">        Map target image indices to coordinates, typically euclidean. :code:`pre_transform()`</span>
+<span class="sd">        should not change the scale of the coordinates. It is designed to be something like</span>
+<span class="sd">        :meth:`ifftshift_coords` to un-scramble target coordinates so that coordinates that</span>
+<span class="sd">        are close in the source image are also close in the</span>
+<span class="sd">        un-scrambled intermediate coordinates generated by this function.</span>
+<span class="sd">        This is identity by default.</span>
+<span class="sd">    post_transform : callable(coords) -&gt; coords(int)</span>
+<span class="sd">        Map source image coordinates, typically euclidean, to source image indices.</span>
+<span class="sd">        :code:`post_transform()` should not change the scale of the coordinates. By default it</span>
+<span class="sd">        is :code:`np.round(...).astype(int)`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    scipy.sparse.csc_matrix</span>
+<span class="sd">        Shape np.prod(source_shape), np.prod(target_shape)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">source_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">source_shape</span><span class="p">)</span>
+    <span class="n">target_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">target_shape</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">pre_transform</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">pre_transform</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">x</span>
+    <span class="k">if</span> <span class="n">post_transform</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">post_transform</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="c1"># Array with all coordinates in the target image</span>
+    <span class="n">target_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">mgrid</span><span class="p">[:</span><span class="n">target_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">:</span><span class="n">target_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span>
+        <span class="n">axis</span><span class="o">=</span><span class="mi">2</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">target_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="c1"># Obtain coordinates in a proper euclidean space</span>
+    <span class="n">intermediate_coords</span> <span class="o">=</span> <span class="n">pre_transform</span><span class="p">(</span><span class="n">target_coords</span><span class="p">)</span>
+    <span class="c1"># Pixel corners</span>
+    <span class="n">upright</span> <span class="o">=</span> <span class="n">intermediate_coords</span> <span class="o">+</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">downleft</span> <span class="o">=</span> <span class="n">intermediate_coords</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># Transform to euclidean source coordinates</span>
+    <span class="n">source_upleft</span> <span class="o">=</span> <span class="n">affine_transformation</span><span class="p">(</span><span class="n">intermediate_coords</span><span class="p">)</span>
+    <span class="n">source_upright</span> <span class="o">=</span> <span class="n">affine_transformation</span><span class="p">(</span><span class="n">upright</span><span class="p">)</span>
+    <span class="n">source_downleft</span> <span class="o">=</span> <span class="n">affine_transformation</span><span class="p">(</span><span class="n">downleft</span><span class="p">)</span>
+    <span class="c1"># Calculate edge vectors and their lengths</span>
+    <span class="n">source_y_vectors</span> <span class="o">=</span> <span class="n">source_downleft</span> <span class="o">-</span> <span class="n">source_upleft</span>
+    <span class="n">source_y_vector_lengths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">source_y_vectors</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">source_x_vectors</span> <span class="o">=</span> <span class="n">source_upright</span> <span class="o">-</span> <span class="n">source_upleft</span>
+    <span class="n">source_x_vector_lengths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">source_x_vectors</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Determine which source pixels are so small that they only cover one pixel</span>
+    <span class="n">single_pixel</span> <span class="o">=</span> <span class="p">(</span><span class="n">source_y_vector_lengths</span> <span class="o">&lt;</span> <span class="mf">1.5</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">source_x_vector_lengths</span> <span class="o">&lt;</span> <span class="mf">1.5</span><span class="p">)</span>
+
+    <span class="c1"># Extract and calculate source indices for single pixels</span>
+    <span class="n">single_target</span> <span class="o">=</span> <span class="n">target_coords</span><span class="p">[</span><span class="n">single_pixel</span><span class="p">]</span>
+    <span class="n">single_centers</span> <span class="o">=</span> <span class="n">source_upleft</span><span class="p">[</span><span class="n">single_pixel</span><span class="p">]</span>
+    <span class="n">single_source</span> <span class="o">=</span> <span class="n">post_transform</span><span class="p">(</span><span class="n">single_centers</span><span class="p">)</span>
+
+    <span class="c1"># Crop source indices to the source image</span>
+    <span class="n">single_within_limits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">((</span><span class="n">single_source</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">single_source</span> <span class="o">&lt;</span> <span class="n">source_shape</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">all_target</span> <span class="o">=</span> <span class="n">single_target</span><span class="p">[</span><span class="n">single_within_limits</span><span class="p">]</span>
+    <span class="n">all_source</span> <span class="o">=</span> <span class="n">single_source</span><span class="p">[</span><span class="n">single_within_limits</span><span class="p">]</span>
+    <span class="c1"># They all have weight 1, being a single pixel</span>
+    <span class="n">all_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">all_source</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="c1"># Prepare for multi-pixel / binning entries</span>
+    <span class="n">multi_y_vectors</span> <span class="o">=</span> <span class="n">source_y_vectors</span><span class="p">[</span><span class="o">~</span><span class="n">single_pixel</span><span class="p">]</span>
+    <span class="n">multi_y_vector_lengths</span> <span class="o">=</span> <span class="n">source_y_vector_lengths</span><span class="p">[</span><span class="o">~</span><span class="n">single_pixel</span><span class="p">]</span>
+    <span class="n">multi_x_vectors</span> <span class="o">=</span> <span class="n">source_x_vectors</span><span class="p">[</span><span class="o">~</span><span class="n">single_pixel</span><span class="p">]</span>
+    <span class="n">multi_x_vector_lengths</span> <span class="o">=</span> <span class="n">source_x_vector_lengths</span><span class="p">[</span><span class="o">~</span><span class="n">single_pixel</span><span class="p">]</span>
+
+    <span class="c1"># Size of the bin for each target pixel</span>
+    <span class="n">multi_y_steps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">multi_y_vector_lengths</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">multi_x_steps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">multi_x_vector_lengths</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">single_pixel</span><span class="p">):</span>
+        <span class="c1"># Numba workhorse to calculate all source coordinates</span>
+        <span class="c1"># for the bins</span>
+        <span class="n">multi_intermediate_source</span><span class="p">,</span> <span class="n">multi_target</span> <span class="o">=</span> <span class="n">_binning_elements</span><span class="p">(</span>
+            <span class="n">multi_target</span><span class="o">=</span><span class="n">target_coords</span><span class="p">[</span><span class="o">~</span><span class="n">single_pixel</span><span class="p">],</span>
+            <span class="n">multi_y_steps</span><span class="o">=</span><span class="n">multi_y_steps</span><span class="p">,</span>
+            <span class="n">multi_x_steps</span><span class="o">=</span><span class="n">multi_x_steps</span><span class="p">,</span>
+            <span class="n">multi_upleft</span><span class="o">=</span><span class="n">source_upleft</span><span class="p">[</span><span class="o">~</span><span class="n">single_pixel</span><span class="p">],</span>
+            <span class="n">multi_y_vectors</span><span class="o">=</span><span class="n">multi_y_vectors</span><span class="p">,</span>
+            <span class="n">multi_x_vectors</span><span class="o">=</span><span class="n">multi_x_vectors</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Transform to source indices</span>
+        <span class="n">multi_source</span> <span class="o">=</span> <span class="n">post_transform</span><span class="p">(</span><span class="n">multi_intermediate_source</span><span class="p">)</span>
+
+        <span class="c1"># Crop to source image</span>
+        <span class="n">multi_within_limits</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">((</span><span class="n">multi_source</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">multi_source</span> <span class="o">&lt;</span> <span class="n">source_shape</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">multi_source</span> <span class="o">=</span> <span class="n">multi_source</span><span class="p">[</span><span class="n">multi_within_limits</span><span class="p">]</span>
+        <span class="n">multi_target</span> <span class="o">=</span> <span class="n">multi_target</span><span class="p">[</span><span class="n">multi_within_limits</span><span class="p">]</span>
+
+        <span class="c1"># Count how many entries per bin and use the inverse.</span>
+        <span class="c1"># They have to be counted individually since they might be cropped</span>
+        <span class="n">multi_data</span> <span class="o">=</span> <span class="n">_weights</span><span class="p">(</span><span class="n">multi_target</span><span class="p">,</span> <span class="n">target_shape</span><span class="p">)</span>
+
+        <span class="c1"># Extend the arrays with multi-pixel portion</span>
+        <span class="n">all_target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">all_target</span><span class="p">,</span> <span class="n">multi_target</span><span class="p">))</span>
+        <span class="n">all_source</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">all_source</span><span class="p">,</span> <span class="n">multi_source</span><span class="p">))</span>
+        <span class="n">all_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">all_data</span><span class="p">,</span> <span class="n">multi_data</span><span class="p">))</span>
+
+    <span class="c1"># Convert to flat indices for matrix product</span>
+    <span class="n">flat_target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span><span class="n">all_target</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">target_shape</span><span class="p">)</span>
+    <span class="n">flat_source</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span><span class="n">all_source</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">source_shape</span><span class="p">)</span>
+
+    <span class="c1"># Construct the matrix</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">csc_matrix</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">all_data</span><span class="p">,</span> <span class="p">(</span><span class="n">flat_source</span><span class="p">,</span> <span class="n">flat_target</span><span class="p">)),</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+        <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">source_shape</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">target_shape</span><span class="p">))</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="apply_matrix">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.apply_matrix">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_matrix</span><span class="p">(</span><span class="n">sources</span><span class="p">,</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">target_shape</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Apply a transformation matrix generated by :meth:`image_transformation_matrix` to</span>
+<span class="sd">    a stack of images.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    sources : array-like</span>
+<span class="sd">        Array of shape (n, sy, sx) where (sy, sx) is the :code:`source_shape` parameter</span>
+<span class="sd">        of :meth:`image_transformation_matrix`.</span>
+<span class="sd">    matrix : array-like</span>
+<span class="sd">        Matrix generated by :meth:`image_transformation_matrix` or equivalent</span>
+<span class="sd">    target_shape : Tuple[int, int]</span>
+<span class="sd">        :code:`source_shape` parameter of :meth:`image_transformation_matrix`.</span>
+<span class="sd">        The result will be reshaped to :code:`(n, ) + target_shape`</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">flat_sources</span> <span class="o">=</span> <span class="n">sources</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">sources</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="p">(</span><span class="n">scipy</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">csc_matrix</span><span class="p">,</span> <span class="n">scipy</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">)):</span>
+        <span class="n">flat_result</span> <span class="o">=</span> <span class="n">rmatmul</span><span class="p">(</span><span class="n">flat_sources</span><span class="p">,</span> <span class="n">matrix</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">flat_result</span> <span class="o">=</span> <span class="n">flat_sources</span> <span class="o">@</span> <span class="n">matrix</span>
+    <span class="k">return</span> <span class="n">flat_result</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">sources</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">target_shape</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="shifted_probes">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.shifted_probes">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">shifted_probes</span><span class="p">(</span><span class="n">probe</span><span class="p">,</span> <span class="n">bins</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Calculated subpixel-shifted versions of the probe</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    probe : numpy.ndarray</span>
+<span class="sd">    bins : int or Tuple[int, int]</span>
+<span class="sd">        Number of antialiasing steps in y and x axis. Can be int as well</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    probes : numpy.ndarray</span>
+<span class="sd">        4D, shape bins + probe.shape or (bins, bins) + probe.shape if bins is an int</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bins</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">bins</span> <span class="o">=</span> <span class="p">(</span><span class="n">bins</span><span class="p">,</span> <span class="n">bins</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bins</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">bins</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+    <span class="n">probes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">bins</span> <span class="o">+</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">probe</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bins</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">dy</span> <span class="o">=</span> <span class="n">y</span> <span class="o">/</span> <span class="n">bins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">dx</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="n">bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">real</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">ndimage</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span>
+                <span class="n">probe</span><span class="o">.</span><span class="n">real</span><span class="p">,</span>
+                <span class="n">shift</span><span class="o">=</span><span class="p">(</span><span class="n">dy</span><span class="p">,</span> <span class="n">dx</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">probes</span><span class="p">[</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="n">real</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">iscomplexobj</span><span class="p">(</span><span class="n">probe</span><span class="p">):</span>
+                <span class="n">imag</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">ndimage</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span>
+                    <span class="n">probe</span><span class="o">.</span><span class="n">imag</span><span class="p">,</span>
+                    <span class="n">shift</span><span class="o">=</span><span class="p">(</span><span class="n">dy</span><span class="p">,</span> <span class="n">dx</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="n">probes</span><span class="p">[</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span><span class="n">j</span><span class="o">*</span><span class="n">imag</span>
+    <span class="k">return</span> <span class="n">probes</span></div>
+
+
+
+<div class="viewcode-block" id="rolled_object_probe_product_cpu">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.rolled_object_probe_product_cpu">[docs]</a>
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">rolled_object_probe_product_cpu</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">probe</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">result_out</span><span class="p">,</span> <span class="n">ifftshift</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Multiply object and shifted illumination</span>
+
+<span class="sd">    This function combines several steps that are relevant for ptychographic reconstruction:</span>
+
+<span class="sd">    * Multiply an object function with a shifted illumination</span>
+<span class="sd">    * Roll the object function indices around the edges</span>
+<span class="sd">    * Optionally, perform an ifftshift to prepare the data for subsequent FFT</span>
+
+<span class="sd">    These steps are combined in a single loop since each requires significant memory</span>
+<span class="sd">    transfer if they are performed step-by-step. For performance reasons it doesn&#39;t perform a</span>
+<span class="sd">    free subpixel shift, but picks the best option from a set of pre-calculated shifted versions.</span>
+
+<span class="sd">    See :meth:`shifted_probes` for a function to calculate the shifted versions.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    obj : numpy.ndarray</span>
+<span class="sd">        2D array with the object</span>
+<span class="sd">    probe : numpy.ndarray</span>
+<span class="sd">        4D array with subpixel shifts of the probe, last two dimensions same size or</span>
+<span class="sd">        smaller than obj.</span>
+<span class="sd">    shifts : numpy.ndarray</span>
+<span class="sd">        Array with shift vectors, shape (n, 2), kind float</span>
+<span class="sd">    result_out : numpy.ndarray</span>
+<span class="sd">        Array where the result is placed. Shape (n, ) + probe.shape</span>
+<span class="sd">    ifftshift : bool</span>
+<span class="sd">        place the product ifft-shifted into :code:`result_out`</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    subpixel_indices : np.ndarray</span>
+<span class="sd">        The first two indices for :code:`probe`</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">obj_y</span><span class="p">,</span> <span class="n">obj_x</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">shifts</span><span class="p">)</span> <span class="o">==</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span> <span class="o">==</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span>
+    <span class="n">y_subpixels</span><span class="p">,</span> <span class="n">x_subpixels</span> <span class="o">=</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">int_shifts</span> <span class="o">=</span> <span class="n">shifts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">subpixel_indices</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">shifts</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="n">y_subpixels</span><span class="p">,</span> <span class="n">x_subpixels</span><span class="p">))</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span> <span class="o">%</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="n">y_subpixels</span><span class="p">,</span> <span class="n">x_subpixels</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">result_out</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">source_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">int_shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">%</span> <span class="n">obj_y</span>
+                <span class="n">source_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">int_shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">%</span> <span class="n">obj_x</span>
+                <span class="n">y_subpixel</span> <span class="o">=</span> <span class="n">subpixel_indices</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="n">x_subpixel</span> <span class="o">=</span> <span class="n">subpixel_indices</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">ifftshift</span><span class="p">:</span>  <span class="c1"># From source to target</span>
+                    <span class="n">target_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="p">(</span><span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+                    <span class="n">target_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="p">(</span><span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">target_y</span><span class="p">,</span> <span class="n">target_x</span> <span class="o">=</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span>
+                <span class="n">update</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="n">source_y</span><span class="p">,</span> <span class="n">source_x</span><span class="p">]</span> <span class="o">*</span> <span class="n">probe</span><span class="p">[</span><span class="n">y_subpixel</span><span class="p">,</span> <span class="n">x_subpixel</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">]</span>
+                <span class="n">result_out</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">target_y</span><span class="p">,</span> <span class="n">target_x</span><span class="p">]</span> <span class="o">=</span> <span class="n">update</span>
+    <span class="k">return</span> <span class="n">subpixel_indices</span></div>
+
+
+
+<div class="viewcode-block" id="rolled_object_aggregation_cpu">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.rolled_object_aggregation_cpu">[docs]</a>
+<span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span><span class="p">(</span><span class="n">fastmath</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">rolled_object_aggregation_cpu</span><span class="p">(</span><span class="n">obj_out</span><span class="p">,</span> <span class="n">updates</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">fftshift</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Aggregate shifted updates to an object function</span>
+
+<span class="sd">    This function accumulates updates that are shifted relative to the object function</span>
+<span class="sd">    using addition and rolls the indices within the object if necesssary.</span>
+<span class="sd">    Optionally, it can fftshift the updates while integrating. Doing this in one loop allows to</span>
+<span class="sd">    reduce the number of calls for each shift and reduces overall memory transfer.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    obj_out : numpy.ndarray</span>
+<span class="sd">        2D array with the object, modified in-place by this function</span>
+<span class="sd">    updates : numpy.ndarray</span>
+<span class="sd">        Array with updates, shape (n, ...)</span>
+<span class="sd">    shifts : numpy.ndarray</span>
+<span class="sd">        Array with shift vectors, shape (n, 2), kind int</span>
+<span class="sd">    fftshift : bool</span>
+<span class="sd">        Read the updates fft-shifted from :code:`updates`</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">obj_y</span><span class="p">,</span> <span class="n">obj_x</span> <span class="o">=</span> <span class="n">obj_out</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">shifts</span><span class="p">)</span> <span class="o">==</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+                <span class="n">target_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">%</span> <span class="n">obj_y</span>
+                <span class="n">target_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">%</span> <span class="n">obj_x</span>
+                <span class="k">if</span> <span class="n">fftshift</span><span class="p">:</span>  <span class="c1"># From target to source</span>
+                    <span class="n">source_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="p">(</span><span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">source_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="p">(</span><span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">source_y</span><span class="p">,</span> <span class="n">source_x</span> <span class="o">=</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span>
+                <span class="n">obj_out</span><span class="p">[</span><span class="n">target_y</span><span class="p">,</span> <span class="n">target_x</span><span class="p">]</span> <span class="o">+=</span> <span class="n">updates</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">source_y</span><span class="p">,</span> <span class="n">source_x</span><span class="p">]</span></div>
+
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">jit</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_rolled_object_probe_product_cuda</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">probe</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">result_out</span><span class="p">,</span> <span class="n">ifftshift</span><span class="p">):</span>
+    <span class="n">obj_y</span><span class="p">,</span> <span class="n">obj_x</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">y_subpixels</span><span class="p">,</span> <span class="n">x_subpixels</span> <span class="o">=</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="n">i</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+    <span class="n">source_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span> <span class="o">%</span> <span class="n">obj_y</span>
+    <span class="n">source_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]))</span> <span class="o">%</span> <span class="n">obj_x</span>
+
+    <span class="n">y_subpixel</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">y_subpixels</span><span class="p">)</span> <span class="o">%</span> <span class="n">y_subpixels</span>
+    <span class="n">x_subpixel</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">x_subpixels</span><span class="p">)</span> <span class="o">%</span> <span class="n">x_subpixels</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">ifftshift</span><span class="p">:</span>
+            <span class="n">target_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="p">(</span><span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">target_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="p">(</span><span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">target_y</span><span class="p">,</span> <span class="n">target_x</span> <span class="o">=</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="n">source_y</span><span class="p">,</span> <span class="n">source_x</span><span class="p">]</span> <span class="o">*</span> <span class="n">probe</span><span class="p">[</span><span class="n">y_subpixel</span><span class="p">,</span> <span class="n">x_subpixel</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">]</span>
+        <span class="n">result_out</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">target_y</span><span class="p">,</span> <span class="n">target_x</span><span class="p">]</span> <span class="o">=</span> <span class="n">update</span>
+
+
+<div class="viewcode-block" id="rolled_object_probe_product_cuda">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.rolled_object_probe_product_cuda">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">rolled_object_probe_product_cuda</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">probe</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">result_out</span><span class="p">,</span> <span class="n">ifftshift</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Numba CUDA version of :meth:`rolled_object_probe_product_cpu`</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">cupy</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">threadsperblock</span> <span class="o">=</span> <span class="mi">32</span>
+    <span class="n">blockspergrid</span> <span class="o">=</span> <span class="p">(</span><span class="n">count</span> <span class="o">+</span> <span class="p">(</span><span class="n">threadsperblock</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">//</span> <span class="n">threadsperblock</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">shifts</span><span class="p">)</span> <span class="o">==</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span> <span class="o">==</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span>
+    <span class="n">y_subpixels</span><span class="p">,</span> <span class="n">x_subpixels</span> <span class="o">=</span> <span class="n">probe</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">subpixel_indices</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">shifts</span> <span class="o">*</span> <span class="n">cupy</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="n">y_subpixels</span><span class="p">,</span> <span class="n">x_subpixels</span><span class="p">))</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span> <span class="o">%</span> <span class="n">cupy</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="n">y_subpixels</span><span class="p">,</span> <span class="n">x_subpixels</span><span class="p">))</span>
+    <span class="n">_rolled_object_probe_product_cuda</span><span class="p">[</span>
+        <span class="p">(</span><span class="n">blockspergrid</span><span class="p">,</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">result_out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="p">](</span><span class="n">obj</span><span class="p">,</span> <span class="n">probe</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">result_out</span><span class="p">,</span> <span class="n">ifftshift</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">subpixel_indices</span></div>
+
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_complex_complex</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="n">numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">atomic</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">imag</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">imag</span>
+        <span class="p">)</span>
+    <span class="n">numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">atomic</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">real</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">real</span>
+    <span class="p">)</span>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_real_real</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="n">numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">atomic</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">b</span>
+    <span class="p">)</span>
+
+
+<span class="nd">@numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_complex_real</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="n">numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">atomic</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">real</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">b</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_make_rolled_object_aggregation_cuda</span><span class="p">(</span><span class="n">add</span><span class="p">):</span>
+    <span class="nd">@numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">jit</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_rolled_object_aggregation_cuda</span><span class="p">(</span><span class="n">obj_out</span><span class="p">,</span> <span class="n">updates</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">fftshift</span><span class="p">):</span>
+        <span class="n">obj_y</span><span class="p">,</span> <span class="n">obj_x</span> <span class="o">=</span> <span class="n">obj_out</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">i</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">numba</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+            <span class="n">target_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span> <span class="o">%</span> <span class="n">obj_y</span>
+            <span class="n">target_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">shifts</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">%</span> <span class="n">obj_x</span>
+            <span class="k">if</span> <span class="n">fftshift</span><span class="p">:</span>  <span class="c1"># From target to source</span>
+                <span class="n">source_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="p">(</span><span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">source_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="p">(</span><span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">source_y</span><span class="p">,</span> <span class="n">source_x</span> <span class="o">=</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span>
+            <span class="n">add</span><span class="p">(</span><span class="n">obj_out</span><span class="p">,</span> <span class="p">(</span><span class="n">target_y</span><span class="p">,</span> <span class="n">target_x</span><span class="p">),</span> <span class="n">updates</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">source_y</span><span class="p">,</span> <span class="n">source_x</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">_rolled_object_aggregation_cuda</span>
+
+
+<span class="n">_roac_complex_complex</span> <span class="o">=</span> <span class="n">_make_rolled_object_aggregation_cuda</span><span class="p">(</span><span class="n">add_complex_complex</span><span class="p">)</span>
+<span class="n">_roac_complex_real</span> <span class="o">=</span> <span class="n">_make_rolled_object_aggregation_cuda</span><span class="p">(</span><span class="n">add_complex_real</span><span class="p">)</span>
+<span class="n">_roac_real_real</span> <span class="o">=</span> <span class="n">_make_rolled_object_aggregation_cuda</span><span class="p">(</span><span class="n">add_real_real</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="rolled_object_aggregation_cuda">
+<a class="viewcode-back" href="../../../reference/common.html#ptychography40.reconstruction.common.rolled_object_aggregation_cuda">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">rolled_object_aggregation_cuda</span><span class="p">(</span><span class="n">obj_out</span><span class="p">,</span> <span class="n">updates</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">fftshift</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Numba CUDA version of :meth:`rolled_object_aggregation_cpu`</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">threadsperblock</span> <span class="o">=</span> <span class="mi">32</span>
+    <span class="n">blockspergrid</span> <span class="o">=</span> <span class="p">(</span><span class="n">count</span> <span class="o">+</span> <span class="p">(</span><span class="n">threadsperblock</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">//</span> <span class="n">threadsperblock</span>
+
+    <span class="k">if</span> <span class="n">obj_out</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">updates</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">_roac_complex_complex</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">_roac_complex_real</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">_roac_real_real</span>
+    <span class="n">f</span><span class="p">[</span>
+        <span class="p">(</span><span class="n">blockspergrid</span><span class="p">,</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">updates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="p">](</span><span class="n">obj_out</span><span class="p">,</span> <span class="n">updates</span><span class="p">,</span> <span class="n">shifts</span><span class="p">,</span> <span class="n">fftshift</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,348 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contributing &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=130a53a1"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Releasing" href="releasing.html" />
+    <link rel="prev" title="[Feature] Tools for iterative reconstruction" href="changelog/features/iterative.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Ptychography 4.0
+              <img src="_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/index.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#development-principles">Development principles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#code-contributions">Code contributions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-the-tests">Running the tests</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#code-coverage">Code coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#on-windows">On Windows</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#code-style">Code style</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#docstrings">Docstrings</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#building-the-documentation">Building the documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced">Advanced</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="releasing.html">Releasing</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="releasing.html">Releasing</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Contributing</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/contributing.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="contributing">
+<span id="id1"></span><h1>Contributing<a class="headerlink" href="#contributing" title="Link to this heading"></a></h1>
+<p>Ptychography 4.0 is intended and designed as a collaboratively developed platform for
+data analysis. That means all our development is coordinated openly, mostly on
+our <a class="reference external" href="https://github.com/Ptychography-4-0/ptychography/">GitHub repository</a> where our code
+is hosted. Any suggestions, Issues, bug reports, discussions and code
+contributions are highly appreciated! Please let us know if you think we can
+improve on something, be it code, communication or other aspects.</p>
+<section id="development-principles">
+<h2>Development principles<a class="headerlink" href="#development-principles" title="Link to this heading"></a></h2>
+<p>We have a <a class="reference external" href="https://github.com/Ptychography-4-0/ptychography/issues">rather extensive and growing list of things to work on</a> and therefore have to prioritize
+our limited resources to work on items with the largest benefit for our user
+base and project. Supporting users who contribute code is most important to us.
+Please contact us for help! Furthermore, we prioritize features that create
+direct benefits for many current users or open significant new applications.
+Generally, we follow user demand with our developments.</p>
+<p>For design of new features we roughly follow the <a class="reference external" href="https://en.wikipedia.org/wiki/Lead_user">lead user method</a>, which means that we develop new
+features closely along a non-trivial real-world application in order to make
+sure the developments are appropriate and easy to use in practice.</p>
+<p>Furthermore we value a systematic approach to development with requirements
+analysis and evaluation of design options as well as iterative design with fast
+test and review cycles.</p>
+</section>
+<section id="code-contributions">
+<h2>Code contributions<a class="headerlink" href="#code-contributions" title="Link to this heading"></a></h2>
+<p>We are using <a class="reference external" href="https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests">pull requests</a>
+to accept contributions. Each pull request should focus on a single issue, to
+keep the number of changes small and reviewable. To keep your changes organized
+and to prevent unrelated changes from disturbing your pull request, create a new
+branch for each pull request.</p>
+<p>All pull requests should come from a user’s personal fork since we don’t push to
+the main repository for development. See the <a class="reference external" href="https://docs.github.com/en/github/getting-started-with-github/quickstart/fork-a-repo">GitHub documentation on how to
+create and manage forks</a>
+for details.</p>
+<p>Before creating a pull request, please make sure all tests still pass. See
+<a class="reference internal" href="#running-the-tests">Running the Tests</a> for more information. You should also update the test suite
+and add test cases for your contribution. See the section <a class="reference internal" href="#code-coverage">Code coverage</a> below
+on how to check if your new code is covered by tests.</p>
+<p>To make sure our code base stays readable, we follow a <a class="reference internal" href="#code-style">Code Style</a>.</p>
+<p>Please update <code class="docutils literal notranslate"><span class="pre">packaging/creators.json</span></code> with your author information when you
+contribute to Ptychography 4.0 for the first time. This helps us to keep track of all
+contributors and give credit where credit is due! Please let us know if you
+wouldn’t like to be credited.</p>
+<p>If you are changing parts of Ptychography 4.0 that are currently not covered by tests,
+please consider writing new tests! When changing example code, which is not run
+as part of the tests, make sure the example still runs.</p>
+<p>When adding or changing a feature, you should also update the corresponding
+documentation, or add a new section for your feature. Follow the current
+documentation structure, or ask the maintainers where your new documentation
+should end up. When introducing a feature, it is okay to start with a draft
+documentation in the first PR, if it will be completed later. Changes of APIs
+should update the corresponding docstrings.</p>
+<p>Please include version information if you add or change a feature in order to
+track and document changes. We use a rolling documentation that documents
+previous behavior as well, for example <em>This feature was added in Version
+0.3.0.dev0</em> or <em>This describes the behavior from Version 0.3.0.dev0 and onwards.
+The previous behavior was this and that</em>. If applicable, use
+<a class="reference external" href="https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-versionadded">versionadded</a>
+and related directives.</p>
+<p>The changelog for the development branch is maintained as a collection of files
+in the <code class="code docutils literal notranslate"><span class="pre">docs/source/changelog/*/</span></code> folder structure. Each change should get
+a separate file to avoid merge conflicts. The files are merged into the
+master changelog when creating a release.</p>
+<p>The following items might require an
+update upon introducing or changing a feature:</p>
+<ul class="simple">
+<li><p>Changelog snippet in <code class="code docutils literal notranslate"><span class="pre">docs/source/changelog/*/</span></code></p></li>
+<li><p>Docstrings</p></li>
+<li><p>Examples</p></li>
+<li><p>Main Documentation</p></li>
+</ul>
+<p>When you have submitted your pull request, someone from the Ptychography 4.0
+organization will review your pull request, and may add comments or ask
+questions. If everything is good to go, your changes will be merged and you can
+delete the branch you created for the pull request.</p>
+<p>See also the <a class="reference external" href="https://guides.github.com/introduction/flow/">Guide on understanding the GitHub flow</a>.</p>
+</section>
+<section id="running-the-tests">
+<span id="running-tests"></span><h2>Running the tests<a class="headerlink" href="#running-the-tests" title="Link to this heading"></a></h2>
+<p>Our tests are written using pytest. For running them in a repeatable manner, we
+are using tox. Tox automatically manages virtualenvs and allows testing on
+different Python versions and interpreter implementations.</p>
+<p>This makes sure that you can run the tests locally the same way as they are run
+in continuous integration.</p>
+<p>After <a class="reference external" href="https://tox.readthedocs.io/en/latest/install.html">installing tox</a>, you
+can run the tests on all Python versions by simply running tox:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>tox
+</pre></div>
+</div>
+<p>Or specify a specific environment you want to run:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>tox<span class="w"> </span>-e<span class="w"> </span>py36
+</pre></div>
+</div>
+<p>For faster iteration, you can also run only a part of the test suite, without using tox.
+To make this work, first install the test requirements into your virtualenv:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>test_requirements.txt
+</pre></div>
+</div>
+<p>Now you can run pytest on a subset of tests, for example:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>ptychography<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>pytest<span class="w"> </span>tests/reconstruction/test_ssb.py
+</pre></div>
+</div>
+<p>See the <a class="reference external" href="https://docs.pytest.org/en/latest/usage.html#specifying-tests-selecting-tests">pytest documentation</a>
+for details on how to select which tests to run. Before submitting a pull
+request, you should always run the whole test suite.</p>
+<p>Some tests are marked with <a class="reference external" href="https://docs.pytest.org/en/latest/example/markers.html">custom markers</a>, for example we have
+some tests that take many seconds to complete. To select tests to run by these
+marks, you can use the <cite>-m</cite> switch. For example, to only run the slow tests:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>tox<span class="w"> </span>--<span class="w"> </span>-m<span class="w"> </span>slow
+</pre></div>
+</div>
+<p>By default, these slow tests are not run. If you want to run both slow and all
+other tests, you can use a boolean expression like this:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>tox<span class="w"> </span>--<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;slow or not slow&quot;</span>
+</pre></div>
+</div>
+<p>Another example, to exclude both slow and functional tests:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>tox<span class="w"> </span>--<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;not functional and not slow&quot;</span>
+</pre></div>
+</div>
+<p>In these examples, <code class="docutils literal notranslate"><span class="pre">--</span></code> separates the the arguments of tox (left of <code class="docutils literal notranslate"><span class="pre">--</span></code>) from the arguments for pytest on the right.
+List of marks used in our test suite:</p>
+<ul class="simple">
+<li><p><cite>slow</cite>: tests that take much more than 1 second to run</p></li>
+<li><p><cite>functional</cite>: tests that spin up a local dask cluster</p></li>
+</ul>
+<section id="code-coverage">
+<h3>Code coverage<a class="headerlink" href="#code-coverage" title="Link to this heading"></a></h3>
+<p>After running the tests, you can inspect the test coverage by opening <cite>htmlcov/index.html</cite> in a web browser. When
+creating a pull request, the change in coverage is also reported by the codecov bot. Ideally, the test coverage
+should go up with each pull request, at least it should stay the same.</p>
+</section>
+<section id="on-windows">
+<h3>On Windows<a class="headerlink" href="#on-windows" title="Link to this heading"></a></h3>
+<p>On Windows with Anaconda, you have to create named aliases for the Python
+interpreter before you can run <code class="docutils literal notranslate"><span class="pre">tox</span></code> so that tox finds the python
+interpreter where it is expected. Assuming that you run Ptychography 4.0 with Python
+3.6, place the following file as <code class="docutils literal notranslate"><span class="pre">python3.6.bat</span></code> in your ptychography conda
+environment base folder, typically
+<code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%\conda\conda\envs\ptychography\</span></code>, where the
+<code class="docutils literal notranslate"><span class="pre">python.exe</span></code> of that environment is located.</p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span><span class="p">@</span><span class="k">echo</span> off
+<span class="c1">REM @echo off is vital so that the file doesn&#39;t clutter the output</span>
+<span class="c1">REM execute python.exe with the same command line</span>
+<span class="p">@</span>python.exe <span class="nv">%*</span>
+</pre></div>
+</div>
+<p>To execute tests with Python 3.7, you create a new environment with Python 3.7:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>&gt;<span class="w"> </span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>ptychography-3.7<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.7
+</pre></div>
+</div>
+<p>Now you can create <code class="docutils literal notranslate"><span class="pre">python3.7.bat</span></code> in your normal ptychography environment
+alongside <code class="docutils literal notranslate"><span class="pre">python3.6.bat</span></code> and make it execute the Python interpreter of
+your new ptychography-3.7 environment:</p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span><span class="p">@</span><span class="k">echo</span> off
+<span class="c1">REM @echo off is vital so that the file doesn&#39;t clutter the output</span>
+<span class="c1">REM execute python.exe in a different environment</span>
+<span class="c1">REM with the same command line</span>
+<span class="p">@</span><span class="nv">%LOCALAPPDATA%</span>\conda\conda\envs\ptychography-3.7\python.exe <span class="nv">%*</span>
+</pre></div>
+</div>
+<p>See also: <a class="reference external" href="https://tox.readthedocs.io/en/latest/developers.html#multiple-python-versions-on-windows">https://tox.readthedocs.io/en/latest/developers.html#multiple-python-versions-on-windows</a></p>
+</section>
+</section>
+<section id="code-style">
+<h2>Code style<a class="headerlink" href="#code-style" title="Link to this heading"></a></h2>
+<p>We try to keep our code <a class="reference external" href="https://www.python.org/dev/peps/pep-0008/">PEP8</a> -compliant, with
+line-length relaxed to 100 chars, and some rules ignored. See the flake8 section in setup.cfg
+for the current PEP8 settings. As a general rule, try to keep your changes in a similar style
+as the surrounding code.</p>
+<p>You can check the code style by running:</p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span>$ tox -e flake8
+</pre></div>
+</div>
+<p>We recommend using an editor that can check code style on the fly, such as
+<a class="reference external" href="https://code.visualstudio.com/docs/python/linting">Visual Studio Code</a>.</p>
+<section id="docstrings">
+<h3>Docstrings<a class="headerlink" href="#docstrings" title="Link to this heading"></a></h3>
+<p>The <a class="reference external" href="https://numpydoc.readthedocs.io/en/latest/format.html#docstring-standard">NumPy docstring guide</a> is
+our guideline for formatting docstrings. We are testing docstring code examples
+in Continuous Integration using <a class="reference external" href="https://docs.python.org/3/library/doctest.html">doctest</a>. You can test files by hand
+by running <code class="code docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">--doctest-modules</span> <span class="pre">&lt;pathspec&gt;</span></code>.</p>
+</section>
+</section>
+<section id="building-the-documentation">
+<h2>Building the documentation<a class="headerlink" href="#building-the-documentation" title="Link to this heading"></a></h2>
+<p>Documentation building is also done with tox, see above for the basics. It
+requires manual <a class="reference external" href="https://pandoc.org/installing.html">installation of pandoc</a>
+on the build system since pandoc can’t be installed reliably using pip. To start
+the live building process:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>tox<span class="w"> </span>-e<span class="w"> </span>docs
+</pre></div>
+</div>
+<p>You can then view a live-built version at <a class="reference external" href="http://localhost:8009">http://localhost:8009</a></p>
+<p>You can include code samples with the <a class="reference external" href="https://www.sphinx-doc.org/en/master/usage/extensions/doctest.html">doctest sphinx extension</a> and test
+them with</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>tox<span class="w"> </span>-e<span class="w"> </span>docs-check
+</pre></div>
+</div>
+</section>
+<section id="advanced">
+<span id="building-the-client"></span><h2>Advanced<a class="headerlink" href="#advanced" title="Link to this heading"></a></h2>
+<p>See more:</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="releasing.html">Releasing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="releasing.html#release-checklist">Release checklist</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="changelog/features/iterative.html" class="btn btn-neutral float-left" title="[Feature] Tools for iterative reconstruction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="releasing.html" class="btn btn-neutral float-right" title="Releasing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,240 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ptychography 4.0 Software &mdash; Ptychography 4.0 0.2.0.dev0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=130a53a1"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installation" href="install.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            Ptychography 4.0
+              <img src="_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="algorithms.html">Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Public datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/index.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acknowledgments.html">Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="releasing.html">Releasing</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">Ptychography 4.0</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Ptychography 4.0 Software</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ptychography-4-0-software">
+<h1>Ptychography 4.0 Software<a class="headerlink" href="#ptychography-4-0-software" title="Link to this heading"></a></h1>
+<p><a class="reference external" href="https://github.com/Ptychography-4-0/ptychography/"><img alt="github" src="https://img.shields.io/badge/GitHub-GPL--3.0-informational" /></a> <a class="reference external" href="https://doi.org/10.5281/zenodo.5055126"><img alt="zenodo" src="https://zenodo.org/badge/DOI/10.5281/zenodo.5055126.svg" /></a> <a class="reference external" href="https://dev.azure.com/ptycho40/ptycho40/_build/latest?definitionId=1&amp;branchName=master"><img alt="azure" src="https://dev.azure.com/ptycho40/ptycho40/_apis/build/status/Ptychography-4-0.ptychography?branchName=master" /></a> <a class="reference external" href="https://results.pre-commit.ci/latest/github/Ptychography-4-0/ptychography/master"><img alt="precommit" src="https://results.pre-commit.ci/badge/github/Ptychography-4-0/ptychography/master.svg" /></a></p>
+<p>This repository collects implementations for ptychography that result from the work of the
+<a class="reference external" href="https://ptychography.helmholtz-muenchen.de/">Ptychography 4.0 project</a>.</p>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>The short version:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>virtualenv<span class="w"> </span>-p<span class="w"> </span>python3.9<span class="w"> </span>~/ptychography-venv/
+$<span class="w"> </span><span class="nb">source</span><span class="w"> </span>~/ptychography-venv/bin/activate
+<span class="o">(</span>ptychography-venv<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>ptychography40
+</pre></div>
+</div>
+<p>Please see <a class="reference external" href="https://ptychography-4-0.github.io/ptychography/">our documentation</a> for details!</p>
+</section>
+<section id="applications">
+<h2>Applications<a class="headerlink" href="#applications" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Scalable, parallel implementation of the Single Side Band method that is suitable for live data processing.</p></li>
+</ul>
+<p>Please see <a class="reference external" href="https://ptychography-4-0.github.io/ptychography/algorithms.html">the algorithms section</a> of our documentation
+for details!</p>
+<p>Ptychography 4.0 is evolving rapidly and prioritizes features following user
+demand and contributions. In the future we’d like to implement more ptychography
+methods. If you like to influence the direction this project is taking, or if
+you’d like to <a class="reference external" href="https://ptychography-4-0.github.io/ptychography/contributing.html">contribute</a>, please
+contact us in the <a class="reference external" href="https://github.com/Ptychography-4-0/ptychography/issues">GitHub Issue tracker</a>.</p>
+</section>
+<section id="license">
+<h2>License<a class="headerlink" href="#license" title="Link to this heading"></a></h2>
+<p>Ptychography 4.0 is licensed under GPLv3.</p>
+</section>
+</section>
+<section id="documentation">
+<h1>Documentation<a class="headerlink" href="#documentation" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="install.html#the-short-version">The short version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#linux-and-mac-os-x">Linux and Mac OS X</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#cupy">CuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#windows">Windows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#jupyter">Jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#jupyterhub">JupyterHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="algorithms.html">Algorithms</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="algorithms.html#single-side-band">Single side band</a></li>
+<li class="toctree-l2"><a class="reference internal" href="algorithms.html#tools-for-iterative-algorithms">Tools for iterative algorithms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Public datasets</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="datasets.html#d-stem">4D STEM</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reference/index.html">Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reference/ssb.html">Single Side Band</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/stitching.html">Stitching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/common.html">Common</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/index.html#indices-and-tables">Indices and tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#dev0-continuous">0.2.0.dev0 (continuous)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#v0-1-0">0.1.0 (2021-07-01)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#development-principles">Development principles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#code-contributions">Code contributions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#running-the-tests">Running the tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#code-style">Code style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#building-the-documentation">Building the documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#advanced">Advanced</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="citing.html">Citing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acknowledgments.html">Acknowledgments</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="acknowledgments.html#creators">Creators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="acknowledgments.html#contributions">Contributions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="acknowledgments.html#notable-upstream-projects">Notable upstream projects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="acknowledgments.html#funding">Funding</a></li>
+<li class="toctree-l2"><a class="reference internal" href="acknowledgments.html#ptychography-4-0-partner-institutions">Ptychography 4.0 partner institutions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="releasing.html">Releasing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="releasing.html#release-checklist">Release checklist</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<section id="indices-and-tables">
+<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+<section id="citations">
+<h2>Citations<a class="headerlink" href="#citations" title="Link to this heading"></a></h2>
+<div class="docutils container" id="id1">
+<div role="list" class="citation-list">
+<div class="citation" id="id14" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>PLY+15<span class="fn-bracket">]</span></span>
+<p>Timothy J. Pennycook, Andrew R. Lupini, Hao Yang, Matthew F. Murfitt, Lewys Jones, and Peter D. Nellist. Efficient phase contrast imaging in STEM using a pixelated detector. part 1: experimental demonstration at atomic resolution. <em>Ultramicroscopy</em>, 151:160–167, apr 2015. <a class="reference external" href="https://doi.org/10.1016/j.ultramic.2014.09.013">doi:10.1016/j.ultramic.2014.09.013</a>.</p>
+</div>
+<div class="citation" id="id22" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>SCWMC21<span class="fn-bracket">]</span></span>
+<p>Achim Strauch, Alexander Clausen, Dieter Weber, and Knut Müller-Caspary. High-resolution 4D STEM dataset of SrTiO3 along the [1 0 0] axis at high magnification. July 2021. Achim Strauch and Knut Müller-Caspary were supported by funding from the Initiative and Network Fund of the Helmholtz Association (Germany) under contract VH-NG-1317 (moreSTEM project). Knut Müller-Caspary acknowledges support from Helmholtz within the project &quot;Ptychography 4.0&quot; under contract ZT-I-0025. <a class="reference external" href="https://doi.org/10.5281/zenodo.5113449">doi:10.5281/zenodo.5113449</a>.</p>
+</div>
+<div class="citation" id="id23" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>SWC+21<span class="fn-bracket">]</span></span>
+<p>Achim Strauch, Dieter Weber, Alexander Clausen, Anastasiia Lesnichaia, Arya Bangun, Benjamin März, Feng Jiao Lyu, Qing Chen, Andreas Rosenauer, Rafal Dunin-Borkowski, and Knut Müller-Caspary. Live processing of momentum-resolved STEM data for first moment imaging and ptychography. <em>Microscopy and Microanalysis</em>, pages 1–15, aug 2021. <a class="reference external" href="https://doi.org/10.1017/s1431927621012423">doi:10.1017/s1431927621012423</a>.</p>
+</div>
+<div class="citation" id="id21" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>SWCMC21<span class="fn-bracket">]</span></span>
+<p>Achim Strauch, Dieter Weber, Alexander Clausen, and Knut Müller-Caspary. Synthetic 4D STEM dataset based on a SrTiO3 supercell with two additional artificial spatial frequencies. July 2021. Achim Strauch and Knut Müller-Caspary were supported by funding from the Initiative and Network Fund of the Helmholtz Association (Germany) under contract VH-NG-1317 (moreSTEM project). Knut Müller-Caspary acknowledges support from Helmholtz within the project &quot;Ptychography 4.0&quot; under contract ZT-I-0025. <a class="reference external" href="https://doi.org/10.5281/zenodo.5113235">doi:10.5281/zenodo.5113235</a>.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="install.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019-2020, Ptychography 4.0 Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
