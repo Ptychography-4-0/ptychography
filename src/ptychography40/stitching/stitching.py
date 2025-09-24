@@ -57,9 +57,19 @@ def stitch(objects, wtype='weighted', threshold=1e-12):
     threshold : float, optional
         Minimum absolute value to be considered in finding the phase match for stitching.
 '''
+    objects = np.asarray(objects)
     d1 = objects.shape[0]
     d2 = objects.shape[1]
     R = objects.shape[2]
+
+    # Otherwise eigsh is unhappy
+    if R <= 2:
+        # Not sure how broadcasting works here, but try to be equivalent
+        new_shape = objects.shape[:2] + (3, ) + objects.shape[3:]
+        new_objects = np.zeros_like(objects, shape=new_shape)
+        new_objects[:, :, :R] = objects
+        R = 3
+        objects = new_objects
 
     ph_diff = np.zeros((R, R), dtype=complex)
 
@@ -77,19 +87,16 @@ def stitch(objects, wtype='weighted', threshold=1e-12):
     ph_diff[idx] = ph_diff[idx]/np.abs(ph_diff[idx])
     degree = np.sum(weights, axis=1)
     laplacian = np.diag(degree) - ph_diff * weights
-    sig, v = eigsh(laplacian, 1, which='SM')
-    idx = np.abs(v) > threshold
-    phases = v
+    sig, phases = eigsh(laplacian, 1, which='SM')
+    idx = np.abs(phases) > threshold
     phases[idx] = phases[idx]/np.abs(phases[idx])
     phases[~idx] = 1
-
-    v *= v[0].conj()
-
+    phases *= phases[0].conj()
     result = np.zeros((d1, d2), dtype=complex)
     count = np.zeros((d1, d2))
     for r in range(R):
         result[:, :] += phases[r].conj() * objects[:, :, r]
         count[:, :] += np.abs(objects[:, :, r]) > threshold
 
-    result /= count
+    np.divide(result, count, where=(count != 0), out=result)
     return result
